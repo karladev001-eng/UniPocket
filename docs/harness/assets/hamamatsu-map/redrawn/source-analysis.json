@@ -1,0 +1,5454 @@
+{
+  "sources": [
+    "indoor-source.pdf"
+  ],
+  "floors": [
+    {
+      "buildingID": "101",
+      "floor": null,
+      "sourcePage": 6,
+      "imageSize": [
+        1555,
+        2200
+      ],
+      "bbox": [
+        750,
+        550,
+        193,
+        500
+      ],
+      "boundaryPolygon": [
+        [
+          750,
+          590
+        ],
+        [
+          813,
+          590
+        ],
+        [
+          813,
+          550
+        ],
+        [
+          943,
+          550
+        ],
+        [
+          943,
+          590
+        ],
+        [
+          913,
+          590
+        ],
+        [
+          913,
+          726
+        ],
+        [
+          893,
+          726
+        ],
+        [
+          893,
+          789
+        ],
+        [
+          913,
+          789
+        ],
+        [
+          913,
+          1050
+        ],
+        [
+          750,
+          1050
+        ]
+      ],
+      "stairs": [
+        {
+          "center": [
+            772,
+            754
+          ],
+          "confidence": "medium",
+          "meaning": "depicted stair symbol; landing and usable connection require confirmation",
+          "id": "101-unknown-stair-1",
+          "point": [
+            772,
+            754
+          ]
+        }
+      ],
+      "corridorCenterlines": [
+        [
+          [
+            844,
+            602
+          ],
+          [
+            844,
+            1048
+          ]
+        ],
+        [
+          [
+            844,
+            758
+          ],
+          [
+            892,
+            758
+          ]
+        ]
+      ],
+      "classroomApproaches": [],
+      "depictedEntries": [
+        {
+          "point": [
+            892,
+            758
+          ],
+          "label": "入口"
+        },
+        {
+          "point": [
+            844,
+            1050
+          ],
+          "label": "入口"
+        }
+      ],
+      "confidence": "medium",
+      "uncertainties": [
+        "掲載図に階表示なし。図の上の細長い矩形は接続・用途不明。",
+        "教室番号なし。ここから他館や共通講義棟へ進めるとは確認できない。"
+      ]
+    },
+    {
+      "buildingID": "102",
+      "floor": 2,
+      "sourcePage": 6,
+      "imageSize": [
+        1555,
+        2200
+      ],
+      "bbox": [
+        258,
+        1115,
+        453,
+        825
+      ],
+      "boundaryPolygon": [
+        [
+          526,
+          1115
+        ],
+        [
+          683,
+          1115
+        ],
+        [
+          683,
+          1189
+        ],
+        [
+          711,
+          1189
+        ],
+        [
+          711,
+          1565
+        ],
+        [
+          638,
+          1565
+        ],
+        [
+          638,
+          1640
+        ],
+        [
+          666,
+          1640
+        ],
+        [
+          666,
+          1939
+        ],
+        [
+          548,
+          1939
+        ],
+        [
+          548,
+          1890
+        ],
+        [
+          481,
+          1890
+        ],
+        [
+          481,
+          1715
+        ],
+        [
+          416,
+          1715
+        ],
+        [
+          416,
+          1573
+        ],
+        [
+          258,
+          1573
+        ],
+        [
+          258,
+          1713
+        ],
+        [
+          416,
+          1713
+        ],
+        [
+          416,
+          1566
+        ],
+        [
+          526,
+          1566
+        ]
+      ],
+      "stairs": [
+        {
+          "center": [
+            552,
+            1160
+          ],
+          "confidence": "medium",
+          "meaning": "depicted stair symbol; landing and usable connection require confirmation",
+          "id": "102-2-stair-1",
+          "point": [
+            552,
+            1160
+          ]
+        },
+        {
+          "center": [
+            518,
+            1607
+          ],
+          "confidence": "medium",
+          "meaning": "depicted stair symbol; landing and usable connection require confirmation",
+          "id": "102-2-stair-2",
+          "point": [
+            518,
+            1607
+          ]
+        },
+        {
+          "center": [
+            520,
+            1878
+          ],
+          "confidence": "medium",
+          "meaning": "depicted stair symbol; landing and usable connection require confirmation",
+          "id": "102-2-stair-3",
+          "point": [
+            520,
+            1878
+          ]
+        }
+      ],
+      "corridorCenterlines": [
+        [
+          [
+            618,
+            1190
+          ],
+          [
+            618,
+            1578
+          ],
+          [
+            565,
+            1605
+          ],
+          [
+            565,
+            1920
+          ]
+        ],
+        [
+          [
+            420,
+            1588
+          ],
+          [
+            618,
+            1588
+          ]
+        ]
+      ],
+      "classroomApproaches": [
+        {
+          "roomID": "情22",
+          "point": [
+            618,
+            1270
+          ],
+          "kind": "corridor approach near classroom; exact door not shown",
+          "confidence": "medium",
+          "doorVerified": false
+        },
+        {
+          "roomID": "情23",
+          "point": [
+            620,
+            1301
+          ],
+          "kind": "corridor approach to small rectangular door-like mark on west wall",
+          "confidence": "medium",
+          "doorVerified": false
+        },
+        {
+          "roomID": "情24",
+          "point": [
+            618,
+            1420
+          ],
+          "kind": "corridor approach near classroom; exact door not shown",
+          "confidence": "medium",
+          "doorVerified": false
+        },
+        {
+          "roomID": "情25",
+          "point": [
+            620,
+            1450
+          ],
+          "kind": "corridor approach to small rectangular door-like mark on west wall",
+          "confidence": "medium",
+          "doorVerified": false
+        },
+        {
+          "roomID": "情26",
+          "point": [
+            618,
+            1530
+          ],
+          "kind": "corridor approach near classroom; exact door not shown",
+          "confidence": "medium",
+          "doorVerified": false
+        }
+      ],
+      "depictedEntries": [],
+      "confidence": "medium",
+      "uncertainties": [
+        "情23・情25の西壁に小さい戸口様の矩形あり。精確な開口幅や開閉・利用可否は不明。",
+        "左上への細長い接続翼も同じ階の図形として含む。外からの入口表示なし。"
+      ]
+    },
+    {
+      "buildingID": "102",
+      "floor": 1,
+      "sourcePage": 6,
+      "imageSize": [
+        1555,
+        2200
+      ],
+      "bbox": [
+        810,
+        1104,
+        450,
+        826
+      ],
+      "boundaryPolygon": [
+        [
+          1078,
+          1104
+        ],
+        [
+          1235,
+          1104
+        ],
+        [
+          1235,
+          1178
+        ],
+        [
+          1260,
+          1178
+        ],
+        [
+          1260,
+          1402
+        ],
+        [
+          1235,
+          1402
+        ],
+        [
+          1235,
+          1552
+        ],
+        [
+          1214,
+          1552
+        ],
+        [
+          1214,
+          1630
+        ],
+        [
+          1219,
+          1630
+        ],
+        [
+          1219,
+          1930
+        ],
+        [
+          1099,
+          1930
+        ],
+        [
+          1099,
+          1884
+        ],
+        [
+          1030,
+          1884
+        ],
+        [
+          1030,
+          1720
+        ],
+        [
+          1078,
+          1720
+        ],
+        [
+          1078,
+          1614
+        ],
+        [
+          995,
+          1614
+        ],
+        [
+          995,
+          1720
+        ],
+        [
+          810,
+          1720
+        ],
+        [
+          810,
+          1563
+        ],
+        [
+          1078,
+          1563
+        ]
+      ],
+      "stairs": [
+        {
+          "center": [
+            1100,
+            1151
+          ],
+          "confidence": "medium",
+          "meaning": "depicted stair symbol; landing and usable connection require confirmation",
+          "id": "102-1-stair-1",
+          "point": [
+            1100,
+            1151
+          ]
+        },
+        {
+          "center": [
+            1074,
+            1600
+          ],
+          "confidence": "medium",
+          "meaning": "depicted stair symbol; landing and usable connection require confirmation",
+          "id": "102-1-stair-2",
+          "point": [
+            1074,
+            1600
+          ]
+        },
+        {
+          "center": [
+            1080,
+            1866
+          ],
+          "confidence": "medium",
+          "meaning": "depicted stair symbol; landing and usable connection require confirmation",
+          "id": "102-1-stair-3",
+          "point": [
+            1080,
+            1866
+          ]
+        }
+      ],
+      "corridorCenterlines": [
+        [
+          [
+            1209,
+            1139
+          ],
+          [
+            1209,
+            1585
+          ],
+          [
+            1120,
+            1610
+          ],
+          [
+            1120,
+            1905
+          ]
+        ],
+        [
+          [
+            811,
+            1589
+          ],
+          [
+            1209,
+            1589
+          ]
+        ]
+      ],
+      "classroomApproaches": [
+        {
+          "roomID": "情13",
+          "point": [
+            1208,
+            1387
+          ],
+          "kind": "corridor approach adjacent to one of four small rectangular door-like marks on east wall",
+          "confidence": "medium",
+          "doorVerified": false
+        },
+        {
+          "roomID": "情14",
+          "point": [
+            1120,
+            1750
+          ],
+          "kind": "corridor approach near classroom; exact door not shown",
+          "confidence": "medium",
+          "doorVerified": false
+        }
+      ],
+      "depictedEntries": [
+        {
+          "point": [
+            1260,
+            1218
+          ],
+          "label": "入口"
+        },
+        {
+          "point": [
+            1215,
+            1594
+          ],
+          "label": "入口"
+        },
+        {
+          "point": [
+            811,
+            1579
+          ],
+          "label": "入口"
+        }
+      ],
+      "confidence": "medium",
+      "uncertainties": [
+        "情13の東壁の小さい矩形が複数見える。利用する戸口の指定や正確な扉形式は確認できない。",
+        "情14は西側廊下に面するが戸口は判別できない。図示入口から別階への接続は未確認。"
+      ]
+    },
+    {
+      "buildingID": "811",
+      "floor": 1,
+      "sourcePage": 6,
+      "imageSize": [
+        1555,
+        2200
+      ],
+      "bbox": [
+        974,
+        365,
+        114,
+        191
+      ],
+      "boundaryPolygon": [
+        [
+          974,
+          365
+        ],
+        [
+          1088,
+          365
+        ],
+        [
+          1088,
+          556
+        ],
+        [
+          974,
+          556
+        ]
+      ],
+      "stairs": [
+        {
+          "center": [
+            988,
+            612
+          ],
+          "confidence": "low for association with this floor; high for depicted symbol",
+          "meaning": "depicted stair symbol; landing and usable connection require confirmation",
+          "id": "811-1-stair-1",
+          "point": [
+            988,
+            612
+          ]
+        }
+      ],
+      "corridorCenterlines": [],
+      "classroomApproaches": [],
+      "depictedEntries": [],
+      "confidence": "high for room extent; insufficient for routing",
+      "uncertainties": [
+        "教室矩形を階段状にずらして並べた略図。破線は階表示を結ぶ表現で、廊下・経路ではない。",
+        "教室の外周に小さな突起が複数あるが、戸口・窓の区別がつかない。階ごとの廊下・入口・経路は確認不能。",
+        "1階の左下、破線外周近くに階段と男子WCの図示あり。ただし教室への通路や建物1号館との接続は確認不能。階段マーカーは教室bbox外。"
+      ]
+    },
+    {
+      "buildingID": "811",
+      "floor": 2,
+      "sourcePage": 6,
+      "imageSize": [
+        1555,
+        2200
+      ],
+      "bbox": [
+        768,
+        315,
+        111,
+        191
+      ],
+      "boundaryPolygon": [
+        [
+          768,
+          315
+        ],
+        [
+          879,
+          315
+        ],
+        [
+          879,
+          506
+        ],
+        [
+          768,
+          506
+        ]
+      ],
+      "stairs": [],
+      "corridorCenterlines": [],
+      "classroomApproaches": [],
+      "depictedEntries": [],
+      "confidence": "high for room extent; insufficient for routing",
+      "uncertainties": [
+        "教室矩形を階段状にずらして並べた略図。破線は階表示を結ぶ表現で、廊下・経路ではない。",
+        "教室の外周に小さな突起が複数あるが、戸口・窓の区別がつかない。階ごとの廊下・入口・経路は確認不能。"
+      ]
+    },
+    {
+      "buildingID": "811",
+      "floor": 3,
+      "sourcePage": 6,
+      "imageSize": [
+        1555,
+        2200
+      ],
+      "bbox": [
+        560,
+        270,
+        113,
+        191
+      ],
+      "boundaryPolygon": [
+        [
+          560,
+          270
+        ],
+        [
+          673,
+          270
+        ],
+        [
+          673,
+          461
+        ],
+        [
+          560,
+          461
+        ]
+      ],
+      "stairs": [],
+      "corridorCenterlines": [],
+      "classroomApproaches": [],
+      "depictedEntries": [],
+      "confidence": "high for room extent; insufficient for routing",
+      "uncertainties": [
+        "教室矩形を階段状にずらして並べた略図。破線は階表示を結ぶ表現で、廊下・経路ではない。",
+        "教室の外周に小さな突起が複数あるが、戸口・窓の区別がつかない。階ごとの廊下・入口・経路は確認不能。"
+      ]
+    },
+    {
+      "buildingID": "811",
+      "floor": 4,
+      "sourcePage": 6,
+      "imageSize": [
+        1555,
+        2200
+      ],
+      "bbox": [
+        350,
+        226,
+        114,
+        191
+      ],
+      "boundaryPolygon": [
+        [
+          350,
+          226
+        ],
+        [
+          464,
+          226
+        ],
+        [
+          464,
+          417
+        ],
+        [
+          350,
+          417
+        ]
+      ],
+      "stairs": [],
+      "corridorCenterlines": [],
+      "classroomApproaches": [],
+      "depictedEntries": [],
+      "confidence": "high for room extent; insufficient for routing",
+      "uncertainties": [
+        "教室矩形を階段状にずらして並べた略図。破線は階表示を結ぶ表現で、廊下・経路ではない。",
+        "教室の外周に小さな突起が複数あるが、戸口・窓の区別がつかない。階ごとの廊下・入口・経路は確認不能。"
+      ]
+    },
+    {
+      "buildingID": "811",
+      "floor": 5,
+      "sourcePage": 6,
+      "imageSize": [
+        1555,
+        2200
+      ],
+      "bbox": [
+        144,
+        183,
+        113,
+        191
+      ],
+      "boundaryPolygon": [
+        [
+          144,
+          183
+        ],
+        [
+          257,
+          183
+        ],
+        [
+          257,
+          374
+        ],
+        [
+          144,
+          374
+        ]
+      ],
+      "stairs": [],
+      "corridorCenterlines": [],
+      "classroomApproaches": [],
+      "depictedEntries": [],
+      "confidence": "high for room extent; insufficient for routing",
+      "uncertainties": [
+        "教室矩形を階段状にずらして並べた略図。破線は階表示を結ぶ表現で、廊下・経路ではない。",
+        "教室の外周に小さな突起が複数あるが、戸口・窓の区別がつかない。階ごとの廊下・入口・経路は確認不能。"
+      ]
+    },
+    {
+      "buildingID": "501",
+      "floor": 2,
+      "sourcePage": 7,
+      "imageSize": [
+        1555,
+        2200
+      ],
+      "bbox": [
+        268,
+        371,
+        1000,
+        554
+      ],
+      "boundaryPolygon": [
+        [
+          303,
+          371
+        ],
+        [
+          1186,
+          371
+        ],
+        [
+          1186,
+          536
+        ],
+        [
+          1268,
+          536
+        ],
+        [
+          1268,
+          800
+        ],
+        [
+          1186,
+          800
+        ],
+        [
+          1186,
+          925
+        ],
+        [
+          303,
+          925
+        ],
+        [
+          303,
+          770
+        ],
+        [
+          286,
+          770
+        ],
+        [
+          270,
+          710
+        ],
+        [
+          268,
+          630
+        ],
+        [
+          285,
+          551
+        ],
+        [
+          303,
+          536
+        ]
+      ],
+      "stairs": [
+        {
+          "center": [
+            394,
+            632
+          ],
+          "confidence": "medium",
+          "meaning": "depicted stair symbol; landing and usable connection require confirmation",
+          "id": "501-2-stair-1",
+          "point": [
+            394,
+            632
+          ]
+        },
+        {
+          "center": [
+            963,
+            639
+          ],
+          "confidence": "medium",
+          "meaning": "depicted stair symbol; landing and usable connection require confirmation",
+          "id": "501-2-stair-2",
+          "point": [
+            963,
+            639
+          ]
+        }
+      ],
+      "corridorCenterlines": [
+        [
+          [
+            322,
+            570
+          ],
+          [
+            285,
+            600
+          ],
+          [
+            285,
+            720
+          ],
+          [
+            322,
+            746
+          ],
+          [
+            1210,
+            746
+          ],
+          [
+            1210,
+            574
+          ],
+          [
+            788,
+            574
+          ]
+        ]
+      ],
+      "classroomApproaches": [
+        {
+          "roomID": "総21",
+          "point": [
+            1048,
+            746
+          ],
+          "kind": "corridor approach near classroom; exact door not shown",
+          "confidence": "medium",
+          "doorVerified": false
+        },
+        {
+          "roomID": "総22",
+          "point": [
+            749,
+            746
+          ],
+          "kind": "corridor approach near classroom; exact door not shown",
+          "confidence": "medium",
+          "doorVerified": false
+        },
+        {
+          "roomID": "総23",
+          "point": [
+            502,
+            746
+          ],
+          "kind": "corridor approach near classroom; exact door not shown",
+          "confidence": "medium",
+          "doorVerified": false
+        },
+        {
+          "roomID": "総24",
+          "point": [
+            788,
+            574
+          ],
+          "kind": "corridor approach near classroom; exact door not shown",
+          "confidence": "medium",
+          "doorVerified": false
+        }
+      ],
+      "depictedEntries": [],
+      "confidence": "medium",
+      "uncertainties": [
+        "東西の階段は描かれるが、階段から廊下への扉・出口位置を特定できない。階段横の廊下から始める部分経路に限定できる。",
+        "講義室の戸口は描き分けがなく、approachは近傍の廊下中心点。3階東外側にも階段あり。",
+        "入口や1階の図がないため建物入口からの全経路は保証しない。"
+      ]
+    },
+    {
+      "buildingID": "501",
+      "floor": 3,
+      "sourcePage": 7,
+      "imageSize": [
+        1555,
+        2200
+      ],
+      "bbox": [
+        268,
+        1210,
+        1000,
+        554
+      ],
+      "boundaryPolygon": [
+        [
+          303,
+          1210
+        ],
+        [
+          1186,
+          1210
+        ],
+        [
+          1186,
+          1375
+        ],
+        [
+          1268,
+          1375
+        ],
+        [
+          1268,
+          1639
+        ],
+        [
+          1186,
+          1639
+        ],
+        [
+          1186,
+          1764
+        ],
+        [
+          303,
+          1764
+        ],
+        [
+          303,
+          1609
+        ],
+        [
+          286,
+          1609
+        ],
+        [
+          270,
+          1549
+        ],
+        [
+          268,
+          1469
+        ],
+        [
+          285,
+          1390
+        ],
+        [
+          303,
+          1375
+        ]
+      ],
+      "stairs": [
+        {
+          "center": [
+            394,
+            1471
+          ],
+          "confidence": "medium",
+          "meaning": "depicted stair symbol; landing and usable connection require confirmation",
+          "id": "501-3-stair-1",
+          "point": [
+            394,
+            1471
+          ]
+        },
+        {
+          "center": [
+            963,
+            1478
+          ],
+          "confidence": "medium",
+          "meaning": "depicted stair symbol; landing and usable connection require confirmation",
+          "id": "501-3-stair-2",
+          "point": [
+            963,
+            1478
+          ]
+        },
+        {
+          "center": [
+            1249,
+            1494
+          ],
+          "confidence": "medium",
+          "meaning": "depicted stair symbol; landing and usable connection require confirmation",
+          "id": "501-3-stair-3",
+          "point": [
+            1249,
+            1494
+          ]
+        }
+      ],
+      "corridorCenterlines": [
+        [
+          [
+            322,
+            1409
+          ],
+          [
+            285,
+            1439
+          ],
+          [
+            285,
+            1559
+          ],
+          [
+            322,
+            1585
+          ],
+          [
+            1210,
+            1585
+          ],
+          [
+            1210,
+            1413
+          ],
+          [
+            788,
+            1413
+          ]
+        ]
+      ],
+      "classroomApproaches": [
+        {
+          "roomID": "総31",
+          "point": [
+            1048,
+            1585
+          ],
+          "kind": "corridor approach near classroom; exact door not shown",
+          "confidence": "medium",
+          "doorVerified": false
+        },
+        {
+          "roomID": "総32",
+          "point": [
+            749,
+            1585
+          ],
+          "kind": "corridor approach near classroom; exact door not shown",
+          "confidence": "medium",
+          "doorVerified": false
+        },
+        {
+          "roomID": "総33",
+          "point": [
+            502,
+            1585
+          ],
+          "kind": "corridor approach near classroom; exact door not shown",
+          "confidence": "medium",
+          "doorVerified": false
+        },
+        {
+          "roomID": "総34",
+          "point": [
+            788,
+            1413
+          ],
+          "kind": "corridor approach near classroom; exact door not shown",
+          "confidence": "medium",
+          "doorVerified": false
+        }
+      ],
+      "depictedEntries": [],
+      "confidence": "medium",
+      "uncertainties": [
+        "東西の階段は描かれるが、階段から廊下への扉・出口位置を特定できない。階段横の廊下から始める部分経路に限定できる。",
+        "講義室の戸口は描き分けがなく、approachは近傍の廊下中心点。3階東外側にも階段あり。",
+        "入口や1階の図がないため建物入口からの全経路は保証しない。"
+      ]
+    },
+    {
+      "buildingID": "201",
+      "floor": 3,
+      "sourcePage": 8,
+      "imageSize": [
+        1555,
+        2200
+      ],
+      "bbox": [
+        245,
+        383,
+        1104,
+        520
+      ],
+      "boundaryPolygon": [
+        [
+          245,
+          383
+        ],
+        [
+          991,
+          383
+        ],
+        [
+          991,
+          445
+        ],
+        [
+          1064,
+          445
+        ],
+        [
+          1064,
+          383
+        ],
+        [
+          1349,
+          383
+        ],
+        [
+          1349,
+          869
+        ],
+        [
+          1211,
+          869
+        ],
+        [
+          1211,
+          470
+        ],
+        [
+          991,
+          470
+        ],
+        [
+          991,
+          726
+        ],
+        [
+          853,
+          726
+        ],
+        [
+          853,
+          470
+        ],
+        [
+          744,
+          470
+        ],
+        [
+          744,
+          903
+        ],
+        [
+          459,
+          903
+        ],
+        [
+          459,
+          470
+        ],
+        [
+          330,
+          470
+        ],
+        [
+          330,
+          848
+        ],
+        [
+          245,
+          848
+        ]
+      ],
+      "stairs": [
+        {
+          "center": [
+            576,
+            420
+          ],
+          "confidence": "medium",
+          "meaning": "depicted stair symbol; landing and usable connection require confirmation",
+          "id": "201-3-stair-1",
+          "point": [
+            576,
+            420
+          ]
+        },
+        {
+          "center": [
+            871,
+            419
+          ],
+          "confidence": "medium",
+          "meaning": "depicted stair symbol; landing and usable connection require confirmation",
+          "id": "201-3-stair-2",
+          "point": [
+            871,
+            419
+          ]
+        },
+        {
+          "center": [
+            1230,
+            420
+          ],
+          "confidence": "medium",
+          "meaning": "depicted stair symbol; landing and usable connection require confirmation",
+          "id": "201-3-stair-3",
+          "point": [
+            1230,
+            420
+          ]
+        },
+        {
+          "center": [
+            305,
+            734
+          ],
+          "confidence": "medium",
+          "meaning": "depicted stair symbol; landing and usable connection require confirmation",
+          "id": "201-3-stair-4",
+          "point": [
+            305,
+            734
+          ]
+        },
+        {
+          "center": [
+            884,
+            698
+          ],
+          "confidence": "medium",
+          "meaning": "depicted stair symbol; landing and usable connection require confirmation",
+          "id": "201-3-stair-5",
+          "point": [
+            884,
+            698
+          ]
+        },
+        {
+          "center": [
+            1246,
+            856
+          ],
+          "confidence": "medium",
+          "meaning": "depicted stair symbol; landing and usable connection require confirmation",
+          "id": "201-3-stair-6",
+          "point": [
+            1246,
+            856
+          ]
+        }
+      ],
+      "corridorCenterlines": [
+        [
+          [
+            256,
+            460
+          ],
+          [
+            1015,
+            460
+          ],
+          [
+            1015,
+            455
+          ],
+          [
+            1045,
+            455
+          ]
+        ],
+        [
+          [
+            256,
+            460
+          ],
+          [
+            256,
+            824
+          ]
+        ],
+        [
+          [
+            921,
+            460
+          ],
+          [
+            921,
+            711
+          ]
+        ],
+        [
+          [
+            1280,
+            445
+          ],
+          [
+            1280,
+            852
+          ]
+        ]
+      ],
+      "classroomApproaches": [
+        {
+          "roomID": "工1-31",
+          "point": [
+            1045,
+            455
+          ],
+          "kind": "west connector near classroom west wall; no depicted through corridor",
+          "confidence": "high for adjacent connector; exact door not shown",
+          "doorVerified": false
+        },
+        {
+          "roomID": "工1-32",
+          "point": [
+            814,
+            460
+          ],
+          "kind": "corridor approach near classroom; exact door not shown",
+          "confidence": "medium",
+          "doorVerified": false
+        },
+        {
+          "roomID": "工1-33",
+          "point": [
+            490,
+            460
+          ],
+          "kind": "corridor approach near classroom; exact door not shown",
+          "confidence": "medium",
+          "doorVerified": false
+        }
+      ],
+      "depictedEntries": [],
+      "confidence": "medium",
+      "uncertainties": [
+        "図の中央の大きな矩形は総合研究棟の隣接部。外形として保持するが室内通路を推定しない。",
+        "階段位置と廊下は見えるが教室扉の位置は不明。室前の廊下への部分経路のみ。",
+        "1階と3階の階段の厳密な対応・避難階段の利用可否は資料から未確認。",
+        "Review correction: 工1-31 occupies x≈1064..1211,y≈384..467. The west connector ends at that room wall. Do not join left-wing corridor to east-wing corridor through this classroom. Stairs C/F belong to the disconnected east wing and have no supported routes to any catalogued classroom, including 工1-31 under this single-west-approach model."
+      ],
+      "routeConstraints": {
+        "excludedStairIDs": [
+          "201-3-stair-3",
+          "201-3-stair-6"
+        ],
+        "reason": "east-wing corridor is disconnected from all catalogued classroom approach points in depicted corridor evidence"
+      }
+    },
+    {
+      "buildingID": "201",
+      "floor": 1,
+      "sourcePage": 8,
+      "imageSize": [
+        1555,
+        2200
+      ],
+      "bbox": [
+        245,
+        1073,
+        1104,
+        520
+      ],
+      "boundaryPolygon": [
+        [
+          245,
+          1073
+        ],
+        [
+          991,
+          1073
+        ],
+        [
+          991,
+          1135
+        ],
+        [
+          1064,
+          1135
+        ],
+        [
+          1064,
+          1073
+        ],
+        [
+          1349,
+          1073
+        ],
+        [
+          1349,
+          1559
+        ],
+        [
+          1211,
+          1559
+        ],
+        [
+          1211,
+          1160
+        ],
+        [
+          991,
+          1160
+        ],
+        [
+          991,
+          1416
+        ],
+        [
+          853,
+          1416
+        ],
+        [
+          853,
+          1160
+        ],
+        [
+          744,
+          1160
+        ],
+        [
+          744,
+          1593
+        ],
+        [
+          459,
+          1593
+        ],
+        [
+          459,
+          1160
+        ],
+        [
+          330,
+          1160
+        ],
+        [
+          330,
+          1538
+        ],
+        [
+          245,
+          1538
+        ]
+      ],
+      "stairs": [
+        {
+          "center": [
+            562,
+            1105
+          ],
+          "confidence": "medium",
+          "meaning": "depicted stair symbol; landing and usable connection require confirmation",
+          "id": "201-1-stair-1",
+          "point": [
+            562,
+            1105
+          ]
+        },
+        {
+          "center": [
+            864,
+            1105
+          ],
+          "confidence": "medium",
+          "meaning": "depicted stair symbol; landing and usable connection require confirmation",
+          "id": "201-1-stair-2",
+          "point": [
+            864,
+            1105
+          ]
+        },
+        {
+          "center": [
+            1235,
+            1105
+          ],
+          "confidence": "medium",
+          "meaning": "depicted stair symbol; landing and usable connection require confirmation",
+          "id": "201-1-stair-3",
+          "point": [
+            1235,
+            1105
+          ]
+        },
+        {
+          "center": [
+            302,
+            1353
+          ],
+          "confidence": "medium",
+          "meaning": "depicted stair symbol; landing and usable connection require confirmation",
+          "id": "201-1-stair-4",
+          "point": [
+            302,
+            1353
+          ]
+        },
+        {
+          "center": [
+            889,
+            1408
+          ],
+          "confidence": "medium",
+          "meaning": "depicted stair symbol; landing and usable connection require confirmation",
+          "id": "201-1-stair-5",
+          "point": [
+            889,
+            1408
+          ]
+        },
+        {
+          "center": [
+            1250,
+            1541
+          ],
+          "confidence": "medium",
+          "meaning": "depicted stair symbol; landing and usable connection require confirmation",
+          "id": "201-1-stair-6",
+          "point": [
+            1250,
+            1541
+          ]
+        }
+      ],
+      "corridorCenterlines": [
+        [
+          [
+            261,
+            1143
+          ],
+          [
+            1280,
+            1143
+          ]
+        ],
+        [
+          [
+            261,
+            1143
+          ],
+          [
+            261,
+            1514
+          ]
+        ],
+        [
+          [
+            926,
+            1143
+          ],
+          [
+            926,
+            1401
+          ]
+        ],
+        [
+          [
+            1280,
+            1143
+          ],
+          [
+            1280,
+            1542
+          ]
+        ]
+      ],
+      "classroomApproaches": [],
+      "depictedEntries": [
+        {
+          "point": [
+            250,
+            1365
+          ],
+          "label": "入口"
+        },
+        {
+          "point": [
+            1273,
+            1075
+          ],
+          "label": "入口"
+        },
+        {
+          "point": [
+            630,
+            1125
+          ],
+          "label": "玄関 lobby; external threshold not explicit"
+        }
+      ],
+      "confidence": "medium",
+      "uncertainties": [
+        "図の中央の大きな矩形は総合研究棟の隣接部。外形として保持するが室内通路を推定しない。",
+        "階段位置と廊下は見えるが教室扉の位置は不明。室前の廊下への部分経路のみ。",
+        "1階と3階の階段の厳密な対応・避難階段の利用可否は資料から未確認。",
+        "1F corridor independently checked in source crop: a continuous horizontal corridor band exists around y1134..1154, unlike 3F where 工1-31 blocks the analogous connection. Centerline corrected to y1143; not inferred from the 3F topology."
+      ]
+    },
+    {
+      "buildingID": "202",
+      "floor": 3,
+      "sourcePage": 9,
+      "imageSize": [
+        1555,
+        2200
+      ],
+      "bbox": [
+        180,
+        222,
+        864,
+        699
+      ],
+      "boundaryPolygon": [
+        [
+          180,
+          222
+        ],
+        [
+          1044,
+          222
+        ],
+        [
+          1044,
+          434
+        ],
+        [
+          887,
+          434
+        ],
+        [
+          887,
+          354
+        ],
+        [
+          954,
+          354
+        ],
+        [
+          954,
+          312
+        ],
+        [
+          640,
+          312
+        ],
+        [
+          640,
+          552
+        ],
+        [
+          549,
+          552
+        ],
+        [
+          549,
+          312
+        ],
+        [
+          268,
+          312
+        ],
+        [
+          268,
+          921
+        ],
+        [
+          180,
+          921
+        ]
+      ],
+      "stairs": [
+        {
+          "center": [
+            205,
+            264
+          ],
+          "confidence": "medium",
+          "meaning": "depicted stair symbol; landing and usable connection require confirmation",
+          "id": "202-3-stair-1",
+          "point": [
+            205,
+            264
+          ]
+        },
+        {
+          "center": [
+            566,
+            270
+          ],
+          "confidence": "medium",
+          "meaning": "depicted stair symbol; landing and usable connection require confirmation",
+          "id": "202-3-stair-2",
+          "point": [
+            566,
+            270
+          ]
+        },
+        {
+          "center": [
+            930,
+            268
+          ],
+          "confidence": "medium",
+          "meaning": "depicted stair symbol; landing and usable connection require confirmation",
+          "id": "202-3-stair-3",
+          "point": [
+            930,
+            268
+          ]
+        },
+        {
+          "center": [
+            240,
+            780
+          ],
+          "confidence": "medium",
+          "meaning": "depicted stair symbol; landing and usable connection require confirmation",
+          "id": "202-3-stair-4",
+          "point": [
+            240,
+            780
+          ]
+        }
+      ],
+      "corridorCenterlines": [
+        [
+          [
+            192,
+            301
+          ],
+          [
+            968,
+            301
+          ]
+        ],
+        [
+          [
+            192,
+            301
+          ],
+          [
+            192,
+            801
+          ]
+        ],
+        [
+          [
+            561,
+            301
+          ],
+          [
+            561,
+            541
+          ]
+        ],
+        [
+          [
+            968,
+            301
+          ],
+          [
+            968,
+            422
+          ]
+        ]
+      ],
+      "classroomApproaches": [
+        {
+          "roomID": "工2-31",
+          "point": [
+            285,
+            301
+          ],
+          "kind": "corridor approach near classroom; exact door not shown",
+          "confidence": "medium",
+          "doorVerified": false
+        }
+      ],
+      "depictedEntries": [],
+      "confidence": "medium",
+      "uncertainties": [
+        "各階が斜めにずれて重なる配置。bboxをそのまま切り出すと隣の階が入る。boundaryPolygonで階を分離する。",
+        "廊下帯と階段の記号は見える。教室扉の位置は示されずapproachは室近傍。",
+        "階段の中心は記号の中心。廊下との間の正確な出入口は未確認。1階の入口と上階の階段を自動接続しない。"
+      ]
+    },
+    {
+      "buildingID": "202",
+      "floor": 2,
+      "sourcePage": 9,
+      "imageSize": [
+        1555,
+        2200
+      ],
+      "bbox": [
+        356,
+        666,
+        862,
+        699
+      ],
+      "boundaryPolygon": [
+        [
+          356,
+          666
+        ],
+        [
+          1218,
+          666
+        ],
+        [
+          1218,
+          878
+        ],
+        [
+          1063,
+          878
+        ],
+        [
+          1063,
+          798
+        ],
+        [
+          1130,
+          798
+        ],
+        [
+          1130,
+          756
+        ],
+        [
+          816,
+          756
+        ],
+        [
+          816,
+          996
+        ],
+        [
+          725,
+          996
+        ],
+        [
+          725,
+          756
+        ],
+        [
+          444,
+          756
+        ],
+        [
+          444,
+          1365
+        ],
+        [
+          356,
+          1365
+        ]
+      ],
+      "stairs": [
+        {
+          "center": [
+            381,
+            708
+          ],
+          "confidence": "medium",
+          "meaning": "depicted stair symbol; landing and usable connection require confirmation",
+          "id": "202-2-stair-1",
+          "point": [
+            381,
+            708
+          ]
+        },
+        {
+          "center": [
+            742,
+            714
+          ],
+          "confidence": "medium",
+          "meaning": "depicted stair symbol; landing and usable connection require confirmation",
+          "id": "202-2-stair-2",
+          "point": [
+            742,
+            714
+          ]
+        },
+        {
+          "center": [
+            1106,
+            712
+          ],
+          "confidence": "medium",
+          "meaning": "depicted stair symbol; landing and usable connection require confirmation",
+          "id": "202-2-stair-3",
+          "point": [
+            1106,
+            712
+          ]
+        },
+        {
+          "center": [
+            416,
+            1224
+          ],
+          "confidence": "medium",
+          "meaning": "depicted stair symbol; landing and usable connection require confirmation",
+          "id": "202-2-stair-4",
+          "point": [
+            416,
+            1224
+          ]
+        }
+      ],
+      "corridorCenterlines": [
+        [
+          [
+            368,
+            745
+          ],
+          [
+            1144,
+            745
+          ]
+        ],
+        [
+          [
+            368,
+            745
+          ],
+          [
+            368,
+            1245
+          ]
+        ],
+        [
+          [
+            737,
+            745
+          ],
+          [
+            737,
+            985
+          ]
+        ],
+        [
+          [
+            1144,
+            745
+          ],
+          [
+            1144,
+            866
+          ]
+        ]
+      ],
+      "classroomApproaches": [
+        {
+          "roomID": "工2-21",
+          "point": [
+            467,
+            745
+          ],
+          "kind": "corridor approach near classroom; exact door not shown",
+          "confidence": "medium",
+          "doorVerified": false
+        },
+        {
+          "roomID": "工2-22",
+          "point": [
+            369,
+            1234
+          ],
+          "kind": "corridor approach beside stair landing above room; exact door not drawn",
+          "confidence": "medium",
+          "doorVerified": false
+        }
+      ],
+      "depictedEntries": [],
+      "confidence": "medium",
+      "uncertainties": [
+        "各階が斜めにずれて重なる配置。bboxをそのまま切り出すと隣の階が入る。boundaryPolygonで階を分離する。",
+        "廊下帯と階段の記号は見える。教室扉の位置は示されずapproachは室近傍。",
+        "階段の中心は記号の中心。廊下との間の正確な出入口は未確認。1階の入口と上階の階段を自動接続しない。"
+      ]
+    },
+    {
+      "buildingID": "202",
+      "floor": 1,
+      "sourcePage": 9,
+      "imageSize": [
+        1555,
+        2200
+      ],
+      "bbox": [
+        529,
+        1119,
+        862,
+        701
+      ],
+      "boundaryPolygon": [
+        [
+          529,
+          1119
+        ],
+        [
+          1391,
+          1119
+        ],
+        [
+          1391,
+          1331
+        ],
+        [
+          1236,
+          1331
+        ],
+        [
+          1236,
+          1251
+        ],
+        [
+          1303,
+          1251
+        ],
+        [
+          1303,
+          1209
+        ],
+        [
+          989,
+          1209
+        ],
+        [
+          989,
+          1449
+        ],
+        [
+          898,
+          1449
+        ],
+        [
+          898,
+          1209
+        ],
+        [
+          617,
+          1209
+        ],
+        [
+          617,
+          1820
+        ],
+        [
+          529,
+          1820
+        ]
+      ],
+      "stairs": [
+        {
+          "center": [
+            554,
+            1161
+          ],
+          "confidence": "medium",
+          "meaning": "depicted stair symbol; landing and usable connection require confirmation",
+          "id": "202-1-stair-1",
+          "point": [
+            554,
+            1161
+          ]
+        },
+        {
+          "center": [
+            915,
+            1167
+          ],
+          "confidence": "medium",
+          "meaning": "depicted stair symbol; landing and usable connection require confirmation",
+          "id": "202-1-stair-2",
+          "point": [
+            915,
+            1167
+          ]
+        },
+        {
+          "center": [
+            1279,
+            1165
+          ],
+          "confidence": "medium",
+          "meaning": "depicted stair symbol; landing and usable connection require confirmation",
+          "id": "202-1-stair-3",
+          "point": [
+            1279,
+            1165
+          ]
+        },
+        {
+          "center": [
+            589,
+            1679
+          ],
+          "confidence": "medium",
+          "meaning": "depicted stair symbol; landing and usable connection require confirmation",
+          "id": "202-1-stair-4",
+          "point": [
+            589,
+            1679
+          ]
+        }
+      ],
+      "corridorCenterlines": [
+        [
+          [
+            541,
+            1198
+          ],
+          [
+            1317,
+            1198
+          ]
+        ],
+        [
+          [
+            541,
+            1198
+          ],
+          [
+            541,
+            1700
+          ]
+        ],
+        [
+          [
+            910,
+            1198
+          ],
+          [
+            910,
+            1438
+          ]
+        ],
+        [
+          [
+            1317,
+            1198
+          ],
+          [
+            1317,
+            1319
+          ]
+        ]
+      ],
+      "classroomApproaches": [
+        {
+          "roomID": "工2-11",
+          "point": [
+            541,
+            1690
+          ],
+          "kind": "corridor/stair landing immediately above classroom; exact door not drawn",
+          "confidence": "medium",
+          "doorVerified": false
+        }
+      ],
+      "depictedEntries": [
+        {
+          "point": [
+            529,
+            1198
+          ],
+          "label": "入口"
+        },
+        {
+          "point": [
+            615,
+            1680
+          ],
+          "label": "入口"
+        },
+        {
+          "point": [
+            940,
+            1119
+          ],
+          "label": "入口"
+        },
+        {
+          "point": [
+            1294,
+            1119
+          ],
+          "label": "入口"
+        }
+      ],
+      "confidence": "medium",
+      "uncertainties": [
+        "各階が斜めにずれて重なる配置。bboxをそのまま切り出すと隣の階が入る。boundaryPolygonで階を分離する。",
+        "廊下帯と階段の記号は見える。教室扉の位置は示されずapproachは室近傍。",
+        "階段の中心は記号の中心。廊下との間の正確な出入口は未確認。1階の入口と上階の階段を自動接続しない。"
+      ]
+    },
+    {
+      "buildingID": "203",
+      "floor": 3,
+      "sourcePage": 10,
+      "bbox": [
+        396,
+        222,
+        609,
+        802
+      ],
+      "outlinePolygon": [
+        [
+          517,
+          222
+        ],
+        [
+          1005,
+          222
+        ],
+        [
+          1003,
+          1024
+        ],
+        [
+          396,
+          1023
+        ],
+        [
+          396,
+          841
+        ],
+        [
+          534,
+          841
+        ],
+        [
+          534,
+          920
+        ],
+        [
+          900,
+          920
+        ],
+        [
+          901,
+          327
+        ],
+        [
+          517,
+          327
+        ]
+      ],
+      "stairs": [
+        {
+          "center": [
+            905,
+            269
+          ],
+          "confidence": "high",
+          "ID": "203-3-stairs-1",
+          "point": [
+            905,
+            269
+          ]
+        },
+        {
+          "center": [
+            970,
+            674
+          ],
+          "confidence": "high",
+          "ID": "203-3-stairs-2",
+          "point": [
+            970,
+            674
+          ]
+        },
+        {
+          "center": [
+            558,
+            987
+          ],
+          "confidence": "high",
+          "ID": "203-3-stairs-3",
+          "point": [
+            558,
+            987
+          ]
+        }
+      ],
+      "corridorCenterlines": [
+        [
+          [
+            610,
+            314
+          ],
+          [
+            914,
+            314
+          ],
+          [
+            914,
+            934
+          ],
+          [
+            558,
+            934
+          ]
+        ],
+        [
+          [
+            558,
+            970
+          ],
+          [
+            558,
+            934
+          ]
+        ],
+        [
+          [
+            954,
+            674
+          ],
+          [
+            914,
+            674
+          ]
+        ],
+        [
+          [
+            905,
+            287
+          ],
+          [
+            905,
+            314
+          ]
+        ]
+      ],
+      "roomApproaches": [
+        {
+          "roomID": "工3-31",
+          "point": [
+            546,
+            934
+          ],
+          "kind": "corridor-side adjacency, not verified door",
+          "confidence": "medium"
+        }
+      ],
+      "entrances": [],
+      "confidence": "high",
+      "unresolved": [
+        "No exterior entrance on depicted 3F. All classroom wall segments are closed; exact door to 工3-31 is not shown.",
+        "Main corridor is the U-shaped narrow band, not the large central blank courtyard."
+      ],
+      "corridors": [
+        [
+          [
+            610,
+            314
+          ],
+          [
+            914,
+            314
+          ],
+          [
+            914,
+            934
+          ],
+          [
+            558,
+            934
+          ]
+        ],
+        [
+          [
+            558,
+            970
+          ],
+          [
+            558,
+            934
+          ]
+        ],
+        [
+          [
+            954,
+            674
+          ],
+          [
+            914,
+            674
+          ]
+        ],
+        [
+          [
+            905,
+            287
+          ],
+          [
+            905,
+            314
+          ]
+        ]
+      ],
+      "approaches": [
+        {
+          "roomID": "工3-31",
+          "point": [
+            546,
+            934
+          ],
+          "kind": "corridor-side adjacency, not verified door",
+          "confidence": "medium"
+        }
+      ],
+      "evidenceOverlay": "/tmp/indoor-b-10-evidence.png"
+    },
+    {
+      "buildingID": "206",
+      "floor": 1,
+      "sourcePage": 10,
+      "bbox": [
+        523,
+        1089,
+        311,
+        870
+      ],
+      "outlinePolygon": [
+        [
+          536,
+          1089
+        ],
+        [
+          706,
+          1089
+        ],
+        [
+          706,
+          1158
+        ],
+        [
+          834,
+          1158
+        ],
+        [
+          834,
+          1798
+        ],
+        [
+          754,
+          1798
+        ],
+        [
+          754,
+          1959
+        ],
+        [
+          523,
+          1959
+        ],
+        [
+          523,
+          1158
+        ],
+        [
+          536,
+          1158
+        ]
+      ],
+      "stairs": [
+        {
+          "center": [
+            594,
+            1125
+          ],
+          "confidence": "high",
+          "ID": "206-1-stairs-1",
+          "point": [
+            594,
+            1125
+          ]
+        },
+        {
+          "center": [
+            581,
+            1745
+          ],
+          "confidence": "high",
+          "ID": "206-1-stairs-2",
+          "point": [
+            581,
+            1745
+          ]
+        }
+      ],
+      "corridorCenterlines": [
+        [
+          [
+            683,
+            1159
+          ],
+          [
+            683,
+            1879
+          ],
+          [
+            754,
+            1879
+          ]
+        ],
+        [
+          [
+            594,
+            1150
+          ],
+          [
+            683,
+            1150
+          ],
+          [
+            683,
+            1190
+          ]
+        ],
+        [
+          [
+            603,
+            1745
+          ],
+          [
+            683,
+            1745
+          ]
+        ]
+      ],
+      "roomApproaches": [
+        {
+          "roomID": "工6-12",
+          "point": [
+            683,
+            1320
+          ],
+          "kind": "corridor-side adjacency, not verified door",
+          "confidence": "medium"
+        },
+        {
+          "roomID": "工6-11",
+          "point": [
+            683,
+            1320
+          ],
+          "kind": "corridor-side adjacency, not verified door",
+          "confidence": "medium"
+        }
+      ],
+      "entrances": [
+        {
+          "point": [
+            754,
+            1879
+          ],
+          "basis": "Explicit 入口 arrow",
+          "confidence": "high"
+        }
+      ],
+      "confidence": "high",
+      "unresolved": [
+        "Both lecture rooms flank the same corridor, but their exact door positions are not shown.",
+        "Ground-floor entrance is explicitly marked on the east/right wall of the open southern lobby."
+      ],
+      "corridors": [
+        [
+          [
+            683,
+            1159
+          ],
+          [
+            683,
+            1879
+          ],
+          [
+            754,
+            1879
+          ]
+        ],
+        [
+          [
+            594,
+            1150
+          ],
+          [
+            683,
+            1150
+          ],
+          [
+            683,
+            1190
+          ]
+        ],
+        [
+          [
+            603,
+            1745
+          ],
+          [
+            683,
+            1745
+          ]
+        ]
+      ],
+      "approaches": [
+        {
+          "roomID": "工6-12",
+          "point": [
+            683,
+            1320
+          ],
+          "kind": "corridor-side adjacency, not verified door",
+          "confidence": "medium"
+        },
+        {
+          "roomID": "工6-11",
+          "point": [
+            683,
+            1320
+          ],
+          "kind": "corridor-side adjacency, not verified door",
+          "confidence": "medium"
+        }
+      ],
+      "evidenceOverlay": "/tmp/indoor-b-10-evidence.png"
+    },
+    {
+      "buildingID": "206",
+      "floor": 2,
+      "sourcePage": 10,
+      "bbox": [
+        128,
+        1095,
+        325,
+        902
+      ],
+      "outlinePolygon": [
+        [
+          141,
+          1095
+        ],
+        [
+          318,
+          1095
+        ],
+        [
+          318,
+          1164
+        ],
+        [
+          453,
+          1164
+        ],
+        [
+          451,
+          1997
+        ],
+        [
+          128,
+          1997
+        ],
+        [
+          128,
+          1164
+        ],
+        [
+          141,
+          1164
+        ]
+      ],
+      "stairs": [
+        {
+          "center": [
+            202,
+            1135
+          ],
+          "confidence": "high",
+          "ID": "206-2-stairs-1",
+          "point": [
+            202,
+            1135
+          ]
+        },
+        {
+          "center": [
+            203,
+            1795
+          ],
+          "confidence": "high",
+          "ID": "206-2-stairs-2",
+          "point": [
+            203,
+            1795
+          ]
+        }
+      ],
+      "corridorCenterlines": [
+        [
+          [
+            294,
+            1164
+          ],
+          [
+            294,
+            1986
+          ]
+        ],
+        [
+          [
+            226,
+            1135
+          ],
+          [
+            294,
+            1135
+          ],
+          [
+            294,
+            1164
+          ]
+        ],
+        [
+          [
+            225,
+            1795
+          ],
+          [
+            294,
+            1795
+          ]
+        ]
+      ],
+      "roomApproaches": [
+        {
+          "roomID": "工6-22",
+          "point": [
+            294,
+            1370
+          ],
+          "kind": "corridor-side adjacency, not verified door",
+          "confidence": "medium"
+        },
+        {
+          "roomID": "工6-21",
+          "point": [
+            294,
+            1370
+          ],
+          "kind": "corridor-side adjacency, not verified door",
+          "confidence": "medium"
+        }
+      ],
+      "entrances": [],
+      "confidence": "high",
+      "unresolved": [
+        "No exterior entrance on 2F. Exact classroom doors are absent; circular marks are structural columns, not door symbols."
+      ],
+      "corridors": [
+        [
+          [
+            294,
+            1164
+          ],
+          [
+            294,
+            1986
+          ]
+        ],
+        [
+          [
+            226,
+            1135
+          ],
+          [
+            294,
+            1135
+          ],
+          [
+            294,
+            1164
+          ]
+        ],
+        [
+          [
+            225,
+            1795
+          ],
+          [
+            294,
+            1795
+          ]
+        ]
+      ],
+      "approaches": [
+        {
+          "roomID": "工6-22",
+          "point": [
+            294,
+            1370
+          ],
+          "kind": "corridor-side adjacency, not verified door",
+          "confidence": "medium"
+        },
+        {
+          "roomID": "工6-21",
+          "point": [
+            294,
+            1370
+          ],
+          "kind": "corridor-side adjacency, not verified door",
+          "confidence": "medium"
+        }
+      ],
+      "evidenceOverlay": "/tmp/indoor-b-10-evidence.png"
+    },
+    {
+      "buildingID": "205",
+      "floor": 3,
+      "sourcePage": 11,
+      "bbox": [
+        304,
+        235,
+        398,
+        743
+      ],
+      "outlinePolygon": [
+        [
+          325,
+          235
+        ],
+        [
+          702,
+          239
+        ],
+        [
+          701,
+          389
+        ],
+        [
+          507,
+          389
+        ],
+        [
+          507,
+          445
+        ],
+        [
+          616,
+          445
+        ],
+        [
+          612,
+          937
+        ],
+        [
+          503,
+          937
+        ],
+        [
+          503,
+          929
+        ],
+        [
+          473,
+          929
+        ],
+        [
+          473,
+          966
+        ],
+        [
+          463,
+          978
+        ],
+        [
+          452,
+          978
+        ],
+        [
+          442,
+          966
+        ],
+        [
+          442,
+          929
+        ],
+        [
+          412,
+          929
+        ],
+        [
+          412,
+          936
+        ],
+        [
+          304,
+          934
+        ],
+        [
+          309,
+          443
+        ],
+        [
+          420,
+          443
+        ],
+        [
+          420,
+          387
+        ],
+        [
+          324,
+          387
+        ]
+      ],
+      "stairs": [
+        {
+          "center": [
+            671,
+            373
+          ],
+          "confidence": "high",
+          "ID": "205-3-stairs-1",
+          "point": [
+            671,
+            373
+          ]
+        },
+        {
+          "center": [
+            449,
+            569
+          ],
+          "confidence": "high",
+          "ID": "205-3-stairs-2",
+          "point": [
+            449,
+            569
+          ],
+          "landingConnection": "Unverified; core boundary openings are not explicit in source. Do not force connection through walls."
+        },
+        {
+          "center": [
+            457,
+            953
+          ],
+          "confidence": "high",
+          "ID": "205-3-stairs-3",
+          "point": [
+            457,
+            953
+          ],
+          "landingConnection": "Unverified; core boundary openings are not explicit in source. Do not force connection through walls."
+        }
+      ],
+      "corridorCenterlines": [
+        [
+          [
+            338,
+            370
+          ],
+          [
+            659,
+            370
+          ]
+        ],
+        [
+          [
+            464,
+            370
+          ],
+          [
+            464,
+            487
+          ]
+        ],
+        [
+          [
+            464,
+            487
+          ],
+          [
+            516,
+            487
+          ],
+          [
+            516,
+            916
+          ]
+        ],
+        [
+          [
+            409,
+            611
+          ],
+          [
+            409,
+            766
+          ]
+        ],
+        [
+          [
+            418,
+            811
+          ],
+          [
+            418,
+            826
+          ]
+        ],
+        [
+          [
+            457,
+            916
+          ],
+          [
+            516,
+            916
+          ]
+        ],
+        [
+          [
+            409,
+            487
+          ],
+          [
+            516,
+            487
+          ]
+        ],
+        [
+          [
+            409,
+            487
+          ],
+          [
+            409,
+            527
+          ]
+        ]
+      ],
+      "roomApproaches": [
+        {
+          "roomID": "工5-31",
+          "point": [
+            555,
+            370
+          ],
+          "kind": "corridor-side adjacency, not verified door",
+          "confidence": "medium"
+        }
+      ],
+      "entrances": [],
+      "confidence": "high",
+      "unresolved": [
+        "The top classroom has safe partial approach from northeast stair along the top corridor.",
+        "Central core and southern service rooms create side passages; short separated centerline segments are deliberately not connected through enclosed service rooms.",
+        "No classroom door symbol is shown; no exterior 3F entrance."
+      ],
+      "corridors": [
+        [
+          [
+            338,
+            370
+          ],
+          [
+            659,
+            370
+          ]
+        ],
+        [
+          [
+            464,
+            370
+          ],
+          [
+            464,
+            487
+          ]
+        ],
+        [
+          [
+            464,
+            487
+          ],
+          [
+            516,
+            487
+          ],
+          [
+            516,
+            916
+          ]
+        ],
+        [
+          [
+            409,
+            611
+          ],
+          [
+            409,
+            766
+          ]
+        ],
+        [
+          [
+            418,
+            811
+          ],
+          [
+            418,
+            826
+          ]
+        ],
+        [
+          [
+            457,
+            916
+          ],
+          [
+            516,
+            916
+          ]
+        ],
+        [
+          [
+            409,
+            487
+          ],
+          [
+            516,
+            487
+          ]
+        ],
+        [
+          [
+            409,
+            487
+          ],
+          [
+            409,
+            527
+          ]
+        ]
+      ],
+      "approaches": [
+        {
+          "roomID": "工5-31",
+          "point": [
+            555,
+            370
+          ],
+          "kind": "corridor-side adjacency, not verified door",
+          "confidence": "medium"
+        }
+      ],
+      "evidenceOverlay": "/tmp/indoor-b-11-evidence.png"
+    },
+    {
+      "buildingID": "205",
+      "floor": 2,
+      "sourcePage": 11,
+      "bbox": [
+        296,
+        1214,
+        397,
+        743
+      ],
+      "outlinePolygon": [
+        [
+          315,
+          1214
+        ],
+        [
+          418,
+          1215
+        ],
+        [
+          418,
+          1276
+        ],
+        [
+          492,
+          1276
+        ],
+        [
+          492,
+          1217
+        ],
+        [
+          693,
+          1219
+        ],
+        [
+          692,
+          1368
+        ],
+        [
+          501,
+          1368
+        ],
+        [
+          501,
+          1426
+        ],
+        [
+          606,
+          1426
+        ],
+        [
+          602,
+          1917
+        ],
+        [
+          492,
+          1917
+        ],
+        [
+          492,
+          1909
+        ],
+        [
+          464,
+          1909
+        ],
+        [
+          464,
+          1946
+        ],
+        [
+          453,
+          1957
+        ],
+        [
+          443,
+          1957
+        ],
+        [
+          433,
+          1946
+        ],
+        [
+          433,
+          1909
+        ],
+        [
+          405,
+          1909
+        ],
+        [
+          405,
+          1915
+        ],
+        [
+          296,
+          1913
+        ],
+        [
+          300,
+          1423
+        ],
+        [
+          409,
+          1423
+        ],
+        [
+          409,
+          1364
+        ],
+        [
+          314,
+          1364
+        ]
+      ],
+      "stairs": [
+        {
+          "center": [
+            661,
+            1352
+          ],
+          "confidence": "high",
+          "ID": "205-2-stairs-1",
+          "point": [
+            661,
+            1352
+          ]
+        },
+        {
+          "center": [
+            437,
+            1545
+          ],
+          "confidence": "high",
+          "ID": "205-2-stairs-2",
+          "point": [
+            437,
+            1545
+          ],
+          "landingConnection": "Unverified; core boundary openings are not explicit in source. Do not force connection through walls."
+        },
+        {
+          "center": [
+            448,
+            1935
+          ],
+          "confidence": "high",
+          "ID": "205-2-stairs-3",
+          "point": [
+            448,
+            1935
+          ],
+          "landingConnection": "Unverified; core boundary openings are not explicit in source. Do not force connection through walls."
+        }
+      ],
+      "corridorCenterlines": [
+        [
+          [
+            328,
+            1348
+          ],
+          [
+            650,
+            1348
+          ]
+        ],
+        [
+          [
+            455,
+            1348
+          ],
+          [
+            455,
+            1470
+          ]
+        ],
+        [
+          [
+            455,
+            1470
+          ],
+          [
+            509,
+            1470
+          ],
+          [
+            509,
+            1894
+          ]
+        ],
+        [
+          [
+            403,
+            1589
+          ],
+          [
+            403,
+            1738
+          ]
+        ],
+        [
+          [
+            448,
+            1894
+          ],
+          [
+            509,
+            1894
+          ]
+        ],
+        [
+          [
+            393,
+            1470
+          ],
+          [
+            509,
+            1470
+          ]
+        ],
+        [
+          [
+            393,
+            1470
+          ],
+          [
+            393,
+            1585
+          ],
+          [
+            403,
+            1585
+          ],
+          [
+            403,
+            1738
+          ]
+        ]
+      ],
+      "roomApproaches": [
+        {
+          "roomID": "工5-21",
+          "point": [
+            575,
+            1348
+          ],
+          "kind": "corridor-side adjacency, not verified door",
+          "confidence": "medium"
+        },
+        {
+          "roomID": "工5-22",
+          "point": [
+            509,
+            1497
+          ],
+          "kind": "corridor-side adjacency, not verified door",
+          "confidence": "medium"
+        },
+        {
+          "roomID": "工5-23",
+          "point": [
+            393,
+            1495
+          ],
+          "kind": "corridor-side adjacency, not verified door",
+          "confidence": "medium"
+        },
+        {
+          "roomID": "工5-24",
+          "point": [
+            403,
+            1660
+          ],
+          "kind": "corridor-side adjacency, not verified door",
+          "confidence": "medium"
+        }
+      ],
+      "entrances": [],
+      "confidence": "high",
+      "unresolved": [
+        "Classroom doors are not drawn. Approaches mark their corridor-facing sides.",
+        "Route from northeast stair to 工5-21 is straightforward. Routes from central stairs to other classrooms depend on the pictured side passages; exact stair landing exit and doors remain unverified.",
+        "No exterior entrance on 2F."
+      ],
+      "corridors": [
+        [
+          [
+            328,
+            1348
+          ],
+          [
+            650,
+            1348
+          ]
+        ],
+        [
+          [
+            455,
+            1348
+          ],
+          [
+            455,
+            1470
+          ]
+        ],
+        [
+          [
+            455,
+            1470
+          ],
+          [
+            509,
+            1470
+          ],
+          [
+            509,
+            1894
+          ]
+        ],
+        [
+          [
+            403,
+            1589
+          ],
+          [
+            403,
+            1738
+          ]
+        ],
+        [
+          [
+            448,
+            1894
+          ],
+          [
+            509,
+            1894
+          ]
+        ],
+        [
+          [
+            393,
+            1470
+          ],
+          [
+            509,
+            1470
+          ]
+        ],
+        [
+          [
+            393,
+            1470
+          ],
+          [
+            393,
+            1585
+          ],
+          [
+            403,
+            1585
+          ],
+          [
+            403,
+            1738
+          ]
+        ]
+      ],
+      "approaches": [
+        {
+          "roomID": "工5-21",
+          "point": [
+            575,
+            1348
+          ],
+          "kind": "corridor-side adjacency, not verified door",
+          "confidence": "medium"
+        },
+        {
+          "roomID": "工5-22",
+          "point": [
+            509,
+            1497
+          ],
+          "kind": "corridor-side adjacency, not verified door",
+          "confidence": "medium"
+        },
+        {
+          "roomID": "工5-23",
+          "point": [
+            393,
+            1495
+          ],
+          "kind": "corridor-side adjacency, not verified door",
+          "confidence": "medium"
+        },
+        {
+          "roomID": "工5-24",
+          "point": [
+            403,
+            1660
+          ],
+          "kind": "corridor-side adjacency, not verified door",
+          "confidence": "medium"
+        }
+      ],
+      "evidenceOverlay": "/tmp/indoor-b-11-evidence.png"
+    },
+    {
+      "buildingID": "205",
+      "floor": 1,
+      "sourcePage": 11,
+      "bbox": [
+        895,
+        1215,
+        397,
+        742
+      ],
+      "outlinePolygon": [
+        [
+          1090,
+          1215
+        ],
+        [
+          1292,
+          1217
+        ],
+        [
+          1291,
+          1369
+        ],
+        [
+          1098,
+          1369
+        ],
+        [
+          1098,
+          1424
+        ],
+        [
+          1205,
+          1424
+        ],
+        [
+          1201,
+          1915
+        ],
+        [
+          1090,
+          1915
+        ],
+        [
+          1090,
+          1908
+        ],
+        [
+          1062,
+          1908
+        ],
+        [
+          1062,
+          1944
+        ],
+        [
+          1051,
+          1957
+        ],
+        [
+          1041,
+          1957
+        ],
+        [
+          1031,
+          1944
+        ],
+        [
+          1031,
+          1908
+        ],
+        [
+          1002,
+          1908
+        ],
+        [
+          1002,
+          1829
+        ],
+        [
+          895,
+          1829
+        ],
+        [
+          899,
+          1422
+        ],
+        [
+          1007,
+          1422
+        ],
+        [
+          1007,
+          1363
+        ],
+        [
+          912,
+          1363
+        ],
+        [
+          912,
+          1270
+        ],
+        [
+          1017,
+          1270
+        ],
+        [
+          1017,
+          1242
+        ],
+        [
+          1090,
+          1242
+        ]
+      ],
+      "stairs": [
+        {
+          "center": [
+            1248,
+            1353
+          ],
+          "confidence": "high",
+          "ID": "205-1-stairs-1",
+          "point": [
+            1248,
+            1353
+          ]
+        },
+        {
+          "center": [
+            1034,
+            1544
+          ],
+          "confidence": "high",
+          "ID": "205-1-stairs-2",
+          "point": [
+            1034,
+            1544
+          ],
+          "landingConnection": "Unverified; core boundary openings are not explicit in source. Do not force connection through walls."
+        },
+        {
+          "center": [
+            1046,
+            1933
+          ],
+          "confidence": "high",
+          "ID": "205-1-stairs-3",
+          "point": [
+            1046,
+            1933
+          ],
+          "landingConnection": "Unverified; core boundary openings are not explicit in source. Do not force connection through walls."
+        }
+      ],
+      "corridorCenterlines": [
+        [
+          [
+            925,
+            1348
+          ],
+          [
+            1230,
+            1348
+          ]
+        ],
+        [
+          [
+            1053,
+            1348
+          ],
+          [
+            1053,
+            1470
+          ]
+        ],
+        [
+          [
+            1053,
+            1470
+          ],
+          [
+            1107,
+            1470
+          ],
+          [
+            1107,
+            1892
+          ]
+        ],
+        [
+          [
+            996,
+            1590
+          ],
+          [
+            996,
+            1789
+          ]
+        ],
+        [
+          [
+            1000,
+            1799
+          ],
+          [
+            1107,
+            1799
+          ]
+        ],
+        [
+          [
+            1046,
+            1892
+          ],
+          [
+            1107,
+            1892
+          ]
+        ]
+      ],
+      "roomApproaches": [
+        {
+          "roomID": "工5-11",
+          "point": [
+            1170,
+            1348
+          ],
+          "kind": "corridor-side adjacency, not verified door",
+          "confidence": "medium"
+        }
+      ],
+      "entrances": [
+        {
+          "point": [
+            1058,
+            1243
+          ],
+          "basis": "Explicit 入口 arrow",
+          "confidence": "high"
+        }
+      ],
+      "confidence": "high",
+      "unresolved": [
+        "Entrance arrow identifies north/top entry near classroom, but the interior connection into the top corridor is not explicitly drawn through the restroom/entry partition.",
+        "Partial approach from northeast stair to 工5-11 is clear; exact classroom door is absent."
+      ],
+      "corridors": [
+        [
+          [
+            925,
+            1348
+          ],
+          [
+            1230,
+            1348
+          ]
+        ],
+        [
+          [
+            1053,
+            1348
+          ],
+          [
+            1053,
+            1470
+          ]
+        ],
+        [
+          [
+            1053,
+            1470
+          ],
+          [
+            1107,
+            1470
+          ],
+          [
+            1107,
+            1892
+          ]
+        ],
+        [
+          [
+            996,
+            1590
+          ],
+          [
+            996,
+            1789
+          ]
+        ],
+        [
+          [
+            1000,
+            1799
+          ],
+          [
+            1107,
+            1799
+          ]
+        ],
+        [
+          [
+            1046,
+            1892
+          ],
+          [
+            1107,
+            1892
+          ]
+        ]
+      ],
+      "approaches": [
+        {
+          "roomID": "工5-11",
+          "point": [
+            1170,
+            1348
+          ],
+          "kind": "corridor-side adjacency, not verified door",
+          "confidence": "medium"
+        }
+      ],
+      "evidenceOverlay": "/tmp/indoor-b-11-evidence.png"
+    },
+    {
+      "buildingID": "207",
+      "floor": 1,
+      "sourcePage": 12,
+      "bbox": [
+        748,
+        784,
+        549,
+        356
+      ],
+      "outlinePolygon": [
+        [
+          748,
+          938
+        ],
+        [
+          1145,
+          938
+        ],
+        [
+          1145,
+          784
+        ],
+        [
+          1294,
+          784
+        ],
+        [
+          1294,
+          937
+        ],
+        [
+          1273,
+          937
+        ],
+        [
+          1273,
+          1058
+        ],
+        [
+          1297,
+          1058
+        ],
+        [
+          1297,
+          1140
+        ],
+        [
+          749,
+          1140
+        ]
+      ],
+      "stairs": [
+        {
+          "center": [
+            1170,
+            983
+          ],
+          "confidence": "high",
+          "ID": "207-1-stairs-1",
+          "point": [
+            1170,
+            983
+          ]
+        }
+      ],
+      "corridorCenterlines": [
+        [
+          [
+            760,
+            1045
+          ],
+          [
+            1272,
+            1045
+          ]
+        ],
+        [
+          [
+            1170,
+            1015
+          ],
+          [
+            1170,
+            1045
+          ]
+        ],
+        [
+          [
+            1220,
+            944
+          ],
+          [
+            1220,
+            1045
+          ]
+        ]
+      ],
+      "roomApproaches": [
+        {
+          "roomID": "工7-12",
+          "point": [
+            900,
+            1045
+          ],
+          "kind": "corridor-side adjacency, not verified door",
+          "confidence": "medium"
+        },
+        {
+          "roomID": "工7-11",
+          "point": [
+            1045,
+            1045
+          ],
+          "kind": "corridor-side adjacency, not verified door",
+          "confidence": "medium"
+        }
+      ],
+      "entrances": [
+        {
+          "point": [
+            758,
+            1045
+          ],
+          "basis": "Explicit 入口 arrow",
+          "confidence": "high"
+        },
+        {
+          "point": [
+            1273,
+            1045
+          ],
+          "basis": "Explicit 入口 arrow",
+          "confidence": "high"
+        }
+      ],
+      "confidence": "high",
+      "unresolved": [
+        "Two explicitly marked entrances feed the east-west corridor. Exact lecture-room doors are not drawn."
+      ],
+      "corridors": [
+        [
+          [
+            760,
+            1045
+          ],
+          [
+            1272,
+            1045
+          ]
+        ],
+        [
+          [
+            1170,
+            1015
+          ],
+          [
+            1170,
+            1045
+          ]
+        ],
+        [
+          [
+            1220,
+            944
+          ],
+          [
+            1220,
+            1045
+          ]
+        ]
+      ],
+      "approaches": [
+        {
+          "roomID": "工7-12",
+          "point": [
+            900,
+            1045
+          ],
+          "kind": "corridor-side adjacency, not verified door",
+          "confidence": "medium"
+        },
+        {
+          "roomID": "工7-11",
+          "point": [
+            1045,
+            1045
+          ],
+          "kind": "corridor-side adjacency, not verified door",
+          "confidence": "medium"
+        }
+      ],
+      "evidenceOverlay": "/tmp/indoor-b-12-evidence.png"
+    },
+    {
+      "buildingID": "207",
+      "floor": 2,
+      "sourcePage": 12,
+      "bbox": [
+        140,
+        527,
+        564,
+        364
+      ],
+      "outlinePolygon": [
+        [
+          140,
+          681
+        ],
+        [
+          534,
+          681
+        ],
+        [
+          534,
+          527
+        ],
+        [
+          704,
+          527
+        ],
+        [
+          704,
+          775
+        ],
+        [
+          688,
+          775
+        ],
+        [
+          688,
+          803
+        ],
+        [
+          704,
+          803
+        ],
+        [
+          704,
+          891
+        ],
+        [
+          534,
+          891
+        ],
+        [
+          534,
+          886
+        ],
+        [
+          140,
+          886
+        ],
+        [
+          140,
+          776
+        ],
+        [
+          148,
+          776
+        ],
+        [
+          148,
+          760
+        ],
+        [
+          140,
+          760
+        ]
+      ],
+      "stairs": [
+        {
+          "center": [
+            562,
+            727
+          ],
+          "confidence": "high",
+          "ID": "207-2-stairs-1",
+          "point": [
+            562,
+            727
+          ]
+        }
+      ],
+      "corridorCenterlines": [
+        [
+          [
+            340,
+            790
+          ],
+          [
+            688,
+            790
+          ]
+        ],
+        [
+          [
+            562,
+            753
+          ],
+          [
+            562,
+            790
+          ]
+        ]
+      ],
+      "roomApproaches": [],
+      "entrances": [],
+      "confidence": "high",
+      "unresolved": [
+        "No catalogued classroom on this floor.",
+        "Entrance is not marked; circulation is shown from the depicted stairs.",
+        "Corrected: southern EV enclosure is not a public corridor; vertical stair branch stops at main hall y790."
+      ],
+      "corridors": [
+        [
+          [
+            340,
+            790
+          ],
+          [
+            688,
+            790
+          ]
+        ],
+        [
+          [
+            562,
+            753
+          ],
+          [
+            562,
+            790
+          ]
+        ]
+      ],
+      "approaches": [],
+      "evidenceOverlay": "/tmp/indoor-b-12-evidence.png"
+    },
+    {
+      "buildingID": "207",
+      "floor": 3,
+      "sourcePage": 12,
+      "bbox": [
+        831,
+        433,
+        455,
+        207
+      ],
+      "outlinePolygon": [
+        [
+          831,
+          433
+        ],
+        [
+          1275,
+          433
+        ],
+        [
+          1275,
+          528
+        ],
+        [
+          1286,
+          528
+        ],
+        [
+          1286,
+          556
+        ],
+        [
+          1275,
+          556
+        ],
+        [
+          1275,
+          640
+        ],
+        [
+          1218,
+          640
+        ],
+        [
+          1218,
+          635
+        ],
+        [
+          831,
+          635
+        ]
+      ],
+      "stairs": [
+        {
+          "center": [
+            1247,
+            480
+          ],
+          "confidence": "high",
+          "ID": "207-3-stairs-1",
+          "point": [
+            1247,
+            480
+          ]
+        }
+      ],
+      "corridorCenterlines": [
+        [
+          [
+            843,
+            542
+          ],
+          [
+            1271,
+            542
+          ]
+        ],
+        [
+          [
+            1247,
+            503
+          ],
+          [
+            1247,
+            542
+          ]
+        ]
+      ],
+      "roomApproaches": [],
+      "entrances": [],
+      "confidence": "high",
+      "unresolved": [
+        "Japanese classrooms 1 and 2 are source labels but not entries in the supplied rooms catalogue. Exact doors absent.",
+        "No entrance marked."
+      ],
+      "corridors": [
+        [
+          [
+            843,
+            542
+          ],
+          [
+            1271,
+            542
+          ]
+        ],
+        [
+          [
+            1247,
+            503
+          ],
+          [
+            1247,
+            542
+          ]
+        ]
+      ],
+      "approaches": [],
+      "evidenceOverlay": "/tmp/indoor-b-12-evidence.png"
+    },
+    {
+      "buildingID": "207",
+      "floor": 4,
+      "sourcePage": 12,
+      "bbox": [
+        831,
+        105,
+        455,
+        209
+      ],
+      "outlinePolygon": [
+        [
+          831,
+          105
+        ],
+        [
+          1275,
+          105
+        ],
+        [
+          1275,
+          199
+        ],
+        [
+          1286,
+          199
+        ],
+        [
+          1286,
+          227
+        ],
+        [
+          1275,
+          227
+        ],
+        [
+          1275,
+          314
+        ],
+        [
+          1218,
+          314
+        ],
+        [
+          1218,
+          307
+        ],
+        [
+          831,
+          307
+        ]
+      ],
+      "stairs": [
+        {
+          "center": [
+            1247,
+            151
+          ],
+          "confidence": "high",
+          "ID": "207-4-stairs-1",
+          "point": [
+            1247,
+            151
+          ]
+        }
+      ],
+      "corridorCenterlines": [
+        [
+          [
+            843,
+            213
+          ],
+          [
+            1273,
+            213
+          ]
+        ],
+        [
+          [
+            1247,
+            175
+          ],
+          [
+            1247,
+            213
+          ]
+        ]
+      ],
+      "roomApproaches": [],
+      "entrances": [],
+      "confidence": "high",
+      "unresolved": [
+        "No catalogued classroom on this floor. No entrance marked."
+      ],
+      "corridors": [
+        [
+          [
+            843,
+            213
+          ],
+          [
+            1273,
+            213
+          ]
+        ],
+        [
+          [
+            1247,
+            175
+          ],
+          [
+            1247,
+            213
+          ]
+        ]
+      ],
+      "approaches": [],
+      "evidenceOverlay": "/tmp/indoor-b-12-evidence.png"
+    },
+    {
+      "buildingID": "208",
+      "floor": 1,
+      "sourcePage": 12,
+      "bbox": [
+        312,
+        1632,
+        859,
+        132
+      ],
+      "outlinePolygon": [
+        [
+          312,
+          1659
+        ],
+        [
+          898,
+          1659
+        ],
+        [
+          898,
+          1632
+        ],
+        [
+          1171,
+          1632
+        ],
+        [
+          1171,
+          1764
+        ],
+        [
+          312,
+          1764
+        ]
+      ],
+      "stairs": [
+        {
+          "center": [
+            531,
+            1707
+          ],
+          "confidence": "high",
+          "ID": "208-1-stairs-1",
+          "point": [
+            531,
+            1707
+          ]
+        },
+        {
+          "center": [
+            910,
+            1707
+          ],
+          "confidence": "high",
+          "ID": "208-1-stairs-2",
+          "point": [
+            910,
+            1707
+          ]
+        }
+      ],
+      "corridorCenterlines": [
+        [
+          [
+            527,
+            1676
+          ],
+          [
+            924,
+            1676
+          ]
+        ],
+        [
+          [
+            527,
+            1676
+          ],
+          [
+            527,
+            1755
+          ]
+        ],
+        [
+          [
+            924,
+            1640
+          ],
+          [
+            924,
+            1755
+          ]
+        ]
+      ],
+      "roomApproaches": [
+        {
+          "roomID": "工8-11",
+          "point": [
+            942,
+            1695
+          ],
+          "kind": "corridor-side adjacency, not verified door",
+          "confidence": "medium"
+        }
+      ],
+      "entrances": [
+        {
+          "point": [
+            520,
+            1659
+          ],
+          "basis": "Explicit 入口 arrow",
+          "confidence": "high"
+        },
+        {
+          "point": [
+            926,
+            1632
+          ],
+          "basis": "Explicit 入口 arrow",
+          "confidence": "high"
+        },
+        {
+          "point": [
+            520,
+            1764
+          ],
+          "basis": "Explicit 入口 arrow",
+          "confidence": "high"
+        },
+        {
+          "point": [
+            941,
+            1764
+          ],
+          "basis": "Explicit 入口 arrow",
+          "confidence": "high"
+        }
+      ],
+      "confidence": "high",
+      "unresolved": [
+        "Four entrances are explicitly arrow-marked. Corridor-side approach to 工8-11 lies in the east stair/entry bay; the room boundary at x955 is continuous with no verified door."
+      ],
+      "corridors": [
+        [
+          [
+            527,
+            1676
+          ],
+          [
+            924,
+            1676
+          ]
+        ],
+        [
+          [
+            527,
+            1676
+          ],
+          [
+            527,
+            1755
+          ]
+        ],
+        [
+          [
+            924,
+            1640
+          ],
+          [
+            924,
+            1755
+          ]
+        ]
+      ],
+      "approaches": [
+        {
+          "roomID": "工8-11",
+          "point": [
+            942,
+            1695
+          ],
+          "kind": "corridor-side adjacency, not verified door",
+          "confidence": "medium"
+        }
+      ],
+      "evidenceOverlay": "/tmp/indoor-b-12-evidence.png"
+    },
+    {
+      "buildingID": "208",
+      "floor": 2,
+      "sourcePage": 12,
+      "bbox": [
+        312,
+        1385,
+        859,
+        133
+      ],
+      "outlinePolygon": [
+        [
+          312,
+          1412
+        ],
+        [
+          898,
+          1412
+        ],
+        [
+          898,
+          1385
+        ],
+        [
+          1171,
+          1385
+        ],
+        [
+          1171,
+          1518
+        ],
+        [
+          312,
+          1518
+        ]
+      ],
+      "stairs": [
+        {
+          "center": [
+            501,
+            1462
+          ],
+          "confidence": "high",
+          "ID": "208-2-stairs-1",
+          "point": [
+            501,
+            1462
+          ]
+        },
+        {
+          "center": [
+            910,
+            1462
+          ],
+          "confidence": "high",
+          "ID": "208-2-stairs-2",
+          "point": [
+            910,
+            1462
+          ]
+        }
+      ],
+      "corridorCenterlines": [
+        [
+          [
+            531,
+            1428
+          ],
+          [
+            924,
+            1428
+          ]
+        ],
+        [
+          [
+            531,
+            1428
+          ],
+          [
+            531,
+            1507
+          ]
+        ],
+        [
+          [
+            924,
+            1400
+          ],
+          [
+            924,
+            1507
+          ]
+        ]
+      ],
+      "roomApproaches": [
+        {
+          "roomID": "工8-21",
+          "point": [
+            942,
+            1450
+          ],
+          "kind": "corridor-side adjacency, not verified door",
+          "confidence": "medium"
+        }
+      ],
+      "entrances": [],
+      "confidence": "high",
+      "unresolved": [
+        "No marked exterior entrance on 2F. Left stair is at x500, not identical to 1F stair x531.",
+        "Exact classroom door is absent; approach is adjacent entry bay."
+      ],
+      "corridors": [
+        [
+          [
+            531,
+            1428
+          ],
+          [
+            924,
+            1428
+          ]
+        ],
+        [
+          [
+            531,
+            1428
+          ],
+          [
+            531,
+            1507
+          ]
+        ],
+        [
+          [
+            924,
+            1400
+          ],
+          [
+            924,
+            1507
+          ]
+        ]
+      ],
+      "approaches": [
+        {
+          "roomID": "工8-21",
+          "point": [
+            942,
+            1450
+          ],
+          "kind": "corridor-side adjacency, not verified door",
+          "confidence": "medium"
+        }
+      ],
+      "evidenceOverlay": "/tmp/indoor-b-12-evidence.png"
+    },
+    {
+      "buildingID": "701",
+      "floor": 2,
+      "sourcePage": 13,
+      "bbox": [
+        255,
+        431,
+        1076,
+        573
+      ],
+      "outlinePolygon": [
+        [
+          255,
+          431
+        ],
+        [
+          1331,
+          431
+        ],
+        [
+          1331,
+          1004
+        ],
+        [
+          255,
+          1004
+        ]
+      ],
+      "stairs": [
+        {
+          "center": [
+            621,
+            972
+          ],
+          "confidence": "high",
+          "ID": "701-2-stairs-1",
+          "point": [
+            621,
+            972
+          ]
+        },
+        {
+          "center": [
+            1298,
+            936
+          ],
+          "confidence": "high",
+          "ID": "701-2-stairs-2",
+          "point": [
+            1298,
+            936
+          ]
+        }
+      ],
+      "corridorCenterlines": [
+        [
+          [
+            392,
+            801
+          ],
+          [
+            1258,
+            801
+          ]
+        ],
+        [
+          [
+            710,
+            801
+          ],
+          [
+            710,
+            974
+          ]
+        ],
+        [
+          [
+            1258,
+            801
+          ],
+          [
+            1258,
+            933
+          ],
+          [
+            1280,
+            933
+          ]
+        ],
+        [
+          [
+            710,
+            801
+          ],
+          [
+            710,
+            552
+          ]
+        ]
+      ],
+      "roomApproaches": [],
+      "entrances": [],
+      "confidence": "medium",
+      "unresolved": [
+        "Open lounge circulation is schematic; centerlines in the open hall are approximate, not bounded corridor geometry.",
+        "Seminar/CALL classroom is shown at [733,431..866,641], but is absent from rooms.json and its door is not drawn.",
+        "West stair exit into hall is inferred at its east side; exact landing opening is not explicitly marked."
+      ],
+      "corridors": [
+        [
+          [
+            392,
+            801
+          ],
+          [
+            1258,
+            801
+          ]
+        ],
+        [
+          [
+            710,
+            801
+          ],
+          [
+            710,
+            974
+          ]
+        ],
+        [
+          [
+            1258,
+            801
+          ],
+          [
+            1258,
+            933
+          ],
+          [
+            1280,
+            933
+          ]
+        ],
+        [
+          [
+            710,
+            801
+          ],
+          [
+            710,
+            552
+          ]
+        ]
+      ],
+      "approaches": [],
+      "evidenceOverlay": "/tmp/indoor-b-13-evidence.png",
+      "eraseTextBoxes": [
+        {
+          "box": [
+            744,
+            510,
+            115,
+            92
+          ],
+          "label": "CALL教室",
+          "fullName": "講義室 セミナールーム・CALL教室",
+          "orientation": "horizontal",
+          "basis": "Read directly on source page 13; rectangle masks only original lettering, not adjacent walls."
+        },
+        {
+          "box": [
+            749,
+            676,
+            108,
+            34
+          ],
+          "label": "トイレ",
+          "fullName": "男女トイレ",
+          "orientation": "horizontal",
+          "basis": "Read directly on source page 13; rectangle masks only original lettering, not adjacent walls."
+        },
+        {
+          "box": [
+            1047,
+            605,
+            76,
+            31
+          ],
+          "label": "図書館",
+          "fullName": "図書館",
+          "orientation": "horizontal",
+          "basis": "Read directly on source page 13; rectangle masks only original lettering, not adjacent walls."
+        },
+        {
+          "box": [
+            605,
+            892,
+            82,
+            29
+          ],
+          "label": "EV",
+          "fullName": "エレベータ",
+          "orientation": "horizontal",
+          "basis": "Read directly on source page 13; rectangle masks only original lettering, not adjacent walls."
+        }
+      ],
+      "manualWalls": [
+        [
+          [
+            733,
+            431
+          ],
+          [
+            733,
+            738
+          ]
+        ],
+        [
+          [
+            866,
+            431
+          ],
+          [
+            866,
+            762
+          ]
+        ],
+        [
+          [
+            733,
+            641
+          ],
+          [
+            866,
+            641
+          ]
+        ],
+        [
+          [
+            1331,
+            431
+          ],
+          [
+            1331,
+            1004
+          ]
+        ]
+      ],
+      "manualWallNotes": "Preserve these pale but definite source walls: seminar left edge, seminar/library divider, seminar/toilet divider, and east exterior edge. Other already traced boundaries remain in place. Furniture is not asserted to be a wall."
+    },
+    {
+      "buildingID": "701",
+      "floor": 1,
+      "sourcePage": 13,
+      "bbox": [
+        258,
+        1181,
+        1144,
+        752
+      ],
+      "outlinePolygon": [
+        [
+          258,
+          1181
+        ],
+        [
+          1402,
+          1181
+        ],
+        [
+          1402,
+          1933
+        ],
+        [
+          258,
+          1933
+        ]
+      ],
+      "stairs": [],
+      "corridorCenterlines": [
+        [
+          [
+            336,
+            1769
+          ],
+          [
+            940,
+            1769
+          ]
+        ],
+        [
+          [
+            940,
+            1255
+          ],
+          [
+            940,
+            1875
+          ]
+        ]
+      ],
+      "roomApproaches": [],
+      "entrances": [],
+      "confidence": "medium",
+      "unresolved": [
+        "No unequivocal interior stair glyph is identifiable on this schematic. Grid at bottom center and double-line marks on north/west boundary are unresolved; do not invent stair centers.",
+        "玄関 is explicitly labeled in bottom-center/east bay, but exterior doorway location/opening is not drawn.",
+        "Ground floor contains offices and lounge, no catalogued classroom. Circulation shown only as broad hall centerlines."
+      ],
+      "corridors": [
+        [
+          [
+            336,
+            1769
+          ],
+          [
+            940,
+            1769
+          ]
+        ],
+        [
+          [
+            940,
+            1255
+          ],
+          [
+            940,
+            1875
+          ]
+        ]
+      ],
+      "approaches": [],
+      "evidenceOverlay": "/tmp/indoor-b-13-evidence.png",
+      "eraseTextBoxes": [
+        {
+          "box": [
+            479,
+            1222,
+            155,
+            34
+          ],
+          "label": "調達管理",
+          "fullName": "調達管理課",
+          "orientation": "horizontal",
+          "basis": "Read directly on source page 13; rectangle masks only original lettering, not adjacent walls."
+        },
+        {
+          "box": [
+            776,
+            1185,
+            129,
+            61
+          ],
+          "label": "授業料窓口",
+          "fullName": "授業料納入窓口",
+          "orientation": "horizontal",
+          "basis": "Read directly on source page 13; rectangle masks only original lettering, not adjacent walls."
+        },
+        {
+          "box": [
+            1154,
+            1287,
+            157,
+            36
+          ],
+          "label": "附属図書館",
+          "fullName": "附属図書館",
+          "orientation": "horizontal",
+          "basis": "Read directly on source page 13; rectangle masks only original lettering, not adjacent walls."
+        },
+        {
+          "box": [
+            423,
+            1385,
+            228,
+            33
+          ],
+          "label": "浜松教務課",
+          "fullName": "浜松教務課",
+          "orientation": "horizontal",
+          "basis": "Read directly on source page 13; rectangle masks only original lettering, not adjacent walls."
+        },
+        {
+          "box": [
+            708,
+            1385,
+            170,
+            33
+          ],
+          "label": "学生支援課",
+          "fullName": "浜松学生支援課",
+          "orientation": "horizontal",
+          "basis": "Read directly on source page 13; rectangle masks only original lettering, not adjacent walls."
+        },
+        {
+          "box": [
+            808,
+            1435,
+            101,
+            31
+          ],
+          "label": "国際交流課",
+          "fullName": "国際交流課",
+          "orientation": "horizontal",
+          "basis": "Read directly on source page 13; rectangle masks only original lettering, not adjacent walls."
+        },
+        {
+          "box": [
+            814,
+            1495,
+            92,
+            32
+          ],
+          "label": "留学生係",
+          "fullName": "留学生係",
+          "orientation": "horizontal",
+          "basis": "Read directly on source page 13; rectangle masks only original lettering, not adjacent walls."
+        },
+        {
+          "box": [
+            372,
+            1566,
+            33,
+            162
+          ],
+          "label": "共通教育係",
+          "fullName": "共通教育係",
+          "orientation": "vertical",
+          "basis": "Read directly on source page 13; rectangle masks only original lettering, not adjacent walls."
+        },
+        {
+          "box": [
+            431,
+            1501,
+            34,
+            231
+          ],
+          "label": "情報学部教務係",
+          "fullName": "情報学部教務係",
+          "orientation": "vertical",
+          "basis": "Read directly on source page 13; rectangle masks only original lettering, not adjacent walls."
+        },
+        {
+          "box": [
+            623,
+            1516,
+            36,
+            227
+          ],
+          "label": "工学部教務係",
+          "fullName": "工学部教務係",
+          "orientation": "vertical",
+          "basis": "Read directly on source page 13; rectangle masks only original lettering, not adjacent walls."
+        },
+        {
+          "box": [
+            831,
+            1604,
+            74,
+            70
+          ],
+          "label": "学生支援係",
+          "fullName": "学生支援係",
+          "orientation": "horizontal",
+          "basis": "Read directly on source page 13; rectangle masks only original lettering, not adjacent walls."
+        },
+        {
+          "box": [
+            1149,
+            1691,
+            89,
+            72
+          ],
+          "label": "証明書発行機",
+          "fullName": "証明書発行機",
+          "orientation": "horizontal",
+          "basis": "Read directly on source page 13; rectangle masks only original lettering, not adjacent walls."
+        },
+        {
+          "box": [
+            362,
+            1857,
+            123,
+            33
+          ],
+          "label": "就職支援室",
+          "fullName": "就職支援室",
+          "orientation": "horizontal",
+          "basis": "Read directly on source page 13; rectangle masks only original lettering, not adjacent walls."
+        },
+        {
+          "box": [
+            1008,
+            1833,
+            58,
+            36
+          ],
+          "label": "玄関",
+          "fullName": "玄関",
+          "orientation": "horizontal",
+          "basis": "Read directly on source page 13; rectangle masks only original lettering, not adjacent walls."
+        },
+        {
+          "box": [
+            1150,
+            1858,
+            96,
+            34
+          ],
+          "label": "ラウンジ",
+          "fullName": "ラウンジ",
+          "orientation": "horizontal",
+          "basis": "Read directly on source page 13; rectangle masks only original lettering, not adjacent walls."
+        }
+      ],
+      "manualWalls": []
+    }
+  ]
+}

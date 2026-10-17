@@ -1,0 +1,25 @@
+# macOS
+.DS_Store
+._*
+
+# Xcode and Swift build output
+DerivedData/
+build/
+.build/
+xcuserdata/
+*.xcuserstate
+*.xcarchive
+*.ipa
+*.dSYM/
+
+# Local secrets and signing material
+.env
+.env.*
+!.env.example
+*.p12
+*.p8
+*.mobileprovision
+
+# Python caches
+__pycache__/
+*.pyc

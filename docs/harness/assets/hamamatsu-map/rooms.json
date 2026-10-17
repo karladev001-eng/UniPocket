@@ -1,0 +1,836 @@
+{
+  "source": "indoor-source.pdf",
+  "sourceUpdateDate": null,
+  "pdfCreationDate": "2021-03-15",
+  "notice": "提供資料に基づく館内図。現在の配置との一致は未確認。PDF作成日時は資料の改訂日を保証しない。",
+  "plans": {
+    "101": {
+      "page": 6,
+      "floors": []
+    },
+    "102": {
+      "page": 6,
+      "floors": [
+        1,
+        2
+      ]
+    },
+    "811": {
+      "page": 6,
+      "floors": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ]
+    },
+    "501": {
+      "page": 7,
+      "floors": [
+        2,
+        3
+      ]
+    },
+    "201": {
+      "page": 8,
+      "floors": [
+        1,
+        3
+      ]
+    },
+    "202": {
+      "page": 9,
+      "floors": [
+        1,
+        2,
+        3
+      ]
+    },
+    "203": {
+      "page": 10,
+      "floors": [
+        3
+      ]
+    },
+    "206": {
+      "page": 10,
+      "floors": [
+        1,
+        2
+      ]
+    },
+    "205": {
+      "page": 11,
+      "floors": [
+        1,
+        2,
+        3
+      ]
+    },
+    "207": {
+      "page": 12,
+      "floors": [
+        1,
+        2,
+        3,
+        4
+      ]
+    },
+    "208": {
+      "page": 12,
+      "floors": [
+        1,
+        2
+      ]
+    },
+    "701": {
+      "page": 13,
+      "floors": [
+        1,
+        2
+      ]
+    }
+  },
+  "rooms": [
+    {
+      "id": "情13",
+      "buildingID": "102",
+      "floor": 1,
+      "sourcePage": 6,
+      "tablePage": 5,
+      "printedPage": 64,
+      "aliases": [
+        "情13"
+      ],
+      "box": [
+        0.675412,
+        0.568326,
+        0.083958,
+        0.104343
+      ]
+    },
+    {
+      "id": "情14",
+      "buildingID": "102",
+      "floor": 1,
+      "sourcePage": 6,
+      "tablePage": 5,
+      "printedPage": 64,
+      "aliases": [
+        "情14"
+      ],
+      "box": [
+        0.733133,
+        0.773835,
+        0.049475,
+        0.068326
+      ]
+    },
+    {
+      "id": "情22",
+      "buildingID": "102",
+      "floor": 2,
+      "sourcePage": 6,
+      "tablePage": 5,
+      "printedPage": 64,
+      "aliases": [
+        "情22"
+      ],
+      "box": [
+        0.33958,
+        0.542903,
+        0.047976,
+        0.065148
+      ]
+    },
+    {
+      "id": "情23",
+      "buildingID": "102",
+      "floor": 2,
+      "sourcePage": 6,
+      "tablePage": 5,
+      "printedPage": 64,
+      "aliases": [
+        "情23"
+      ],
+      "box": [
+        0.407046,
+        0.575742,
+        0.049475,
+        0.04714
+      ]
+    },
+    {
+      "id": "情24",
+      "buildingID": "102",
+      "floor": 2,
+      "sourcePage": 6,
+      "tablePage": 5,
+      "printedPage": 64,
+      "aliases": [
+        "情24"
+      ],
+      "box": [
+        0.33958,
+        0.60964,
+        0.047976,
+        0.067267
+      ]
+    },
+    {
+      "id": "情25",
+      "buildingID": "102",
+      "floor": 2,
+      "sourcePage": 6,
+      "tablePage": 5,
+      "printedPage": 64,
+      "aliases": [
+        "情25"
+      ],
+      "box": [
+        0.407046,
+        0.625,
+        0.049475,
+        0.049788
+      ]
+    },
+    {
+      "id": "情26",
+      "buildingID": "102",
+      "floor": 2,
+      "sourcePage": 6,
+      "tablePage": 5,
+      "printedPage": 64,
+      "aliases": [
+        "情26"
+      ],
+      "box": [
+        0.407046,
+        0.677436,
+        0.049475,
+        0.032309
+      ]
+    },
+    {
+      "id": "共11",
+      "buildingID": "811",
+      "floor": 1,
+      "sourcePage": 6,
+      "tablePage": 5,
+      "printedPage": 64,
+      "aliases": [
+        "共11"
+      ],
+      "box": [
+        0.628186,
+        0.166314,
+        0.069715,
+        0.086335
+      ]
+    },
+    {
+      "id": "共21",
+      "buildingID": "811",
+      "floor": 2,
+      "sourcePage": 6,
+      "tablePage": 5,
+      "printedPage": 64,
+      "aliases": [
+        "共21"
+      ],
+      "box": [
+        0.494003,
+        0.143538,
+        0.065967,
+        0.085805
+      ]
+    },
+    {
+      "id": "共31",
+      "buildingID": "811",
+      "floor": 3,
+      "sourcePage": 6,
+      "tablePage": 5,
+      "printedPage": 64,
+      "aliases": [
+        "共31"
+      ],
+      "box": [
+        0.361319,
+        0.123941,
+        0.068216,
+        0.085805
+      ]
+    },
+    {
+      "id": "共41",
+      "buildingID": "811",
+      "floor": 4,
+      "sourcePage": 6,
+      "tablePage": 5,
+      "printedPage": 64,
+      "aliases": [
+        "共41"
+      ],
+      "box": [
+        0.227886,
+        0.103814,
+        0.068216,
+        0.084746
+      ]
+    },
+    {
+      "id": "共51",
+      "buildingID": "811",
+      "floor": 5,
+      "sourcePage": 6,
+      "tablePage": 5,
+      "printedPage": 64,
+      "aliases": [
+        "共51"
+      ],
+      "box": [
+        0.095952,
+        0.084216,
+        0.065967,
+        0.085275
+      ]
+    },
+    {
+      "id": "総21",
+      "buildingID": "501",
+      "floor": 2,
+      "sourcePage": 7,
+      "tablePage": 5,
+      "printedPage": 65,
+      "aliases": [
+        "総21"
+      ],
+      "box": [
+        0.583208,
+        0.352225,
+        0.176912,
+        0.066737
+      ]
+    },
+    {
+      "id": "総22",
+      "buildingID": "501",
+      "floor": 2,
+      "sourcePage": 7,
+      "tablePage": 5,
+      "printedPage": 65,
+      "aliases": [
+        "総22"
+      ],
+      "box": [
+        0.38081,
+        0.352225,
+        0.1994,
+        0.066737
+      ]
+    },
+    {
+      "id": "総23",
+      "buildingID": "501",
+      "floor": 2,
+      "sourcePage": 7,
+      "tablePage": 5,
+      "printedPage": 65,
+      "aliases": [
+        "総23"
+      ],
+      "box": [
+        0.222639,
+        0.352225,
+        0.154423,
+        0.066737
+      ]
+    },
+    {
+      "id": "総24",
+      "buildingID": "501",
+      "floor": 2,
+      "sourcePage": 7,
+      "tablePage": 5,
+      "printedPage": 65,
+      "aliases": [
+        "総24"
+      ],
+      "box": [
+        0.249625,
+        0.170551,
+        0.241379,
+        0.088983
+      ]
+    },
+    {
+      "id": "総31",
+      "buildingID": "501",
+      "floor": 3,
+      "sourcePage": 7,
+      "tablePage": 5,
+      "printedPage": 65,
+      "aliases": [
+        "総31"
+      ],
+      "box": [
+        0.583208,
+        0.733051,
+        0.176912,
+        0.067267
+      ]
+    },
+    {
+      "id": "総32",
+      "buildingID": "501",
+      "floor": 3,
+      "sourcePage": 7,
+      "tablePage": 5,
+      "printedPage": 65,
+      "aliases": [
+        "総32"
+      ],
+      "box": [
+        0.38081,
+        0.733051,
+        0.1994,
+        0.067267
+      ]
+    },
+    {
+      "id": "総33",
+      "buildingID": "501",
+      "floor": 3,
+      "sourcePage": 7,
+      "tablePage": 5,
+      "printedPage": 65,
+      "aliases": [
+        "総33"
+      ],
+      "box": [
+        0.222639,
+        0.733051,
+        0.154423,
+        0.067267
+      ]
+    },
+    {
+      "id": "総34",
+      "buildingID": "501",
+      "floor": 3,
+      "sourcePage": 7,
+      "tablePage": 5,
+      "printedPage": 65,
+      "aliases": [
+        "総34"
+      ],
+      "box": [
+        0.249625,
+        0.553496,
+        0.241379,
+        0.087394
+      ]
+    },
+    {
+      "id": "工1-31",
+      "buildingID": "201",
+      "floor": 3,
+      "sourcePage": 8,
+      "tablePage": 5,
+      "printedPage": 66,
+      "aliases": [
+        "工1-31",
+        "1-31"
+      ],
+      "box": [
+        0.6842443729903537,
+        0.1731818181818182,
+        0.09389067524115756,
+        0.04
+      ]
+    },
+    {
+      "id": "工1-32",
+      "buildingID": "201",
+      "floor": 3,
+      "sourcePage": 8,
+      "tablePage": 5,
+      "printedPage": 66,
+      "aliases": [
+        "工1-32",
+        "1-32"
+      ],
+      "box": [
+        0.4778135048231511,
+        0.17454545454545456,
+        0.06945337620578779,
+        0.029545454545454545
+      ]
+    },
+    {
+      "id": "工1-33",
+      "buildingID": "201",
+      "floor": 3,
+      "sourcePage": 8,
+      "tablePage": 5,
+      "printedPage": 66,
+      "aliases": [
+        "工1-33",
+        "1-33"
+      ],
+      "box": [
+        0.2585209003215434,
+        0.175,
+        0.0720257234726688,
+        0.03
+      ]
+    },
+    {
+      "id": "工2-11",
+      "buildingID": "202",
+      "floor": 1,
+      "sourcePage": 9,
+      "tablePage": 5,
+      "printedPage": 67,
+      "aliases": [
+        "工2-11",
+        "2-11"
+      ],
+      "box": [
+        0.341829,
+        0.773835,
+        0.052474,
+        0.051377
+      ]
+    },
+    {
+      "id": "工2-21",
+      "buildingID": "202",
+      "floor": 2,
+      "sourcePage": 9,
+      "tablePage": 5,
+      "printedPage": 67,
+      "aliases": [
+        "工2-21",
+        "2-21"
+      ],
+      "box": [
+        0.256372,
+        0.304555,
+        0.07946,
+        0.027542
+      ]
+    },
+    {
+      "id": "工2-22",
+      "buildingID": "202",
+      "floor": 2,
+      "sourcePage": 9,
+      "tablePage": 5,
+      "printedPage": 67,
+      "aliases": [
+        "工2-22",
+        "2-22"
+      ],
+      "box": [
+        0.230135,
+        0.567267,
+        0.053223,
+        0.051377
+      ]
+    },
+    {
+      "id": "工2-31",
+      "buildingID": "202",
+      "floor": 3,
+      "sourcePage": 9,
+      "tablePage": 5,
+      "printedPage": 67,
+      "aliases": [
+        "工2-31",
+        "2-31"
+      ],
+      "box": [
+        0.144678,
+        0.102225,
+        0.077961,
+        0.028072
+      ]
+    },
+    {
+      "id": "工3-31",
+      "buildingID": "203",
+      "floor": 3,
+      "sourcePage": 10,
+      "tablePage": 5,
+      "printedPage": 68,
+      "aliases": [
+        "工3-31",
+        "3-31"
+      ],
+      "box": [
+        0.257121,
+        0.384004,
+        0.084708,
+        0.079449
+      ]
+    },
+    {
+      "id": "工5-11",
+      "buildingID": "205",
+      "floor": 1,
+      "sourcePage": 11,
+      "tablePage": 5,
+      "printedPage": 69,
+      "aliases": [
+        "工5-11",
+        "5-11"
+      ],
+      "box": [
+        0.701649,
+        0.555085,
+        0.11994,
+        0.050318
+      ]
+    },
+    {
+      "id": "工5-21",
+      "buildingID": "205",
+      "floor": 2,
+      "sourcePage": 11,
+      "tablePage": 5,
+      "printedPage": 69,
+      "aliases": [
+        "工5-21",
+        "5-21"
+      ],
+      "box": [
+        0.31934,
+        0.555085,
+        0.11919,
+        0.050318
+      ]
+    },
+    {
+      "id": "工5-22",
+      "buildingID": "205",
+      "floor": 2,
+      "sourcePage": 11,
+      "tablePage": 5,
+      "printedPage": 69,
+      "aliases": [
+        "工5-22",
+        "5-22"
+      ],
+      "box": [
+        0.341079,
+        0.650424,
+        0.047226,
+        0.068856
+      ]
+    },
+    {
+      "id": "工5-23",
+      "buildingID": "205",
+      "floor": 2,
+      "sourcePage": 11,
+      "tablePage": 5,
+      "printedPage": 69,
+      "aliases": [
+        "工5-23",
+        "5-23"
+      ],
+      "box": [
+        0.196402,
+        0.649364,
+        0.045727,
+        0.069915
+      ]
+    },
+    {
+      "id": "工5-24",
+      "buildingID": "205",
+      "floor": 2,
+      "sourcePage": 11,
+      "tablePage": 5,
+      "printedPage": 69,
+      "aliases": [
+        "工5-24",
+        "5-24"
+      ],
+      "box": [
+        0.194903,
+        0.724576,
+        0.062219,
+        0.086335
+      ]
+    },
+    {
+      "id": "工5-31",
+      "buildingID": "205",
+      "floor": 3,
+      "sourcePage": 11,
+      "tablePage": 5,
+      "printedPage": 69,
+      "aliases": [
+        "工5-31",
+        "5-31"
+      ],
+      "box": [
+        0.278861,
+        0.10964,
+        0.164918,
+        0.051377
+      ]
+    },
+    {
+      "id": "工6-11",
+      "buildingID": "206",
+      "floor": 1,
+      "sourcePage": 10,
+      "tablePage": 5,
+      "printedPage": 68,
+      "aliases": [
+        "工6-11",
+        "6-11"
+      ],
+      "box": [
+        0.456522,
+        0.528602,
+        0.075712,
+        0.14089
+      ]
+    },
+    {
+      "id": "工6-12",
+      "buildingID": "206",
+      "floor": 1,
+      "sourcePage": 10,
+      "tablePage": 5,
+      "printedPage": 68,
+      "aliases": [
+        "工6-12",
+        "6-12"
+      ],
+      "box": [
+        0.33958,
+        0.528602,
+        0.082459,
+        0.14089
+      ]
+    },
+    {
+      "id": "工6-21",
+      "buildingID": "206",
+      "floor": 2,
+      "sourcePage": 10,
+      "tablePage": 5,
+      "printedPage": 68,
+      "aliases": [
+        "工6-21",
+        "6-21"
+      ],
+      "box": [
+        0.207646,
+        0.53072,
+        0.08096,
+        0.184322
+      ]
+    },
+    {
+      "id": "工6-22",
+      "buildingID": "206",
+      "floor": 2,
+      "sourcePage": 10,
+      "tablePage": 5,
+      "printedPage": 68,
+      "aliases": [
+        "工6-22",
+        "6-22"
+      ],
+      "box": [
+        0.086207,
+        0.53072,
+        0.086207,
+        0.184322
+      ]
+    },
+    {
+      "id": "工7-11",
+      "buildingID": "207",
+      "floor": 1,
+      "sourcePage": 12,
+      "tablePage": 5,
+      "printedPage": 70,
+      "aliases": [
+        "工7-11",
+        "7-11"
+      ],
+      "box": [
+        0.611694,
+        0.485699,
+        0.122939,
+        0.032309
+      ]
+    },
+    {
+      "id": "工7-12",
+      "buildingID": "207",
+      "floor": 1,
+      "sourcePage": 12,
+      "tablePage": 5,
+      "printedPage": 70,
+      "aliases": [
+        "工7-12",
+        "7-12"
+      ],
+      "box": [
+        0.548726,
+        0.485699,
+        0.058471,
+        0.032309
+      ]
+    },
+    {
+      "id": "工8-11",
+      "buildingID": "208",
+      "floor": 1,
+      "sourcePage": 12,
+      "tablePage": 5,
+      "printedPage": 70,
+      "aliases": [
+        "工8-11",
+        "8-11"
+      ],
+      "box": [
+        0.617691,
+        0.744703,
+        0.131934,
+        0.054555
+      ]
+    },
+    {
+      "id": "工8-21",
+      "buildingID": "208",
+      "floor": 2,
+      "sourcePage": 12,
+      "tablePage": 5,
+      "printedPage": 70,
+      "aliases": [
+        "工8-21",
+        "8-21"
+      ],
+      "box": [
+        0.617691,
+        0.632415,
+        0.131934,
+        0.054555
+      ]
+    }
+  ],
+  "unresolved": [
+    "情報学部1号館の掲載図は階表示なし。"
+  ]
+}

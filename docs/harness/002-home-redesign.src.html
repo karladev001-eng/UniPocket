@@ -1,0 +1,60 @@
+<!doctype html><html lang="ja" data-theme="light"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ホーム再設計 — 仕様とモック v6</title><link rel="stylesheet" href="htmlplan-runtime/htmlplan.css"><script src="htmlplan-runtime/htmlplan.js" defer></script><style>.overview-image{display:block;max-width:360px;width:100%;border-radius:28px;margin:24px auto}.launch{display:inline-flex;background:#163e35;color:white;align-items:center;min-height:46px;padding:10px 18px;border-radius:12px;text-decoration:none}.intro-title{font-family:system-ui,sans-serif;line-height:1.5}header .kicker{letter-spacing:.06em}.mock-caption{color:#63705f;text-align:center;font-size:12px}.grid-notes{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px;margin:24px 0}.grid-notes article{border:1px solid #dce2d7;border-radius:12px;padding:16px}.grid-notes h3{margin:0 0 8px}.grid-notes p{margin:0;font-size:13px}</style></head>
+<body data-plan-id="002-home-redesign" data-version="6" data-scope="ホーム再設計 H1–H7" data-approval="pending">
+<header><h1 class="intro-title">次の講義へ、迷わず。</h1><p class="dek">何コマ目・何時から・どこで。必要な情報が一度に目に入るホームの提案。</p><p class="meta">002-home-redesign · v6 · ホームのモック · 製品実装は未承認</p><a class="launch" href="002-home-mock.html">操作できるモックを開く ↗</a><details class="thread"><summary>今回の依頼</summary><doc-quote via="prompt" from="ユーザー">ホームでは○コマ目が何時から始まるのか、場所はどこかがまず知りたい。</doc-quote><doc-quote via="prompt" from="ユーザー">その方針でいいと思います。ホーム画面がどんな見た目になるか、モックを作って見せてほしいです。既存のものは考えずに、分かりやすさとおしゃれさを出して下さい。</doc-quote></details></header>
+<main><section><h2>記事を読む画面へ</h2><p>「記事」タブから記事一覧・詳細のモックへ移動できます。ホーム講義詳細の関連する記事も、講義に対応した一覧へ進めます。</p><p><a href="006-articles-mock.html">記事モックを開く</a> · <a href="006-articles.plan.html">006の仕様と画面案</a></p></section><section><img class="overview-image" src="assets/home-redesign/home-before.png" alt="ホームの提案。2コマ目、10時20分開始、共通講義棟21教室を深緑のカードに表示。下に今日の時間割。"><p class="mock-caption">講義前の見え方。日付・時刻・講義・教室は仮データです。</p><div class="grid-notes"><article><h3>まず、時刻と場所。</h3><p>開始時刻を最も大きくし、コマと教室を一枚にまとめる。</p></article><article><h3>次に、今日の流れ。</h3><p>終了・講義中・次の講義・空きコマを文字でも区別する。</p></article><article><h3>知りたい先へ。</h3><p>場所からマップ。講義からメモ・掲示板・関連記事へ。</p></article></div><p>対象はホームの見た目と操作の見本。PDF解析・投稿・アカウント・実地図の実装は含みません。通信を使わず表示でき、メモの試し書きはこのページのメモリ内だけに保持します。</p><p>構成は上部の次講義カード、今日の一覧、メモとマップの入口、下部の4タブ。状態選択やシート表示は固定サンプルで動作します。第1段階で見た目と操作をレビューし、必要な修正を経てから本実装の範囲を決めます。</p></section>
+<h2>4つの着せ替えテーマ</h2><img src="assets/home-redesign/theme-comparison.png" alt="グリーン・ブルー・ローズ・モノトーンの4テーマで同じホームを比較"><p>情報の位置はそのまま、背景・カード・タブ・シートをまとめて着せ替えます。操作モックのテーマボタンで試せます。テーマIDだけをブラウザー内に保存し、個人の予定やメモは送信しません。</p><section><h2>講義から掲示板へ</h2><p>講義詳細の「この講義の掲示板」から、同じ講義の公開掲示板へ移動できます。投稿一覧・タグ・返信・ペンネーム／匿名投稿の操作見本は005にまとめています。</p><p><a href="005-course-board-mock.html">掲示板の操作モック</a> · <a href="005-course-board.plan.html">005の仕様と画面案</a></p><p>今回の追加部分はソース/VMで検証し、実ブラウザー描画は未検証です。</p></section><h2>合意した方針と画面の提案</h2><doc-plan>
+<doc-claim id="H1"><p>コマ・開始時刻・教室が、ホームの最初の表示で分かる。</p><doc-shot src="assets/home-redesign/home-before.png" w="390" frame="none" caption="提案: 白系の背景と深緑のカードで情報の優先順位をつける。"></doc-shot><doc-note tone="info">講義名より時刻と教室を大きくする。「開始」のラベル、開始までの時間、終了時刻を併記。コマと時計時刻を分けて表示する。</doc-note></doc-claim>
+<doc-claim id="H2"><p>今日の一覧で、終了・次の講義・空きコマを確認できる。</p><doc-shot src="assets/home-redesign/home-during.png" frame="none" w="390" caption="講義中は、上部にも次の実際の講義を表示する。"></doc-shot><doc-note tone="info">次に受ける講義は空きコマを飛ばして選ぶ。講義中は4コマ目を「次の講義」と表示。講義名を押すと詳細の見本が開く。</doc-note></doc-claim>
+<doc-claim id="H3"><p>時間帯に応じて、ホームの主役を切り替える。</p><doc-machine name="home-state" caption="各状態を選ぶと画面が切り替わります。実際の時刻や予定に連動しない固定見本です。"><script type="text/plain">
+machine home-state initial before
+state before # 講義前: 開始時刻と場所。
+state during # 講義中: 終了時刻と次の講義。
+state done # 講義終了: 翌日の日付付き講義。
+state free # 講義のない日: 次の講義を案内。
+state unregistered # 未登録: 対応PDFから確認して登録。
+state unknown # 教室未設定: 推測せず確認を案内。
+| before | during | done |
+| free | unregistered | unknown |
+before -start-> during : 開始
+during -finish-> done : 終了
+done -next-> free : 翌日
+free -weekday-> before : 講義日
+before -reset-> unregistered : 未登録例
+unregistered -import-> before : 登録例
+before -missing-> unknown : 未設定例
+unknown -confirm-> before : 確認例
+</script>
+<div data-state="before"><doc-shot src="assets/home-redesign/home-before.png" frame="none" w="390"></doc-shot></div>
+<div data-state="during"><doc-shot src="assets/home-redesign/home-during.png" frame="none" w="390"></doc-shot></div>
+<div data-state="done"><doc-shot src="assets/home-redesign/home-done.png" frame="none" w="390"></doc-shot></div>
+<div data-state="free"><doc-shot src="assets/home-redesign/home-free.png" frame="none" w="390"></doc-shot></div>
+<div data-state="unregistered"><doc-shot src="assets/home-redesign/home-unregistered.png" frame="none" w="390"></doc-shot></div>
+<div data-state="unknown"><doc-shot src="assets/home-redesign/home-unknown.png" frame="none" w="390"></doc-shot></div>
+</doc-machine></doc-claim>
+<doc-claim id="H4"><p>未登録と講義なし、教室不明と既知の場所を区別する。</p><doc-shot src="assets/home-redesign/home-unknown.png" frame="none" w="390"></doc-shot><doc-note tone="info">PDFの選択・確認・登録という流れを案内。教室未設定では架空の建物を選ばない。取り込み・保存の成功はこのモックでは表示しない。</doc-note></doc-claim>
+<doc-claim id="H5"><p>場所・講義・メモ・4タブの入口を押して確認できる。</p><doc-flow caption="ホームからの主要な操作。"><script type="text/plain">
+home = ホーム
+map = 場所のシート
+lesson = 講義詳細
+memo = メモ
+board = 講義掲示板
+| home | map |
+| lesson | memo |
+| board | . |
+home -> map : 場所
+home -> lesson : 講義名
+home -> memo : メモ
+lesson -> board : 掲示板
+</script></doc-flow><doc-note tone="info">場所は概念図のシート。週間時間割、掲示板、記事は移動先の説明用シート。メモは試し書きでき、再読込で消える。シートは閉じるボタンとEscapeで戻れる。</doc-note></doc-claim>
+<doc-claim id="H7" aux="shared"><p>4つのテーマを、情報の位置を保って切り替えられる。</p><doc-shot src="assets/home-redesign/theme-comparison.png" w="480" frame="none" caption="提案: グリーン・ブルー・ローズ・モノトーン。操作モックでそれぞれ原寸表示できます。"></doc-shot></doc-claim><doc-claim id="H6" aux="shared"><p>狭いスマホ幅でも、最優先の情報が隠れない。</p><doc-shot src="assets/home-redesign/home-width-320.png" frame="none" w="304" caption="320pxのブラウザー幅でのモック。主な操作は44px以上。"></doc-shot></doc-claim>
+<doc-claim aux="scope"><p>製品の実装・公開・実データの取得は含めない。</p><ul><li>既存アプリの画面や配色に依存せず、新規のホーム案を作る。</li><li>時刻、教室、地図はダミー。実際の教室案内には使わない。</li><li>投稿、共有画像の生成、PDF解析、ネットワーク同期はこのモックには含めない。</li></ul></doc-claim>
+<doc-claim aux="shared"><p>履修登録PDFに、アプリが用意する浜松キャンパスの日程を適用して登録する。</p><p>PDF登録入口から<a href="004-calendar-import-mock.html">004の操作モック</a>へ進み、履修PDFの読取り結果と、アプリの日程を適用した除外・例外を確認する。学生による年間予定表の提出は不要。<a href="004-calendar-import.plan.html">004の仕様と画面案</a>を参照。初期画像は以前の見本で、登録先の操作は004へ更新。実PDF解析・既存の仮データへの実登録は行わない。</p><doc-flow caption="登録入口の接続。"><script type="text/plain">
+entry = PDFから時間割を登録
+import = 履修PDFとアプリ日程の登録モック
+| entry | import |
+entry -> import : 選択テーマを引継ぐ
+</script></doc-flow></doc-claim></doc-plan>
+<section><h2>番号付き受入条件</h2><ol><li>AC1: 初期画面にコマ・開始時刻・場所が収まる。<a href="#H1">H1</a></li><li>AC2: 今日の講義と空きコマ、次の講義を区別する。<a href="#H2">H2</a></li><li>AC3: 4つの時間帯・日種別を切り替えられる。<a href="#H3">H3</a></li><li>AC4: 未登録と教室未設定を別の状態として扱う。<a href="#H4">H4</a></li><li>AC5: 場所・講義・メモ・タブを操作でき、シートから戻れる。<a href="#H5">H5</a></li><li>AC6: 390px/320pxで横溢れなく、主要情報が初期表示内に入る。<a href="#H6">H6</a></li><li>AC7: 4テーマで主情報の読みやすさと配置を保ち、選択を保持する。<a href="#H7">H7</a></li></ol></section>
+<section id="unresolved"><h2>未解決事項</h2><p>モック作成を止める判断はなし。配色・密度・タブ構成・マップの表示方式は今回の提案であり、ユーザー評価は未受領です。実際の授業時刻とPDF形式、変更情報の更新方法は本実装前に確認します。</p><doc-ask id="home-feedback"><p>ホームの見た目や情報の優先順位へのコメント</p><textarea name="home-feedback-text" rows="3" placeholder="例: 時刻はこの大きさでよい。建物名をもう少し大きくしたい。"></textarea></doc-ask><p>回答やコメントの受領と、本実装への承認は別です。今回の依頼はモック作成です。</p></section>
+<section><h2>関連ドキュメント</h2><ul><li><a href="002-home-redesign.md">002 / 仕様v6・承認状態・検証記録の正本</a></li><li><a href="002-home-mock.html">002 / 操作できるホームモック</a></li></ul><p>このHTMLの図版は同梱されています。関連Markdownと操作モックは別ファイルです。</p></section>
+</main></body></html>

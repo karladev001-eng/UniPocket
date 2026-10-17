@@ -1,0 +1,25 @@
+{"event": "model_init", "ms": 0.015875091776251793}
+{"event": "data_loaded", "ms": 31.88300004694611}
+{"event": "first_display_tick", "ms": 2628.2469583675265, "tab": 0}
+{"event": "data_display_tick", "ms": 2628.431500052102, "tab": 0}
+{"event": "tab_request", "ms": 3667.063875007443, "tab": 1}
+{"duration_ms": 1781.8037499673665, "event": "tab_display_tick", "ms": 5448.867250001058, "tab": 1}
+{"event": "tab_request", "ms": 6494.889875059016, "tab": 4}
+{"duration_ms": 1036.4447083557025, "event": "tab_display_tick", "ms": 7531.333416700363, "tab": 4}
+{"event": "tab_request", "ms": 8545.26166676078, "tab": 2}
+{"duration_ms": 638.8928750529885, "event": "tab_display_tick", "ms": 9184.155166731216, "tab": 2}
+{"event": "tab_request", "ms": 10233.658625045791, "tab": 3}
+{"duration_ms": 487.9329582909122, "event": "tab_display_tick", "ms": 10721.591458423063, "tab": 3}
+{"event": "tab_request", "ms": 11770.528875058517, "tab": 0}
+{"duration_ms": 673.3455415815115, "event": "tab_display_tick", "ms": 12443.873291718774, "tab": 0}
+{"event": "tab_request", "ms": 13478.123083361425, "tab": 1}
+{"duration_ms": 667.0074999565259, "event": "tab_display_tick", "ms": 14145.130333374254, "tab": 1}
+{"event": "tab_request", "ms": 15193.654208327644, "tab": 4}
+{"duration_ms": 351.369958370924, "event": "tab_display_tick", "ms": 15545.02337507438, "tab": 4}
+{"event": "tab_request", "ms": 16592.58804167621, "tab": 2}
+{"duration_ms": 269.0996250603348, "event": "tab_display_tick", "ms": 16861.687083379366, "tab": 2}
+{"event": "tab_request", "ms": 17863.24862507172, "tab": 3}
+{"duration_ms": 226.06908332090825, "event": "tab_display_tick", "ms": 18089.31704168208, "tab": 3}
+{"event": "tab_request", "ms": 19138.471916667186, "tab": 0}
+{"duration_ms": 392.97454175539315, "event": "tab_display_tick", "ms": 19531.445125001483, "tab": 0}
+{"event": "finished", "ms": 19531.540541676804}
