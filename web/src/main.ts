@@ -71,6 +71,7 @@ const action = (name: string, fn: () => unknown) => actions.set(name, fn);
 let data: Data = emptyData(),
   loadFailed = false,
   busy = 0,
+  submitting = 0,
   composing = false,
   frozen = false,
   saveTimer: ReturnType<typeof setTimeout> | undefined,
@@ -107,6 +108,7 @@ async function save() {
     await saves.flush();
     statusText(saves.dirty ? "保存中…" : "この端末に保存済み");
     root.querySelector<HTMLElement>("#save-retry")!.hidden = true;
+    updates?.activity(true);
     return !saves.dirty;
   } catch (e) {
     statusText("保存できませんでした · 入力は保持しています");
@@ -122,7 +124,7 @@ async function flushOrThrow() {
     throw Error(
       "保存データを読み込めないため更新できません。原本を保護しています。",
     );
-  if (busy || composing)
+  if (busy || submitting || composing)
     throw Error(
       "文字変換・画像処理・PDF取込・送信を終えてから更新してください。",
     );
@@ -401,6 +403,7 @@ function modal(
   current.addEventListener("close", () => {
     current.remove();
     if (dialog === current) dialog = undefined;
+    updates?.activity();
   });
   if (submit)
     dialog.querySelector("form")!.onsubmit = async (e) => {
@@ -411,6 +414,7 @@ function modal(
       if (button.disabled) return;
       button.disabled = true;
       form.inert = true;
+      submitting++;
       try {
         await submit(form);
       } catch (e) {
@@ -418,6 +422,8 @@ function modal(
         box.hidden = false;
         box.textContent = e instanceof Error ? e.message : String(e);
       } finally {
+        submitting--;
+        updates?.activity();
         button.disabled = false;
         form.inert = false;
       }
@@ -569,6 +575,7 @@ async function openImport() {
         showImport(p);
       } finally {
         busy--;
+        updates?.activity();
       }
     },
     "解析して差分を確認",
@@ -834,6 +841,7 @@ function editNote(id: string, fresh?: Note) {
       images();
       input.value = "";
       busy--;
+      updates?.activity();
     }
   };
   d.querySelector<HTMLButtonElement>("#delete-note")!.onclick = async () => {
@@ -1025,6 +1033,7 @@ async function renderArticleDetail(id: string) {
         }
       } finally {
         busy--;
+        updates?.activity();
       }
     });
     if (namedAuthor(a.authorName)) action("detail-author", () => {
@@ -1045,6 +1054,7 @@ async function renderArticleDetail(id: string) {
         error(e);
       } finally {
         busy--;
+        updates?.activity();
       }
     });
     action("frame-retry", () => {
@@ -1140,6 +1150,7 @@ function articleForm(article?: Article) {
         location.hash = "articles/" + result.article.id;
       } finally {
         busy--;
+        updates?.activity();
       }
     },
     article ? "変更を保存" : "登録",
@@ -1220,7 +1231,7 @@ function renderMore() {
         ["mono", "モノトーン"],
       ],
       data.theme,
-    )}<h3>背景</h3><div class="background-samples">${backgrounds.map(b => `<button type="button" data-background="${b.id}" aria-pressed="${data.backgroundMode === b.id}"><img src="${esc(b.image)}" alt=""><span>${b.name}</span></button>`).join("")}</div><p class="muted">選択中: ${esc(backgrounds.find(b => b.id === data.backgroundMode)?.name || (data.backgroundMode !== "none" && data.background ? "自分の画像" : "背景なし"))}</p>${data.background ? btn("保存済みの自分の画像を使う", "custom-bg") : ""}<label>自分の背景画像<input id="background" type="file" accept="image/png,image/jpeg,image/webp,image/heic,.heic"></label>${btn("背景を解除", "clear-bg")}<p class="muted">背景画像はこのブラウザに保存します。</p></section><section class="card stack"><h2>時間割の表示</h2>${field("startHour", "表示開始時刻", String(data.startHour), "number", 'min="0" max="23"')}${field("endHour", "表示終了時刻", String(data.endHour), "number", 'min="1" max="24"')}<label class="check"><input name="bands" type="checkbox" ${data.showBands ? "checked" : ""}>営業時間の帯を表示</label><p class="muted">表示時間外の予定も日・週の一覧で確認できます。</p></section><section class="card"><h2>匿名ユーザー</h2><p>${esc(user?.displayName ?? "このブラウザで自動準備")}</p><p class="muted">${anonymousNotice}</p>${btn("表示名を設定", "profile")}</section><section class="card"><h2>このアプリの更新</h2><p class="muted">この画面のビルド ${esc(__APP_BUILD_ID__)}</p><div id="version" class="muted">配信情報を読み込み中…</div><div class="toolbar">${btn("更新を確認", "check-update")}</div><p class="muted">更新は全タブの保存成功後に適用します。変換・取込・保存失敗時は切り替えません。</p><details><summary>インストールする</summary><p>Android/PC: ブラウザのメニューから「アプリをインストール」「ホーム画面に追加」を選択。iPhone: Safariの共有から「ホーム画面に追加」を選択してください。HTTPSの公開URLで利用できます。</p></details></section><section class="card"><h2>端末内データ</h2><p class="muted">予定・メモ・画像・背景はIndexedDBに保存。初回は新規データで始まり、Swift版のデータは取り込みません。外部カレンダー接続は初回対象外です。</p><div class="toolbar">${btn("入力データを書き出す", "export-data")}</div><p class="muted">別タブとの保存競合時は、現在の入力を書き出してから再読み込みできます。書き出しにはメモ・画像も含まれます。</p></section></div>`;
+    )}<h3>背景</h3><div class="background-samples">${backgrounds.map(b => `<button type="button" data-background="${b.id}" aria-pressed="${data.backgroundMode === b.id}"><img src="${esc(b.image)}" alt=""><span>${b.name}</span></button>`).join("")}</div><p class="muted">選択中: ${esc(backgrounds.find(b => b.id === data.backgroundMode)?.name || (data.backgroundMode !== "none" && data.background ? "自分の画像" : "背景なし"))}</p>${data.background ? btn("保存済みの自分の画像を使う", "custom-bg") : ""}<label>自分の背景画像<input id="background" type="file" accept="image/png,image/jpeg,image/webp,image/heic,.heic"></label>${btn("背景を解除", "clear-bg")}<p class="muted">背景画像はこのブラウザに保存します。</p></section><section class="card stack"><h2>時間割の表示</h2>${field("startHour", "表示開始時刻", String(data.startHour), "number", 'min="0" max="23"')}${field("endHour", "表示終了時刻", String(data.endHour), "number", 'min="1" max="24"')}<label class="check"><input name="bands" type="checkbox" ${data.showBands ? "checked" : ""}>営業時間の帯を表示</label><p class="muted">表示時間外の予定も日・週の一覧で確認できます。</p></section><section class="card"><h2>匿名ユーザー</h2><p>${esc(user?.displayName ?? "このブラウザで自動準備")}</p><p class="muted">${anonymousNotice}</p>${btn("表示名を設定", "profile")}</section><section class="card"><h2>このアプリの更新</h2><p class="muted">この画面のビルド ${esc(__APP_BUILD_ID__)}</p><div id="version" class="muted">配信情報を読み込み中…</div><div class="toolbar">${btn("更新を確認", "check-update")}</div><p class="muted">起動・前面復帰・通信復帰時に新版を取得します。全タブの編集・取込・処理が終わり、保存に成功すると自動で適用します。</p><details><summary>インストールする</summary><p>Android/PC: ブラウザのメニューから「アプリをインストール」「ホーム画面に追加」を選択。iPhone: Safariの共有から「ホーム画面に追加」を選択してください。HTTPSの公開URLで利用できます。</p></details></section><section class="card"><h2>端末内データ</h2><p class="muted">予定・メモ・画像・背景はIndexedDBに保存。初回は新規データで始まり、Swift版のデータは取り込みません。外部カレンダー接続は初回対象外です。</p><div class="toolbar">${btn("入力データを書き出す", "export-data")}</div><p class="muted">別タブとの保存競合時は、現在の入力を書き出してから再読み込みできます。書き出しにはメモ・画像も含まれます。</p></section></div>`;
   action("custom-bg", () => { data.backgroundMode = "custom"; changed(); render(); });
   page.querySelectorAll<HTMLButtonElement>("[data-background]").forEach(button => button.onclick = () => {
     data.backgroundMode = button.dataset.background!; changed(); render();
@@ -1259,6 +1270,7 @@ function renderMore() {
       error(e);
     } finally {
       busy--;
+      updates?.activity();
     }
   };
   void fetch("/version.json", { cache: "no-store" })
@@ -1472,7 +1484,11 @@ root.addEventListener("click", (e) => {
   if (fn) Promise.resolve().then(fn).catch(error);
 });
 document.addEventListener("compositionstart", () => (composing = true));
-document.addEventListener("compositionend", () => (composing = false));
+document.addEventListener("compositionend", () => {
+  composing = false;
+  updates?.activity();
+});
+document.addEventListener("focusout", () => updates?.activity());
 window.addEventListener("hashchange", () => {
   if (dialog) {
     if (!dialog.dispatchEvent(new Event("requestclose", { cancelable: true }))) return;
@@ -1481,7 +1497,7 @@ window.addEventListener("hashchange", () => {
   render();
 });
 window.addEventListener("beforeunload", (e) => {
-  if (saves.dirty || busy) {
+  if (saves.dirty || busy || submitting) {
     e.preventDefault();
   }
 });
@@ -1507,8 +1523,11 @@ async function boot() {
     statusText("保存データを保護中 · 再読み込みで再試行");
   }
   updates = installUpdates({
+    isIdle: () => !busy && !submitting && !composing && !dialog?.open &&
+      !document.querySelector("dialog[open]") &&
+      !document.activeElement?.matches("input, textarea, select, [contenteditable]:not([contenteditable=false])"),
     prepare: async () => {
-      if (dialog && dialog.dataset.draft !== "true")
+      if (dialog?.open)
         throw Error(
           "開いている編集画面を保存するか閉じてから更新してください。",
         );
@@ -1521,7 +1540,7 @@ async function boot() {
     },
     notice: (message, ready) => {
       updateBox.hidden = false;
-      updateBox.innerHTML = `<p>${esc(message)}</p>${ready ? `<div class="row">${btn("保存して更新", "update", "primary")}${btn("あとで", "update-later")}</div>` : ""}`;
+      updateBox.innerHTML = `<p>${esc(message)}</p>${ready ? `<div class="row">${btn("更新を再試行", "update", "primary")}${btn("あとで", "update-later")}</div>` : ""}`;
     },
     error,
   });

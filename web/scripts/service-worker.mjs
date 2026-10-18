@@ -23,7 +23,7 @@ const id = process.env.BUILD_ID ?? hash.digest("hex").slice(0, 12);
 const version = {
   id,
   builtAt: new Date().toISOString(),
-  changes: ["iPhoneでPDFを取り込む際の互換性を修正"],
+  changes: ["編集やPDF取込が終わると、保存後にアプリを自動更新", "iPhoneのPDF取込エラーの診断と互換性を改善"],
 };
 await writeFile(
   new URL("version.json", root),
