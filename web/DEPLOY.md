@@ -1,4 +1,4 @@
-# Cloudflare 配信・共有API運用
+# Uni Pocket Cloudflare 配信・共有API運用
 
 この資料は `web/` を実行ディレクトリとする。共有APIは `server/worker.ts`、D1マイグレーションは `migrations/`。フロントの `wrangler.jsonc` とビルド設定を合わせて利用する。本番アカウント・DB・ドメインは未接続で、本番配信や実機合格を意味しない。
 
@@ -21,12 +21,12 @@
   "triggers": {"crons": ["0 * * * *"]},
   "env": {
     "preview": {
-      "name": "campuspocket-preview",
-      "d1_databases": [{"binding": "DB", "database_name": "campuspocket-preview", "database_id": "REPLACE_PREVIEW_ID", "migrations_dir": "migrations"}]
+      "name": "uni-pocket-preview",
+      "d1_databases": [{"binding": "DB", "database_name": "uni-pocket-preview", "database_id": "REPLACE_PREVIEW_ID", "migrations_dir": "migrations"}]
     },
     "production": {
-      "name": "campuspocket",
-      "d1_databases": [{"binding": "DB", "database_name": "campuspocket-production", "database_id": "REPLACE_PRODUCTION_ID", "migrations_dir": "migrations"}]
+      "name": "uni-pocket",
+      "d1_databases": [{"binding": "DB", "database_name": "uni-pocket-production", "database_id": "REPLACE_PRODUCTION_ID", "migrations_dir": "migrations"}]
     }
   }
 }
@@ -71,8 +71,8 @@ npm run local
 
 ```sh
 npx wrangler login
-npx wrangler d1 create shizudai-pocket-preview
-npx wrangler d1 create shizudai-pocket-production
+npx wrangler d1 create uni-pocket-preview
+npx wrangler d1 create uni-pocket-production
 npx wrangler d1 migrations apply DB --remote --env preview
 npm run build
 npx wrangler deploy --env preview

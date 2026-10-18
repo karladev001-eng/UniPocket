@@ -206,7 +206,7 @@ function renderHome() {
         timeZone: "Asia/Tokyo",
       }).format(now),
     ) +
-    `<section class="hero card"><div class="eyebrow">SHIZUDAI POCKET</div><h2>${next ? "次の予定" : "自分のキャンパスを、ひとつに。"}</h2>${next ? `<h3>${esc(next.title)}</h3><p>${dayKey(new Date(next.start))} ${timeLabel(next.start)} · ${esc(next.location)}</p>${btn("予定を確認", "event-" + next.id)}` : `<p>時間割、メモ、教室地図。<br>まずは履修登録確認票を読み込みましょう。</p>${btn("PDFを取り込む", "home-import")}`}</section><div class="cards"><section class="card"><div class="sectiontitle"><h2>今日の予定 <span class="tag">${todayEvents.length}</span></h2><a href="#timetable">時間割へ →</a></div>${todayEvents.map(eventCard).join("") || empty("今日の予定はありません。時間割から個人予定を追加できます。")}</section><section class="card"><h2>キャンパスの営業時間</h2><p class="muted">通常期の目安（元の掲載日 2026-10-07）。臨時変更は公式情報で確認してください。</p>${data.facilities
+    `<section class="hero card"><div class="eyebrow">UNI POCKET</div><h2>${next ? "次の予定" : "自分のキャンパスを、ひとつに。"}</h2>${next ? `<h3>${esc(next.title)}</h3><p>${dayKey(new Date(next.start))} ${timeLabel(next.start)} · ${esc(next.location)}</p>${btn("予定を確認", "event-" + next.id)}` : `<p>時間割、メモ、教室地図。<br>まずは履修登録確認票を読み込みましょう。</p>${btn("PDFを取り込む", "home-import")}`}</section><div class="cards"><section class="card"><div class="sectiontitle"><h2>今日の予定 <span class="tag">${todayEvents.length}</span></h2><a href="#timetable">時間割へ →</a></div>${todayEvents.map(eventCard).join("") || empty("今日の予定はありません。時間割から個人予定を追加できます。")}</section><section class="card"><h2>キャンパスの営業時間</h2><p class="muted">通常期の目安（元の掲載日 2026-10-07）。臨時変更は公式情報で確認してください。</p>${data.facilities
       .slice(0, 4)
       .map(
         (f) =>
@@ -1280,7 +1280,7 @@ function exportData() {
     url = URL.createObjectURL(blob),
     a = document.createElement("a");
   a.href = url;
-  a.download = "shizudai-pocket-" + dayKey() + ".json";
+  a.download = "uni-pocket-" + dayKey() + ".json";
   a.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
@@ -1442,7 +1442,7 @@ function editLinks() {
     draw();
   };
 }
-root.innerHTML = `<div class="background"></div><header class="top"><a href="#home" class="brand mutedlink">▣ 静大ポケット</a><span class="online" id="connection"></span></header><div id="update" class="notice" role="status" hidden></div><div id="error" class="notice error" role="alert" hidden></div><div class="page"><div class="statusline row between"><span id="save-status" role="status" aria-live="polite">データを読み込んでいます…</span><button id="save-retry" data-action="save-global" class="smallbtn" hidden>再試行</button></div><main id="page"></main></div><nav class="nav" aria-label="メインナビゲーション">${[
+root.innerHTML = `<div class="background"></div><header class="top"><a href="#home" class="brand mutedlink">▣ Uni Pocket</a><span class="online" id="connection"></span></header><div id="update" class="notice" role="status" hidden></div><div id="error" class="notice error" role="alert" hidden></div><div class="page"><div class="statusline row between"><span id="save-status" role="status" aria-live="polite">データを読み込んでいます…</span><button id="save-retry" data-action="save-global" class="smallbtn" hidden>再試行</button></div><main id="page"></main></div><nav class="nav" aria-label="メインナビゲーション">${[
   ["home", "ホーム"],
   ["timetable", "時間割"],
   ["articles", "記事"],

@@ -10,20 +10,20 @@
   },
   "env": {
     "preview": {
-      "name": "shizudai-pocket-preview",
+      "name": "uni-pocket-preview",
       "d1_databases": [{
         "binding": "DB",
-        "database_name": "shizudai-pocket-preview",
+        "database_name": "uni-pocket-preview",
         "database_id": "REPLACE_WITH_PREVIEW_D1_ID",
         "migrations_dir": "migrations"
       }],
       "triggers": {"crons": ["0 * * * *"]}
     },
     "production": {
-      "name": "shizudai-pocket",
+      "name": "uni-pocket",
       "d1_databases": [{
         "binding": "DB",
-        "database_name": "shizudai-pocket-production",
+        "database_name": "uni-pocket-production",
         "database_id": "REPLACE_WITH_PRODUCTION_D1_ID",
         "migrations_dir": "migrations"
       }],
