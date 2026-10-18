@@ -20,7 +20,7 @@ export async function submitNewArticle(
     // Only deterministic payload rejection permits corrected input. A rate limit
     // or auth failure can precede idempotency lookup on a retry whose earlier
     // request already committed, so it must retain the original snapshot.
-    if (e instanceof ApiError && (e.status === 400 || e.code === "duplicate_url")) {
+    if (e instanceof ApiError && ([400, 413, 415].includes(e.status) || e.code === "duplicate_url")) {
       delete draft.pendingBody;
       await persist();
     }

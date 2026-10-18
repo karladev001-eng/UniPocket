@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import { ApiError } from "../src/api";
+import { ApiError, notionURL } from "../src/api";
 import { submitNewArticle } from "../src/article-submit";
 
 const body = { title: "first", publicUrl: "https://demo.notion.site/page", embedUrl: "", summary: "", category: "", courseId: "" };
@@ -42,4 +42,22 @@ it("allows correcting a rejected first payload and blocks posting when snapshot 
   let network = false;
   await expect(submitNewArticle(draft, body, async () => { network = true; throw Error(); }, async () => { throw Error("disk full"); })).rejects.toThrow("disk full");
   expect(network).toBe(false);
+});
+
+it.each([413, 415])("allows corrected content after deterministic body rejection %s", async (status) => {
+  const draft: Record<string, string> = { key: "same-key" };
+  const oversized = { ...body, publicUrl: "https://demo.notion.site/" + "a".repeat(17000) };
+  await expect(submitNewArticle(draft, oversized, async () => { throw new ApiError("body rejected before write", status); }, async () => {})).rejects.toThrow("body rejected");
+  expect(draft.pendingBody).toBeUndefined();
+  let sent: unknown;
+  const result = await submitNewArticle(draft, body, async <T>(_path: string, _method: string, input: unknown) => {
+    sent = input;
+    return { article: { id: "corrected", ...(input as object) } } as T;
+  }, async () => {});
+  expect(sent).toEqual(body); expect(result.article.id).toBe("corrected");
+});
+
+it("rejects oversized Notion URLs before they can enter a submission snapshot", () => {
+  expect(() => notionURL("https://demo.notion.site/" + "a".repeat(17000))).toThrow("2048");
+  expect(notionURL(body.publicUrl)).toBe(body.publicUrl);
 });

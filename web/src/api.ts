@@ -117,6 +117,8 @@ export async function session(): Promise<User> {
 }
 
 export function notionURL(value: string): string {
+  if (Array.from(value.trim()).length > 2048)
+    throw Error("NotionのURLは2048字以内で入力してください。");
   let u: URL;
   try {
     u = new URL(value.trim());
@@ -137,6 +139,8 @@ export function notionURL(value: string): string {
       "notion.site / notion.so のHTTPS URLを指定してください。独自ドメインは未対応です。",
     );
   u.hash = "";
+  if (Array.from(u.href).length > 2048)
+    throw Error("NotionのURLは2048字以内で入力してください。");
   return u.href;
 }
 export function embedSource(value: string): string {
