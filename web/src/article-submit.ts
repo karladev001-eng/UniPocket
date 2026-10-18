@@ -17,8 +17,10 @@ export async function submitNewArticle(
   try {
     result = await send("/articles", "POST", original, { "Idempotency-Key": draft.key });
   } catch (e) {
-    // These explicit failures cannot have created an article. Allow corrected input.
-    if (e instanceof ApiError && ((e.status >= 400 && e.status < 409) || e.status === 429 || e.code === "duplicate_url")) {
+    // Only deterministic payload rejection permits corrected input. A rate limit
+    // or auth failure can precede idempotency lookup on a retry whose earlier
+    // request already committed, so it must retain the original snapshot.
+    if (e instanceof ApiError && (e.status === 400 || e.code === "duplicate_url")) {
       delete draft.pendingBody;
       await persist();
     }
