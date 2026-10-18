@@ -1,0 +1,8 @@
+node_modules/
+dist/
+public/pdfjs/
+.wrangler/
+.dev.vars
+.env*
+!.env.example
+coverage/

@@ -1,0 +1,33 @@
+{
+  "name": "shizudai-pocket-web",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node scripts/pdf-assets.mjs && vite --host 127.0.0.1",
+    "build": "tsc --noEmit && node scripts/build.mjs",
+    "preview": "vite preview --host 127.0.0.1",
+    "test": "vitest run tests/client.test.ts tests/client-update.test.ts",
+    "typecheck": "tsc --noEmit",
+    "local": "wrangler dev",
+    "db:local": "wrangler d1 migrations apply DB --local",
+    "test:server": "node --test tests/server.test.ts",
+    "test:runtime": "node --test tests/server-runtime.mjs"
+  },
+  "dependencies": {
+    "pdfjs-dist": "^6.4.299"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "esbuild": "^0.28.2",
+    "fake-indexeddb": "^6.2.4",
+    "miniflare": "5.20261012.1-beta",
+    "typescript": "^5.9.3",
+    "vite": "^7.1.10",
+    "vitest": "^5.0.5",
+    "wrangler": "^4.45.0"
+  },
+  "engines": {
+    "node": ">=22.13.0"
+  }
+}
