@@ -2,6 +2,8 @@ import { ViewEpoch, updateBookmark } from "./article-request";
 import { commitEvent } from "./event-editor";
 import { submitNewArticle } from "./article-submit";
 import "./style.css";
+import { enhanceControls, dismissPicker } from "./ui-controls";
+import { icon, backgrounds, visibleBackground, namedAuthor, noteHasContent } from "./ui-assets";
 import {
   type Data,
   type Note,
@@ -93,18 +95,22 @@ function statusText(s: string) {
 function changed() {
   if (frozen) throw Error("更新の保存中です。少し待ってください。");
   saves.changed();
-  statusText("保存待ち…");
+  statusText("保存中…");
+  root.querySelector<HTMLElement>("#save-retry")!.hidden = true;
   clearTimeout(saveTimer);
   saveTimer = setTimeout(() => void save(), 500);
 }
 async function save() {
   clearTimeout(saveTimer);
   try {
+    statusText("保存中…");
     await saves.flush();
-    statusText(saves.dirty ? "保存待ち…" : "このブラウザに保存済み");
-    return true;
+    statusText(saves.dirty ? "保存中…" : "この端末に保存済み");
+    root.querySelector<HTMLElement>("#save-retry")!.hidden = true;
+    return !saves.dirty;
   } catch (e) {
-    statusText("未保存 · 入力はこの画面に保持しています");
+    statusText("保存できませんでした · 入力は保持しています");
+    root.querySelector<HTMLElement>("#save-retry")!.hidden = false;
     error(e);
     return false;
   }
@@ -137,13 +143,15 @@ function theme() {
     .querySelector("meta[name=theme-color]")
     ?.setAttribute("content", accent);
   const bg = document.querySelector<HTMLElement>(".background")!;
-  bg.style.backgroundImage = data.background ? `url("${data.background}")` : "";
+  const image = visibleBackground(data);
+  bg.style.backgroundImage = image ? `url("${image}")` : "";
 }
 function route() {
   return location.hash.slice(1).split("/")[0] || "home";
 }
 const pageEpoch = new ViewEpoch();
 function render() {
+  dismissPicker();
   pageEpoch.advance();
   actions.clear();
   action("dismiss-error", () => (errorBox.hidden = true));
@@ -158,9 +166,12 @@ function render() {
   const r = route();
   document
     .querySelectorAll(".nav a")
-    .forEach((a) =>
-      a.classList.toggle("active", a.getAttribute("href") === "#" + r),
-    );
+    .forEach((a) => {
+      const active = a.getAttribute("href") === "#" + r;
+      a.classList.toggle("active", active);
+      if (active) a.setAttribute("aria-current", "page");
+      else a.removeAttribute("aria-current");
+    });
   page.innerHTML = "";
   if (r === "timetable") renderTimetable();
   else if (r === "notes") renderNotes();
@@ -168,6 +179,7 @@ function render() {
   else if (r === "more") renderMore();
   else renderHome();
   theme();
+  enhanceControls(page);
 }
 function heading(title: string, sub = "静岡大学 · 浜松キャンパス", right = "") {
   return `<div class="heading"><div><div class="eyebrow">${esc(sub)}</div><h1>${esc(title)}</h1></div><div class="row">${right}</div></div>`;
@@ -183,6 +195,7 @@ function renderHome() {
     now = new Date(),
     next = events(data).find((e) => new Date(e.end) > now && !e.allDay);
   action("home-import", () => openImport());
+  action("home-map", () => openMap());
   page.innerHTML =
     heading(
       "今日のキャンパス",
@@ -204,7 +217,7 @@ function renderHome() {
         .filter((n) => data.pinned.includes(n.id))
         .map(noteCard)
         .join("") || empty("メモを固定するとここに表示されます。")
-    }</div></section><section class="section"><h2>よく使うリンク</h2><div class="row">${
+    }</div></section><section class="section card home-map"><div class="sectiontitle"><h2>キャンパスマップ</h2>${btn("拡大・検索", "home-map", "smallbtn")}</div><button class="map-preview" data-action="home-map" aria-label="キャンパスマップを拡大して建物・教室を検索"><img src="/campus-map.png" alt="浜松キャンパスの地図" loading="lazy"></button><p class="muted">建物・登録済み教室を検索。オフラインでも利用できます。</p></section><section class="section"><h2>よく使うリンク</h2><div class="row">${
       data.links
         .filter((l) => l.favorite)
         .map(
@@ -407,6 +420,7 @@ function modal(
         form.inert = false;
       }
     };
+  enhanceControls(dialog);
   dialog.showModal();
   return dialog;
 }
@@ -503,6 +517,7 @@ function editEvent(event?: CampusEvent, resume = false) {
         if (input instanceof HTMLInputElement && input.type === "checkbox")
           input.checked = value === "true";
         else input.value = value;
+        if (input instanceof HTMLSelectElement) input.dispatchEvent(new Event("change"));
       }
     }
   }
@@ -627,9 +642,7 @@ function renderNotes() {
       images: [],
       checklist: [],
     };
-    data.notes.unshift(n);
-    changed();
-    editNote(n.id);
+    editNote(n.id, n);
   });
   const q = noteQuery.toLocaleLowerCase(),
     notes = data.notes
@@ -685,49 +698,63 @@ async function imageData(file: File): Promise<string> {
     URL.revokeObjectURL(url);
   }
 }
-function editNote(id: string) {
-  const n = data.notes.find((n) => n.id === id)!;
+function editNote(id: string, fresh?: Note) {
+  const n = fresh ?? data.notes.find((n) => n.id === id)!;
+  let notePinned = data.pinned.includes(id);
   const d = modal(
     "メモ",
-    textfield("text", "メモ", n.text) +
-      choice(
-        "color",
-        "色",
-        [
-          ["default", "標準"],
-          ["yellow", "イエロー"],
-          ["green", "グリーン"],
-          ["pink", "ピンク"],
-          ["blue", "ブルー"],
-        ],
-        n.color,
-      ) +
-      `<label class="check"><input name="pin" type="checkbox" ${data.pinned.includes(id) ? "checked" : ""}>ホームに固定</label><div class="checks stack"></div><button type="button" id="add-check">＋ チェック項目</button><div class="thumbs attachments"></div><label>画像を追加<input id="note-images" type="file" accept="image/png,image/jpeg,image/webp,image/heic,image/heif,.heic,.heif" multiple></label><p class="muted">画像は端末内だけに保存します。HEICはブラウザ対応によりJPEG/PNGへの変換が必要です。入力は自動保存します。</p><button type="button" id="delete-note" class="danger">このメモを削除</button>`,
+    `<div class="note-top"><button type="button" id="note-pin" class="icon-button" aria-label="ホームに固定" aria-pressed="${data.pinned.includes(id)}">${icon("pin")}</button></div><textarea name="text" class="note-body" aria-label="メモ本文" placeholder="メモを入力…" maxlength="10000">${esc(n.text)}</textarea><div class="checks stack"></div><div class="thumbs attachments"></div><div id="note-palette" class="note-palette" role="group" aria-label="メモの色" hidden>${[["default", "標準"], ["yellow", "イエロー"], ["green", "グリーン"], ["pink", "ピンク"], ["blue", "ブルー"]].map(([value, label]) => `<button type="button" data-color="${value}" class="swatch ${value}" aria-label="${label}" aria-pressed="${value === n.color}"></button>`).join("")}</div><div id="note-more-menu" class="note-more-menu" hidden><button type="button" id="delete-note" class="danger">このメモを削除</button><p class="muted">入力は端末内に自動保存します。HEICはブラウザにより変換が必要です。</p></div><input id="note-images" class="file-native" data-toolbar="true" tabindex="-1" type="file" accept="image/png,image/jpeg,image/webp,image/heic,image/heif,.heic,.heif" multiple><span id="note-file-name" class="muted" role="status"></span><div class="note-tools"><button type="button" id="add-image" class="icon-button" aria-label="画像を追加">${icon("image")}</button><button type="button" id="add-check" class="icon-button" aria-label="チェック項目を追加">${icon("check")}</button><button type="button" id="note-color" class="icon-button" aria-label="色を選ぶ" aria-expanded="false">${icon("color")}</button><button type="button" id="note-more" class="icon-button" aria-label="その他の操作" aria-expanded="false">${icon("more")}</button></div>`,
     async () => {
-      if (!(await save())) throw Error("保存に失敗しました。");
+      if (busy || composing) throw Error("文字変換・画像処理を終えてから完了してください。");
+      if (!(await save())) throw Error("保存できませんでした。入力を保持しています。もう一度完了してください。");
       d.close();
       render();
     },
-    "保存して閉じる",
+    "完了",
   );
   d.dataset.draft = "true";
+  d.classList.add("note-editor", n.color);
+  d.querySelector("h2")!.classList.add("sr-only");
+  d.querySelectorAll("[data-close]").forEach(b => (b as HTMLElement).hidden = true);
+  d.querySelector(".note-tools")!.append(d.querySelector(".footer [type=submit]")!);
+  const form = d.querySelector("form")!;
+  d.addEventListener("cancel", e => { e.preventDefault(); if (!composing) form.requestSubmit(); });
+  d.addEventListener("requestclose", e => { e.preventDefault(); form.requestSubmit(); });
+  const showPanel = (buttonID: string, panelID: string) => {
+    const button = d.querySelector<HTMLButtonElement>(buttonID)!;
+    const panel = d.querySelector<HTMLElement>(panelID)!;
+    button.onclick = () => { panel.hidden = !panel.hidden; button.setAttribute("aria-expanded", String(!panel.hidden)); };
+  };
+  showPanel("#note-color", "#note-palette");
+  showPanel("#note-more", "#note-more-menu");
+  d.querySelector<HTMLButtonElement>("#add-image")!.onclick = () => d.querySelector<HTMLInputElement>("#note-images")!.click();
   const touch = () => {
     n.modified = new Date().toISOString();
+    if (fresh) {
+      const present = data.notes.some(note => note.id === id);
+      if (noteHasContent(n) && !present) data.notes.unshift(n);
+      if (!noteHasContent(n) && present) data.notes = data.notes.filter(note => note.id !== id);
+    }
+    data.pinned = data.pinned.filter(x => x !== id);
+    if (notePinned && (!fresh || noteHasContent(n))) data.pinned.push(id);
     changed();
   };
   d.querySelector("[name=text]")!.addEventListener("input", (e) => {
     n.text = (e.target as HTMLTextAreaElement).value;
     touch();
   });
-  d.querySelector("[name=color]")!.addEventListener("change", (e) => {
-    n.color = (e.target as HTMLSelectElement).value;
+  d.querySelectorAll<HTMLButtonElement>("[data-color]").forEach(button => button.onclick = () => {
+    d.classList.remove(n.color);
+    n.color = button.dataset.color!;
+    d.classList.add(n.color);
+    d.querySelectorAll("[data-color]").forEach(b => b.setAttribute("aria-pressed", String(b === button)));
     touch();
   });
-  d.querySelector("[name=pin]")!.addEventListener("change", (e) => {
-    data.pinned = data.pinned.filter((x) => x !== id);
-    if ((e.target as HTMLInputElement).checked) data.pinned.push(id);
+  d.querySelector<HTMLButtonElement>("#note-pin")!.onclick = e => {
+    notePinned = !notePinned;
+    (e.currentTarget as HTMLElement).setAttribute("aria-pressed", String(notePinned));
     touch();
-  });
+  };
   const checks = () => {
     const parent = d.querySelector(".checks")!;
     parent.innerHTML = n.checklist
@@ -788,28 +815,46 @@ function editNote(id: string) {
   };
   images();
   d.querySelector<HTMLInputElement>("#note-images")!.onchange = async (e) => {
+    const input = e.target as HTMLInputElement;
+    d.querySelector("#note-file-name")!.textContent = [...input.files ?? []].map(f => f.name).join("、");
     busy++;
     try {
-      for (const f of (e.target as HTMLInputElement).files ?? []) {
+      for (const f of input.files ?? []) {
         n.images.push({ id: uid(), data: await imageData(f) });
         touch();
       }
       images();
     } catch (e) {
-      error(e);
+      const box = d.querySelector<HTMLElement>(".modal-error")!;
+      box.hidden = false; box.textContent = e instanceof Error ? e.message : String(e);
     } finally {
+      images();
+      input.value = "";
       busy--;
     }
   };
-  d.querySelector<HTMLButtonElement>("#delete-note")!.onclick = () => {
+  d.querySelector<HTMLButtonElement>("#delete-note")!.onclick = async () => {
+    if (busy || composing) return;
     if (!confirm("このメモを削除しますか？")) return;
+    const notes = [...data.notes], pins = [...data.pinned];
     data.notes = data.notes.filter((n) => n.id !== id);
     data.pinned = data.pinned.filter((x) => x !== id);
     changed();
+    form.inert = true;
+    const deleted = await save();
+    form.inert = false;
+    if (!deleted) {
+      data.notes = notes; data.pinned = pins;
+      saves.changed();
+      const box = d.querySelector<HTMLElement>(".modal-error")!;
+      box.hidden = false; box.textContent = "削除を保存できませんでした。メモを保持しています。";
+      return;
+    }
     d.close();
     render();
   };
   d.addEventListener("close", () => render());
+  d.querySelector<HTMLTextAreaElement>("[name=text]")!.focus();
 }
 const articleFilters = {
   q: "",
@@ -868,8 +913,8 @@ async function loadArticles(more = false) {
 }
 function articleCard(a: Article) {
   action("article-" + a.id, () => (location.hash = "articles/" + a.id));
-  action("author-" + a.id, () => filterAuthor(a.authorId));
-  return `<article class="card"><div class="row between"><span class="tag">${esc(a.category || "未分類")}</span>${a.bookmarked ? '<span class="pin" aria-label="ブックマーク済み">◆</span>' : ""}</div><h3 style="margin-top:14px"><button class="article-title" data-action="article-${esc(a.id)}">${esc(a.title)}</button></h3><p class="muted">${esc(a.summary)}</p><button class="author" data-action="author-${esc(a.id)}">${esc(a.authorName || "匿名ユーザー")}</button><div class="stats"><span>閲覧 ${esc(a.viewCount)}</span><span>ブックマーク ${esc(a.bookmarkCount)}</span></div></article>`;
+  if (namedAuthor(a.authorName)) action("author-" + a.id, () => filterAuthor(a.authorId));
+  return `<article class="card"><div class="row between"><span class="tag">${esc(a.category || "未分類")}</span>${a.bookmarked ? '<span class="pin" aria-label="ブックマーク済み">◆</span>' : ""}</div><h3 style="margin-top:14px"><button class="article-title" data-action="article-${esc(a.id)}">${esc(a.title)}</button></h3><p class="muted">${esc(a.summary)}</p>${namedAuthor(a.authorName) ? `<button class="author" data-action="author-${esc(a.id)}">${esc(a.authorName)}</button>` : '<span class="muted">匿名ユーザー</span>'}<div class="stats"><span>閲覧 ${esc(a.viewCount)}</span><span>ブックマーク ${esc(a.bookmarkCount)}</span></div></article>`;
 }
 function filterAuthor(id: string) {
   priorFilters = { ...articleFilters };
@@ -979,7 +1024,7 @@ async function renderArticleDetail(id: string) {
         busy--;
       }
     });
-    action("detail-author", () => {
+    if (namedAuthor(a.authorName)) action("detail-author", () => {
       location.hash = "articles";
       filterAuthor(a.authorId);
     });
@@ -1013,7 +1058,7 @@ async function renderArticleDetail(id: string) {
     }
     page.innerHTML =
       heading(a.title, "NOTION ARTICLE") +
-      `<div class="row"><a href="#articles">‹ 元の一覧・検索へ</a><span class="tag">${esc(a.category || "未分類")}</span></div><section class="card section"><p>${esc(a.summary)}</p><div class="row between"><button class="author" data-action="detail-author">${esc(a.authorName)}</button>${btn(a.bookmarked ? "◆ ブックマーク解除" : "◇ ブックマーク", "detail-bookmark", "primary")}</div><div class="stats"><span>閲覧 <span class="count">${esc(a.viewCount)}</span></span><span>ブックマーク <span class="count">${esc(a.bookmarkCount)}</span></span></div><p class="muted">閲覧はこのアプリ内で開いた記録（日本時間1日1回）。保存は匿名ブラウザID単位の件数です。</p>${a.canEdit ? `<hr><div class="row">${btn("登録情報を編集", "detail-edit")}${btn("登録を削除", "detail-delete", "danger")}</div>` : ""}</section><div class="notice"><p>${navigator.onLine ? "Notionの読込には通信が必要です。公開・表示できるかをここで確認してください。" : "オフラインです。通信が戻ってから再読み込みしてください。"}</p><div class="row">${embedURL ? btn("再読み込み", "frame-retry") : ""}${publicURL ? `<a href="${esc(publicURL)}" target="_blank" rel="noopener noreferrer">Notionで開く ↗</a>` : ""}</div><p class="muted">非公開化・削除・表示制限で読めない場合は元ページを開いてください。読込完了イベントから公開状態は判定しません。</p></div>${embedURL ? `<iframe class="article-frame" title="${esc(a.title)} — Notion本文" src="${esc(embedURL)}" sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox" referrerpolicy="strict-origin-when-cross-origin" allow="fullscreen"></iframe>` : empty("公式埋め込みURLが未登録です。「Notionで開く」から本文を読めます。")}`;
+      `<div class="row"><a href="#articles">‹ 元の一覧・検索へ</a><span class="tag">${esc(a.category || "未分類")}</span></div><section class="card section"><p>${esc(a.summary)}</p><div class="row between">${namedAuthor(a.authorName) ? `<button class="author" data-action="detail-author">${esc(a.authorName)}</button>` : '<span class="muted">匿名ユーザー</span>'}${btn(a.bookmarked ? "◆ ブックマーク解除" : "◇ ブックマーク", "detail-bookmark", "primary")}</div><div class="stats"><span>閲覧 <span class="count">${esc(a.viewCount)}</span></span><span>ブックマーク <span class="count">${esc(a.bookmarkCount)}</span></span></div><p class="muted">閲覧はこのアプリ内で開いた記録（日本時間1日1回）。保存は匿名ブラウザID単位の件数です。</p>${a.canEdit ? `<hr><div class="row">${btn("登録情報を編集", "detail-edit")}${btn("登録を削除", "detail-delete", "danger")}</div>` : ""}</section><div class="notice"><p>${navigator.onLine ? "Notionの読込には通信が必要です。公開・表示できるかをここで確認してください。" : "オフラインです。通信が戻ってから再読み込みしてください。"}</p><div class="row">${embedURL ? btn("再読み込み", "frame-retry") : ""}${publicURL ? `<a href="${esc(publicURL)}" target="_blank" rel="noopener noreferrer">Notionで開く ↗</a>` : ""}</div><p class="muted">非公開化・削除・表示制限で読めない場合は元ページを開いてください。読込完了イベントから公開状態は判定しません。</p></div>${embedURL ? `<iframe class="article-frame" title="${esc(a.title)} — Notion本文" src="${esc(embedURL)}" sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox" referrerpolicy="strict-origin-when-cross-origin" allow="fullscreen"></iframe>` : empty("公式埋め込みURLが未登録です。「Notionで開く」から本文を読めます。")}`;
   };
   draw();
   try {
@@ -1126,13 +1171,12 @@ function renderMore() {
   action("map", () => openMap());
   action("facilities", () => editFacilities());
   action("links", () => editLinks());
-  action("manual-save", save);
   action("export-data", exportData);
   action("check-update", () => updates.check());
   action("clear-bg", () => {
-    data.background = "";
+    data.backgroundMode = "none";
     changed();
-    theme();
+    render();
   });
   action("profile", async () => {
     try {
@@ -1173,7 +1217,11 @@ function renderMore() {
         ["mono", "モノトーン"],
       ],
       data.theme,
-    )}<label>背景画像<input id="background" type="file" accept="image/png,image/jpeg,image/webp,image/heic,.heic"></label>${btn("背景を解除", "clear-bg")}<p class="muted">背景画像はこのブラウザに保存します。</p></section><section class="card stack"><h2>時間割の表示</h2>${field("startHour", "表示開始時刻", String(data.startHour), "number", 'min="0" max="23"')}${field("endHour", "表示終了時刻", String(data.endHour), "number", 'min="1" max="24"')}<label class="check"><input name="bands" type="checkbox" ${data.showBands ? "checked" : ""}>営業時間の帯を表示</label><p class="muted">表示時間外の予定も日・週の一覧で確認できます。</p></section><section class="card"><h2>匿名ユーザー</h2><p>${esc(user?.displayName ?? "このブラウザで自動準備")}</p><p class="muted">${anonymousNotice}</p>${btn("表示名を設定", "profile")}</section><section class="card"><h2>このアプリの更新</h2><p class="muted">この画面のビルド ${esc(__APP_BUILD_ID__)}</p><div id="version" class="muted">配信情報を読み込み中…</div><div class="toolbar">${btn("更新を確認", "check-update")}</div><p class="muted">更新は全タブの保存成功後に適用します。変換・取込・保存失敗時は切り替えません。</p><details><summary>インストールする</summary><p>Android/PC: ブラウザのメニューから「アプリをインストール」「ホーム画面に追加」を選択。iPhone: Safariの共有から「ホーム画面に追加」を選択してください。HTTPSの公開URLで利用できます。</p></details></section><section class="card"><h2>端末内データ</h2><p class="muted">予定・メモ・画像・背景はIndexedDBに保存。初回は新規データで始まり、Swift版のデータは取り込みません。外部カレンダー接続は初回対象外です。</p><div class="toolbar">${btn("今すぐ保存", "manual-save")}${btn("入力データを書き出す", "export-data")}</div><p class="muted">別タブとの保存競合時は、現在の入力を書き出してから再読み込みできます。書き出しにはメモ・画像も含まれます。</p></section></div>`;
+    )}<h3>背景</h3><div class="background-samples">${backgrounds.map(b => `<button type="button" data-background="${b.id}" aria-pressed="${data.backgroundMode === b.id}"><img src="${esc(b.image)}" alt=""><span>${b.name}</span></button>`).join("")}</div><p class="muted">選択中: ${esc(backgrounds.find(b => b.id === data.backgroundMode)?.name || (data.backgroundMode !== "none" && data.background ? "自分の画像" : "背景なし"))}</p>${data.background ? btn("保存済みの自分の画像を使う", "custom-bg") : ""}<label>自分の背景画像<input id="background" type="file" accept="image/png,image/jpeg,image/webp,image/heic,.heic"></label>${btn("背景を解除", "clear-bg")}<p class="muted">背景画像はこのブラウザに保存します。</p></section><section class="card stack"><h2>時間割の表示</h2>${field("startHour", "表示開始時刻", String(data.startHour), "number", 'min="0" max="23"')}${field("endHour", "表示終了時刻", String(data.endHour), "number", 'min="1" max="24"')}<label class="check"><input name="bands" type="checkbox" ${data.showBands ? "checked" : ""}>営業時間の帯を表示</label><p class="muted">表示時間外の予定も日・週の一覧で確認できます。</p></section><section class="card"><h2>匿名ユーザー</h2><p>${esc(user?.displayName ?? "このブラウザで自動準備")}</p><p class="muted">${anonymousNotice}</p>${btn("表示名を設定", "profile")}</section><section class="card"><h2>このアプリの更新</h2><p class="muted">この画面のビルド ${esc(__APP_BUILD_ID__)}</p><div id="version" class="muted">配信情報を読み込み中…</div><div class="toolbar">${btn("更新を確認", "check-update")}</div><p class="muted">更新は全タブの保存成功後に適用します。変換・取込・保存失敗時は切り替えません。</p><details><summary>インストールする</summary><p>Android/PC: ブラウザのメニューから「アプリをインストール」「ホーム画面に追加」を選択。iPhone: Safariの共有から「ホーム画面に追加」を選択してください。HTTPSの公開URLで利用できます。</p></details></section><section class="card"><h2>端末内データ</h2><p class="muted">予定・メモ・画像・背景はIndexedDBに保存。初回は新規データで始まり、Swift版のデータは取り込みません。外部カレンダー接続は初回対象外です。</p><div class="toolbar">${btn("入力データを書き出す", "export-data")}</div><p class="muted">別タブとの保存競合時は、現在の入力を書き出してから再読み込みできます。書き出しにはメモ・画像も含まれます。</p></section></div>`;
+  action("custom-bg", () => { data.backgroundMode = "custom"; changed(); render(); });
+  page.querySelectorAll<HTMLButtonElement>("[data-background]").forEach(button => button.onclick = () => {
+    data.backgroundMode = button.dataset.background!; changed(); render();
+  });
   page.querySelector<HTMLSelectElement>("[name=theme]")!.onchange = (e) => {
     data.theme = (e.target as HTMLSelectElement).value;
     changed();
@@ -1201,8 +1249,9 @@ function renderMore() {
     busy++;
     try {
       data.background = await imageData(f);
+      data.backgroundMode = "custom";
       changed();
-      theme();
+      render();
     } catch (e) {
       error(e);
     } finally {
@@ -1390,16 +1439,16 @@ function editLinks() {
     draw();
   };
 }
-root.innerHTML = `<div class="background"></div><header class="top"><a href="#home" class="brand mutedlink">▣ 静大ポケット</a><span class="online" id="connection"></span></header><div id="update" class="notice" role="status" hidden></div><div id="error" class="notice error" role="alert" hidden></div><div class="page"><div class="statusline row between"><span id="save-status">データを読み込んでいます…</span><button data-action="save-global" class="smallbtn">保存</button></div><main id="page"></main></div><nav class="nav" aria-label="メインナビゲーション">${[
-  ["home", "⌂", "ホーム"],
-  ["timetable", "▦", "時間割"],
-  ["articles", "▤", "記事"],
-  ["notes", "▧", "メモ"],
-  ["more", "⋯", "その他"],
+root.innerHTML = `<div class="background"></div><header class="top"><a href="#home" class="brand mutedlink">▣ 静大ポケット</a><span class="online" id="connection"></span></header><div id="update" class="notice" role="status" hidden></div><div id="error" class="notice error" role="alert" hidden></div><div class="page"><div class="statusline row between"><span id="save-status" role="status" aria-live="polite">データを読み込んでいます…</span><button id="save-retry" data-action="save-global" class="smallbtn" hidden>再試行</button></div><main id="page"></main></div><nav class="nav" aria-label="メインナビゲーション">${[
+  ["home", "ホーム"],
+  ["timetable", "時間割"],
+  ["articles", "記事"],
+  ["notes", "メモ"],
+  ["more", "その他"],
 ]
   .map(
-    ([id, s, t]) =>
-      `<a href="#${id}"><span class="symbol" aria-hidden="true">${s}</span>${t}</a>`,
+    ([id, t]) =>
+      `<a href="#${id}"><span class="symbol" aria-hidden="true">${icon(id)}</span>${t}</a>`,
   )
   .join("")}</nav>`;
 page = root.querySelector("#page")!;
@@ -1422,7 +1471,10 @@ root.addEventListener("click", (e) => {
 document.addEventListener("compositionstart", () => (composing = true));
 document.addEventListener("compositionend", () => (composing = false));
 window.addEventListener("hashchange", () => {
-  if (dialog) dialog.close();
+  if (dialog) {
+    if (!dialog.dispatchEvent(new Event("requestclose", { cancelable: true }))) return;
+    dialog.close();
+  }
   render();
 });
 window.addEventListener("beforeunload", (e) => {
@@ -1445,7 +1497,7 @@ let updates: ReturnType<typeof installUpdates>;
 async function boot() {
   try {
     data = await store.open();
-    statusText("このブラウザに保存済み");
+    statusText("この端末に保存済み");
   } catch (e) {
     loadFailed = true;
     error(e);

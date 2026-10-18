@@ -66,6 +66,7 @@ export interface Data {
   links: Link[];
   theme: string;
   background: string;
+  backgroundMode?: string;
   showBands: boolean;
   startHour: number;
   endHour: number;
@@ -330,6 +331,7 @@ export function validateData(v: unknown): asserts v is Data {
     typeof d.articleDraft !== "object" ||
     !["green", "blue", "rose", "mono"].includes(d.theme) ||
     typeof d.background !== "string" ||
+    (d.backgroundMode !== undefined && !["none", "custom", "forest", "sea", "sky", "sunset", "paper", "shape"].includes(d.backgroundMode)) ||
     d.startHour < 0 ||
     d.endHour > 24 ||
     d.startHour >= d.endHour
