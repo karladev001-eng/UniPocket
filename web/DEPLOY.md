@@ -9,7 +9,7 @@
 - Worker entry: `server/worker.ts`。D1 binding: `DB`。静的Assets binding: `ASSETS`、directory: `./dist`、`run_worker_first: ["/api/*"]`、`not_found_handling: "single-page-application"`。
 - 毎時のScheduled trigger例 `0 * * * *`。古いセッション/レート制限/閲覧重複キー/送信キーを各500行まで削除する。高トラフィック時は滞留件数を監視して頻度を調整する。
 - `APP_ORIGIN` は任意。設定するなら正確な配信元（例 `https://campus.example`、末尾スラッシュなし）。未設定はリクエストURLのoriginと照合。プレビュー・本番で値を共有しない。ローカル設定に本番originを入れない。
-- `env.preview` と `env.production` は **異なるWorker名、異なるdatabase_id** を設定する。D1 bindingやvarsは各環境へ明示する。previewは初回 `workers_dev: false` / `preview_urls: false` でHTTP入口を作らず配信し、Worker全体を本人メールだけに制限するAccessを設定・検証した後で `workers_dev` だけ有効にする。`preview_urls` は常にfalse。仮IDを実DBのIDで置換するまでクラウドへ配信しない。
+- `env.preview` と `env.production` は **異なるWorker名、異なるdatabase_id** を設定する。D1 bindingやvarsは各環境へ明示する。previewは初回 `workers_dev: false` / `preview_urls: false` でHTTP入口を作らず配信する。先にAccessアプリの対象Worker・All traffic範囲・本人メール完全一致のAllow設定を画面で確認し、その後 `workers_dev` だけ有効にする。HTTPリクエストによる未認証/本人確認は有効化後に行い、`preview_urls` は常にfalse。仮IDを実DBのIDで置換するまでクラウドへ配信しない。
 - 開始時はFreeプランのまま運用し、課金プランへの変更は別途判断する。
 
 例（既存 `wrangler.jsonc` の対象環境に設定する項目）:
@@ -84,11 +84,11 @@ npm run build
 npx wrangler deploy --env preview
 ```
 
-初回deploy後、Cloudflare Dashboardの **Workers & Pages > `uni-pocket-preview` > Access** を開き、Worker全体を **All traffic** で保護する。許可ポリシーは本人の完全なメールアドレスを1件だけ `Emails` 条件で指定する。Everyone、メールドメイン、他の包括条件を追加しない。認証プロバイダーは初期状態のCloudflare Access identity providerを使い、One-time PINは必要なら任意で追加する。Zero Trustを初めて有効にする際はFreeプランでもプラン選択・支払い情報の入力が求められる場合があるため、本人が画面で確認して進める。Freeのままなら請求は発生せず、有料プランへの変更は行わない（[Zero Trust setup](https://developers.cloudflare.com/cloudflare-one/setup/)）。規約同意を求められた場合も本人がDashboard上で完了する。
+初回deploy後、`workers_dev: false` / `preview_urls: false` のままCloudflare DashboardでAccess設定を行う。この時点では公開HTTP入口がないため、ログアウト状態や本人ブラウザからリクエスト検証はできない。まず **Workers & Pages > `uni-pocket-preview` > Access** からこのWorkerの保護アプリを作成し、適用範囲を **All traffic** にする。次に **Zero Trust > Access > Applications** でそのアプリを開いてEditし、対象が `uni-pocket-preview` のWorker全体であること、全trafficに適用することを確認する。許可は単一のAllow policyにし、Includeに本人の完全なメールアドレス1件だけを `Emails` 条件で指定する。Everyone、メールドメイン、追加の広いAllow条件、Bypass policyを作らない。Cloudflareが作成した既定の認証プロバイダーを使い、One-time PINは必要なら任意で追加する。Zero Trustを初めて有効にする際はFreeプランでもプラン選択・支払い情報の入力が求められる場合があるため、本人が画面で確認して進める。Freeのままなら請求は発生せず、有料プランへの変更は行わない（[Zero Trust setup](https://developers.cloudflare.com/cloudflare-one/setup/)）。規約同意を求められた場合も本人がDashboard上で完了する。
 
-保護を確認するまでは `workers_dev` をfalseのままにする。ログアウト状態/別ブラウザでは拒否またはAccessログインへ進み、登録した本人メールだけが認証後にWorkerへ到達できることを確認する。Worker全体のAccessはそのWorkerの各ホスト名とpreviewを保護する（[Cloudflare Access for Workers](https://developers.cloudflare.com/workers/configuration/cloudflare-access/)）。
+この段階で確認するのはアプリ設定だけである。Accessアプリの対象が当該Worker全体でAll traffic、許可policyが本人メール1件、他のAllow/Bypassがないことを確認できるまで `workers_dev` はfalseのままにする。Worker全体のAccessはそのWorkerの各ホスト名とpreviewを保護する（[Cloudflare Access for Workers](https://developers.cloudflare.com/workers/configuration/cloudflare-access/)）。
 
-この確認が済んでから、`env.preview.workers_dev` を `true` にして再deployする。`preview_urls` は `false` のまま維持する。Accessに守られたHTTPSのworkers.dev URLを確認し、未認証ブラウザで再度拒否されること、本人アカウントだけが利用できることを確認してからURLを共有する。Workers設定の `workers_dev` と `preview_urls` の意味は[Wrangler設定リファレンス](https://developers.cloudflare.com/workers/wrangler/configuration/)を参照。Accessを設定できない場合は公開URLを有効化・共有せず、本人に引き継ぐ。
+設定を確認したら `env.preview.workers_dev` を `true` にして再deployし、`preview_urls` は `false` のまま維持する。workers.dev URLが利用可能になってから、未認証のプライベートブラウザでは拒否またはAccessログインへ進むこと、本人メールで認証したブラウザではアプリとAPIへ到達できることを実リクエストで確認する。その後に限りURLを共有する。Workers設定の `workers_dev` と `preview_urls` の意味は[Wrangler設定リファレンス](https://developers.cloudflare.com/workers/wrangler/configuration/)を参照。Access設定または事後リクエスト検証ができない場合はURLを共有せず、本人に引き継ぐ。
 
 保護確認後のプレビューで、初回匿名ID・再起動復元、投稿、本人編集/他人拒否、重複送信、ブックマーク追加解除/他人分離、閲覧同日重複を確認する。Android Chrome/iPhone Safariで本物の公開Notionページの埋込/元リンク、オフライン、インストール、旧版→新版更新（メモ/匿名ID/ブックマーク保持）を確認する。未確認を合格に置換しない。
 
