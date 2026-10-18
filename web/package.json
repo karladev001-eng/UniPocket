@@ -7,7 +7,7 @@
     "dev": "node scripts/pdf-assets.mjs && vite --host 127.0.0.1",
     "build": "tsc --noEmit && node scripts/build.mjs",
     "preview": "vite preview --host 127.0.0.1",
-    "test": "vitest run tests/client.test.ts tests/client-update.test.ts tests/client-submit.test.ts tests/client-ui.test.ts",
+    "test": "vitest run tests/client.test.ts tests/client-update.test.ts tests/client-submit.test.ts tests/client-ui.test.ts tests/client-pdf.test.ts",
     "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.server.json",
     "local": "wrangler dev --env preview --ip 127.0.0.1",
     "db:local": "wrangler d1 migrations apply DB --local --env preview",

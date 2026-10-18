@@ -2,15 +2,11 @@ import {
   getDocument,
   GlobalWorkerOptions,
   type PDFPageProxy,
-} from "pdfjs-dist";
-import worker from "pdfjs-dist/build/pdf.worker.min.mjs?url";
-import {
-  tokyo,
-  addDay,
-  type Plan,
-  type Course,
-  type CampusEvent,
-} from "./domain";
+} from "pdfjs-dist/legacy/build/pdf.mjs";
+// Use PDF.js's Safari compatibility build in both contexts so that each has
+// the polyfills for newer JavaScript APIs, including Map/Iterator helpers.
+import worker from "pdfjs-dist/legacy/build/pdf.worker.min.mjs?url";
+import { type Plan } from "./domain";
 GlobalWorkerOptions.workerSrc = worker;
 import { PageText, parsePages } from "./pdf-parser";
 async function page(p: PDFPageProxy) {
