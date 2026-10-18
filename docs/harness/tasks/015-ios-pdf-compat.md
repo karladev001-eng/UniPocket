@@ -1,6 +1,6 @@
 # 015 — iPhoneのPDF取込互換性修正
 
-- 状態: needs_work（利用者が同じエラーの再発を報告。原本は手元の実ブラウザで成功、iPhoneの診断コード待ち）
+- 状態: done（R-TEXTのStream互換性不具合を再現・修正・配信済み。利用者iPhoneでの再試行確認は未実施）
 - 仕様版: 1
 - 基点: 0f7deb202d9db307df3dde315fb3aa0d79e03a80
 - 目的: iPhone PWAでPDF解析が `undefined is not a function` で中断する不具合を修正する。
@@ -60,3 +60,20 @@
 - 提供された原本timetable.pdf/r08_schedule.pdfは公開85cc81の実ブラウザと不足APIを除いたNode環境で6講義86予定のプレビュー成功。iPhone17e/iOS26.6.2の原エラーは未再現。
 - [016](016-in-app-auto-update.md)で短い失敗段階コード、両task cleanup、cleanupが原エラーを上書きしない変更をレビュー/配信済み。現行build20261018161949-64687d。原本はrepoへ複製せず外部送信しない。
 - 原因未特定のため解消完了とは扱わない。端末を新版へ切り替えて再試行し、再発時の[PDF:...]コードを受けて次の切り分けを行う。
+
+## R-TEXTの継続修正（2026-10-19）
+
+- 利用者が `PDF:R-TEXT` を報告。登録票のgetPage/文字抽出経路へ絞れた。既存015 v1と016の承認済み不具合修正を継続し、画面・取込形式・解析規則・保存先は変更しない。親がこの範囲を会話で提示済み。
+- 基点cab62ca5c1672026460c2eef0e3487753d92462a。実装worktree /private/tmp/univ-pdf-stream-reader、codex/pdf-stream-reader。
+- 導入済みPDF.js6.4.299 legacyのgetTextContentはReadableStreamをfor-awaitで消費する（pdf.mjs22352付近）。公式repositoryの報告 https://github.com/mozilla/pdf.js/issues/21924 と https://github.com/mozilla/pdf.js/issues/21557 にSafariで同じ型のエラーが記録されている。2026-10-19本文確認。報告は端末原因の断定ではなく再現仮説の根拠。
+- 実装担当pdf_stream_fix: gpt-6.1-sol/high。起動toolの現行catalogから選択、auto no pins、互換性原因の再現と修正判断を伴うため。active/delegation/review/persistence/measurement/improvement_loop=true,max_agents3。メインのホストモデルは変更しない。
+- 受入補足: asyncIterator欠落下の旧コード失敗と修正後成功を再現する。getReaderで順序・複数chunk・失敗時cleanupを保ち、原本はコピー/送信せず通常/欠落条件で6講義86予定を検証する。既存の型・回帰tests・build・独立レビュー・配信確認を実施する。iPhone実機確認は区別する。
+- 実装commit32d8f59b1bc244877047384c11ff9d4526acdf3b: pdf.ts/client-pdf.test.tsのみ。非XFAの文字抽出をstreamTextContent().getReader()で全chunk順次読込しfinallyでlock解放。純XFA専用経路、座標/フィルタ、task destroy、解析規則を維持。
+- 実装担当は旧コードの `not async iterable [PDF:R-TEXT]` を再現、修正後の通常/欠落条件で原本6講義86予定一致。58tests、typecheck/build/diffcheck成功。
+- 独立レビューpdf_stream_review（gpt-6.1-sol/high、起動catalog/auto no pins）PASS。事前リスク表→実差分→独立検証の順で評価。旧通常/新通常/新欠落で原本courses/events/warnings/year一致、旧欠落でR-TEXT再現。58tests、typecheck/build/diffcheck成功。main/worker同版、SW210assets実在。修正必須指摘なし。
+- 統合pdf_stream_integrate（gpt-6-luna/medium、起動catalog/auto no pins）。レビュー済み2filesのff-only統合とbuildという決定的作業のため選択。専用worktree /private/tmp/univ-pdf-stream-integration。元PDFはrepoへ複製/外部送信せず内容ログを出さない。
+- root/統合HEAD32d8f59へff-only統合、root build20261018163706-693212成功。最終独立レビューも同一HEAD/2files/worker参照/SW全assets実在を確認しPASS。追加のコード差分なし。
+- 配信成功: Worker d50d4278-f720-4662-be58-ff129b5fc4a1、build20261018163706-693212。既存本人限定URL/Access/DB/cronを維持。
+- 公開URLの既存64687dで更新確認後、自動reloadし画面/配信build693212一致・最新表示を確認。公開新版で原本2PDFを選択し6講義86予定86差分のプレビュー成功、保存せず閉じ、登録講義0を維持。証拠 /private/tmp/uni-pocket-pdf-stream-fixed.png。
+- 受入1–4完了。iPhoneそのものの実行は未確認。今回の再現は非同期反復APIの欠落を模したNode実行と公開ブラウザWorkerであり、iOS機種エミュレーションではない。利用者へPDF画面を閉じて自動更新を待ち、「その他」の画面build693212確認後再試行するよう案内する。
+- 計測: condition=harness、task015継続、日付2026-10-19 JST、開始/終了/所要時間/利用量=null（未取得）。実装/レビューSol6.1high、統合Lunamedium、レビュー修正0巡、比較ベンチマークなし。
