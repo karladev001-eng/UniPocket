@@ -46,7 +46,7 @@ npx wrangler dev
 
 テストは実SQLiteへ本番SQLを適用し、ハンドラを実行する。モックの固定応答は使わない。実D1環境の制限やエッジCookie配送は別途プレビューで確認する。
 
-追加の実Workersランタイム結合テストは `npm install --no-save miniflare@4.20260730.0 esbuild@0.28.2` の後、`node --test tests/server-runtime.mjs` で実行できる。テスト専用ツールを別ディレクトリへ入れた場合は `NODE_PATH=/そのディレクトリ/node_modules` を付ける。Miniflareはlocalhostリスナーを開く。2026-10-18、Node26.10.0・上記バージョンで全6テスト合格（SQLite5件＋実workerd/D1 1件）。実D1テストは12件同時の初回冪等投稿、20件同時の保存/閲覧も確認した。
+追加の実Workersランタイム結合テストは `npm install --no-save miniflare@4.20260730.0 esbuild@0.28.2` の後、`node --test tests/server-runtime.mjs` で実行できる。テスト専用ツールを別ディレクトリへ入れた場合は `NODE_PATH=/そのディレクトリ/node_modules` を付ける。Miniflareはlocalhostリスナーを開く。2026-10-18、Node26.10.0・上記バージョンで全7テスト合格（SQLite6件＋実workerd/D1 1件）。実D1テストは12件同時の初回冪等投稿、20件同時の保存/閲覧も確認した。
 
 ## 認証・データ境界
 
@@ -56,7 +56,7 @@ npx wrangler dev
 
 投稿者ID・表示名と記事情報のみ公開する。セッショントークン/ハッシュ/有効期限・閲覧者キー・他人のブックマーク一覧は返さない。記事ID・投稿者IDは権限証明にならない。Notion本文・画像・個人PDF/メモ/背景はサーバーに保存しない。
 
-ブックマークは `(user_id, article_id)` 一意制約と `INSERT OR IGNORE` で冪等化。閲覧は `(article_id, viewer_key, day_jst)` 一意制約＋INSERTトリガーで累計を原子的に加算。JSTの00:00で日を区切る。重複キーを7日程度で削除しても累計は減らない。匿名IDを失った場合や別端末の厳密な重複排除はできない。数字はアプリ内で詳細を開いた記録で、読了・Notion PV・埋込成功ではない。
+ブックマークは `(user_id, article_id)` 一意制約と `INSERT OR IGNORE` で冪等化。閲覧は `(article_id, viewer_key, day_jst)` 一意制約＋INSERTトリガーで累計を原子的に加算。JSTの00:00で日を区切る。初回閲覧の保存後に読取が失敗しても発行済みCookieをエラー応答へ残し、再試行で別の匿名IDを作らない。重複キーを7日程度で削除しても累計は減らない。匿名IDを失った場合や別端末の厳密な重複排除はできない。数字はアプリ内で詳細を開いた記録で、読了・Notion PV・埋込成功ではない。
 
 投稿時は `Idempotency-Key`（8–128文字、英数字・`_`・`.`・`-`）を一度の送信ごとに生成し、通信失敗時には同じキー/内容で再試行する。30日間保持。同じキーの内容変更は409、削除後の同じ送信再試行は410。別キーでも同じ投稿者＋正規化公開URLは重複拒否する（409）。別投稿者の記事登録は禁止しない。
 

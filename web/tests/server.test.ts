@@ -144,3 +144,31 @@ test('session creation and authenticated writes have persistent atomic limits', 
   for(let i=0;i<10;i++) assert.equal((await other.send('/api/session','POST',{})).status,200);
   assert.equal((await other.send('/api/session','POST',{})).status,429);
 });
+
+test('anonymous view keeps issued cookie when a post-write read fails; retry counts once', async () => {
+  const {DB,send,session,create} = app();
+  const author = await session();
+  const made = await create(author.cookie); const id = made.data.article.id;
+  const prepare = DB.prepare.bind(DB); let articleReads = 0;
+  DB.prepare = (sql: string): Statement => {
+    const statement = prepare(sql);
+    if (sql.startsWith('SELECT a.id')) {
+      const first = statement.first.bind(statement);
+      statement.first = async <T>() => {
+        articleReads++;
+        if (articleReads === 2) throw new Error('Injected transient post-write read failure');
+        return await first<T>();
+      };
+    }
+    return statement;
+  };
+  const failed = await send(`/api/articles/${id}/view`, 'POST', {});
+  assert.equal(failed.status,503);
+  const cookie = failed.headers.get('Set-Cookie');
+  assert.ok(cookie); assert.match(cookie, /HttpOnly; Secure; SameSite=Strict/);
+  assert.equal((DB.sqlite.prepare('SELECT view_count FROM articles WHERE id=?').get(id) as any).view_count,1);
+  assert.equal((DB.sqlite.prepare('SELECT COUNT(*) n FROM view_events WHERE article_id=?').get(id) as any).n,1);
+  const retry = await send(`/api/articles/${id}/view`, 'POST', {},cookie.split(';')[0]);
+  assert.equal(retry.status,200); assert.equal(retry.data.viewCount,1);
+  assert.equal((DB.sqlite.prepare('SELECT COUNT(*) n FROM sessions').get() as any).n,2);
+});

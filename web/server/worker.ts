@@ -66,7 +66,7 @@ function response(data: unknown, status = 200, cookie?: string): Response {
   if (status === 429) headers['Retry-After'] = '60';
   return Response.json(data, {status, headers});
 }
-async function route(request: Request, env: Env): Promise<Response> {
+async function route(request: Request, env: Env, issued: {cookie?: string}): Promise<Response> {
   const url = new URL(request.url);
   const path = url.pathname;
   const method = request.method;
@@ -184,7 +184,13 @@ async function route(request: Request, env: Env): Promise<Response> {
     const body = await jsonBody(request);
     if (Object.keys(body).length) throw new ApiError(400, '閲覧者IDは指定できません。');
     let cookie: string | undefined;
-    if (!user) { const session = await createSession(request, env); user = session.user; cookie = session.cookie; }
+    if (!user) {
+      const session = await createSession(request, env);
+      user = session.user; cookie = session.cookie;
+      // The DB may commit the view before a later read fails. Keep this identity
+      // even on an error response so a retry cannot count a new anonymous viewer.
+      issued.cookie = session.cookie;
+    }
     await env.DB.prepare('INSERT OR IGNORE INTO view_events(article_id,viewer_key,day_jst) VALUES(?,?,?)').bind(id, user.id, jstDay()).run();
     return response({viewCount: (await getArticle(env.DB, id, user)).viewCount}, 200, cookie);
   }
@@ -203,13 +209,14 @@ export async function cleanup(db: Database): Promise<void> {
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     if (!new URL(request.url).pathname.startsWith('/api/')) return env.ASSETS ? env.ASSETS.fetch(request) : new Response('Not found', {status: 404});
-    try { return await route(request, env); }
+    const issued: {cookie?: string} = {};
+    try { return await route(request, env, issued); }
     catch (error) {
-      if (error instanceof ApiError) return response({error: error.message, code: error.code}, error.status);
-      if (error instanceof Error && /UNIQUE constraint failed: articles.author_id, articles.public_url/.test(error.message)) return response({error: 'この公開URLはすでに登録されています。', code: 'duplicate_url'}, 409);
+      if (error instanceof ApiError) return response({error: error.message, code: error.code}, error.status, issued.cookie);
+      if (error instanceof Error && /UNIQUE constraint failed: articles.author_id, articles.public_url/.test(error.message)) return response({error: 'この公開URLはすでに登録されています。', code: 'duplicate_url'}, 409, issued.cookie);
       // Never expose SQL, token hashes, profile/session tables, or request bodies.
       console.error('Article API operation failed');
-      return response({error: '共有機能を利用できません。入力を保持して再試行してください。', code: 'unavailable'}, 503);
+      return response({error: '共有機能を利用できません。入力を保持して再試行してください。', code: 'unavailable'}, 503, issued.cookie);
     }
   },
   async scheduled(_event: unknown, env: Env): Promise<void> { await cleanup(env.DB); },
