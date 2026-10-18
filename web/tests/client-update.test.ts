@@ -31,10 +31,10 @@ function harness() {
     addAll: async (a: string[]) => {
       assets.push(a);
     },
-    match: async (p: string) => (p === "/index.html" ? "old-index" : undefined),
+    match: async (p: string) => (p === "/" ? "old-index" : undefined),
   };
   runInNewContext(
-    serviceWorker("new-build", ["/index.html", "/assets/app-new.js"]),
+    serviceWorker("new-build", ["/", "/assets/app-new.js"]),
     {
       self,
       location: { origin: "https://pocket.test" },

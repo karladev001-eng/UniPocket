@@ -1,4 +1,27 @@
-# 静大ポケット — 共通テーマと週間カード
+# 静大ポケット — PWAとSwift版
+
+今後のURL配布用に独立したPWAを `web/` へ追加しました。ホーム / 時間割 / 記事 / メモ / その他の5画面を備え、掲示板は表示しません。ブラウザごとの空の個人データから始め、既存Swift版のファイルや保存データは変更しません。
+
+Node.js 22.18以上で、リポジトリ内の `web/` を実行ディレクトリにします。
+
+```sh
+npm ci
+npm run typecheck
+npm run test:all
+npm run test:integration
+npm run db:local
+npm run local
+```
+
+`http://127.0.0.1:8787` でPWA本体とWorker APIが同じoriginで動きます。`test:integration` が本体をビルドし、一時D1で結合を検証します。通常は `npm run build` でもビルドできます。`local` / `db:local` は明示したpreview環境のローカルDBを使い、Cloudflare認証は不要です。Viteの静的previewだけでは記事APIは動作しません。
+
+時間割・PDF差分・メモと画像・施設とリンク・地図・テーマと背景は端末内に保存します。Notion記事は公開URLと一覧情報を共有DBへ登録し、本文はNotionで表示します。匿名ユーザーのCookieで投稿編集とブックマークを管理します。外部カレンダー連携と旧Swiftデータの自動移行は初回対象外です。端末内データやPDFは記事サーバーへ送信しません。
+
+本体の更新は通知後に利用者が操作し、開いているタブの入力保存を確認して適用します。記事API・認証応答はオフラインキャッシュへ入れません。保存・匿名権限の制約、PDF対応範囲と更新動作は [Webクライアント説明](web/CLIENT.md)、Cloudflareのpreview/production分離、D1 migration、公開・バックアップ・ロールバック手順は [配信手順](web/DEPLOY.md) にあります。
+
+Cloudflareの本番アカウント・実DB・公開URLは未接続です。実Android/iPhoneの導入・更新、実際の対象Notionページの埋め込み、実PDFの取込、クラウド上のバックアップ復元は未確認です。公開サンプルのトップレベル表示だけを埋め込み成功とは扱いません。設定内の仮DB IDを実IDへ置換し、配信手順の実環境確認を終えてから配布してください。
+
+## Swift版の説明と既存検証記録
 
 静岡大学・浜松キャンパス用のiPhoneアプリです。iOS 17以上、SwiftUI / PDFKit / EventKit。PDF・メモ・画像・施設時間・リンクを端末内に保存します。サーバー、Microsoft Graph、外部AI、独自iCloud同期はありません。
 

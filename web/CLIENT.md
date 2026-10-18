@@ -4,11 +4,12 @@ Swift版を変更せず、ブラウザごとの新規データから始める独
 
 ## ローカル
 
-Node 22.13以上で `npm ci`、`npm run build`、`npm run preview`。開発時は `npm run dev`。APIは同一オリジン `/api/*` で、Vite開発サーバーは127.0.0.1:8787へプロキシします。Worker/D1の起動と配信はDEPLOY.mdを参照。静的previewだけでは共有記事APIは動作しません。
+Node 22.18以上で `npm ci`、`npm run build`、`npm run db:local`、`npm run local`。画面とAPIを127.0.0.1:8787で開けます。開発時は `npm run dev`。APIは同一オリジン `/api/*` で、Vite開発サーバーは127.0.0.1:8787へプロキシします。Worker/D1の配信はDEPLOY.mdを参照。`npm run preview` の静的配信だけでは共有記事APIは動作しません。
 
 - `npm run typecheck`
 - `npm test` — 個人修正・PDF差分、PDF座標パーサー、IndexedDB原本保護と複数タブ競合、SW更新プロトコル
-- `npm run test:server` / `npm run test:runtime` — API担当のNodeテスト（統合後）
+- `npm run test:server` / `npm run test:runtime` — SQLite／実workerd・D1テスト
+- `npm run test:integration` — 実Wranglerの静的配信・記事API・DB再起動復元
 
 ## 端末内データ
 

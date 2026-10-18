@@ -33,6 +33,8 @@ await writeFile(
   new URL("version.json", root),
   JSON.stringify(version, null, 2),
 );
-const code = serviceWorker(id, [...assets, "/version.json"]);
+// Static Assets redirects /index.html to /. A cached redirected response cannot
+// satisfy browser navigation requests whose redirect mode is manual.
+const code = serviceWorker(id, [...assets.map((f) => f === "/index.html" ? "/" : f), "/version.json"]);
 await writeFile(new URL("sw.js", root), code);
 console.log("PWA build " + id + " · " + assets.length + " offline assets");

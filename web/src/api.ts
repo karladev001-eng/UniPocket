@@ -19,6 +19,11 @@ export interface Article {
   bookmarked: boolean;
   canEdit: boolean;
 }
+export class ApiError extends Error {
+  constructor(message: string, public status: number, public code?: string) {
+    super(message);
+  }
+}
 export async function api<T>(
   path: string,
   method = "GET",
@@ -40,7 +45,7 @@ export async function api<T>(
     .json()
     .catch(() => ({ error: "応答を読み取れません。" }));
   if (!response.ok)
-    throw Error(value.error ?? `通信に失敗しました (${response.status})`);
+    throw new ApiError(value.error ?? `通信に失敗しました (${response.status})`, response.status, value.code);
   return value as T;
 }
 let sessionPending: Promise<User> | undefined;

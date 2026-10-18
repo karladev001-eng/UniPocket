@@ -36,17 +36,18 @@
 
 ```sh
 npm ci
-node --test tests/server.test.ts
-npm run build
-npx wrangler d1 migrations apply DB --local
-npx wrangler dev
+npm run typecheck
+npm run test:all
+npm run test:integration
+npm run db:local
+npm run local
 ```
 
-同じ `localhost` originで画面とAPIを開く。別portのViteだけでは共有APIに接続できない。`Secure` Cookieはlocalhostを安全なローカル開発元として扱うブラウザで利用する。LAN上の端末試験にはHTTPSプレビューを使う。`--remote` を付けなければローカルD1を使う。ローカルデータはWranglerの `.wrangler/state` に保存される。削除すると匿名権限を失うため、本番データと同様にCookieとDBを一緒に保持する。
+同じ `http://127.0.0.1:8787` originで画面とAPIを開く。別portの静的previewだけでは共有APIに接続できない。`Secure` Cookieはloopbackを安全なローカル開発元として扱うブラウザで利用する。LAN上の端末試験にはHTTPSプレビューを使う。`--remote` を付けなければローカルD1を使う。ローカルデータはWranglerの `.wrangler/state` に保存される。削除すると匿名権限を失うため、本番データと同様にCookieとDBを一緒に保持する。
 
 テストは実SQLiteへ本番SQLを適用し、ハンドラを実行する。モックの固定応答は使わない。実D1環境の制限やエッジCookie配送は別途プレビューで確認する。
 
-追加の実Workersランタイム結合テストは `npm install --no-save miniflare@4.20260730.0 esbuild@0.28.2` の後、`node --test tests/server-runtime.mjs` で実行できる。テスト専用ツールを別ディレクトリへ入れた場合は `NODE_PATH=/そのディレクトリ/node_modules` を付ける。Miniflareはlocalhostリスナーを開く。2026-10-18、Node26.10.0・上記バージョンで全7テスト合格（SQLite6件＋実workerd/D1 1件）。実D1テストは12件同時の初回冪等投稿、20件同時の保存/閲覧も確認した。
+`npm ci` はlockfileのWrangler・Miniflare・esbuildも導入する。追加インストールは不要。`npm run test:runtime` は固定したMiniflare 5.20261012.1-betaの実workerd/D1で、12件の同時冪等投稿・20件の同時保存/閲覧を確認する。`npm run test:integration` はビルド後にWrangler Static Assets＋API＋一時D1を起動し、ヘッダ・深いURL・投稿編集・匿名権限・保存の再起動復元を確認する。一時DBは通常の `.wrangler/state` と分離し終了時に消去する。これらのテストはlocalhostリスナーを開く。ブラウザのCookie保存とPWA更新は別の実操作確認が必要。
 
 ## 認証・データ境界
 
@@ -70,8 +71,8 @@ npx wrangler dev
 
 ```sh
 npx wrangler login
-npx wrangler d1 create campuspocket-preview
-npx wrangler d1 create campuspocket-production
+npx wrangler d1 create shizudai-pocket-preview
+npx wrangler d1 create shizudai-pocket-production
 npx wrangler d1 migrations apply DB --remote --env preview
 npm run build
 npx wrangler deploy --env preview
@@ -91,7 +92,7 @@ npx wrangler deploy --env production
 
 初回DBが空ならバックアップ対象がない点を記録する。公開後、HTTPS/深いURL/manifest/SW/記事APIのno-store・Cookie・投稿/保存を確認する。DB migrationは追加型を基本に旧クライアントと互換を保つ。公開時に既存のユーザー/ブックマークを消すseedやresetを実行しない。
 
-Git連携を使用する場合はCloudflare Workers Buildsでリポジトリと公開対象branchを運営者が接続する。Build commandは `cd web && npm ci && node --test tests/server.test.ts && npm run build`、deploy commandは対象環境の `npx wrangler deploy --env production`（working directoryをwebに設定している場合は `cd web` を除く）。DB migrationはバックアップ付きの明示リリース段階で行う。PR・任意branchから本番DBへ配信しない。認証トークンはCloudflareのsecret管理へ置く。Git接続は未実施。
+Git連携を使用する場合はCloudflare Workers Buildsでリポジトリと公開対象branchを運営者が接続する。Build commandは `cd web && npm ci && npm run typecheck && npm test && npm run test:server && npm run build`、deploy commandは対象環境の `npx wrangler deploy --env production`（working directoryをwebに設定している場合は `cd web` を除く）。DB migrationはバックアップ付きの明示リリース段階で行う。PR・任意branchから本番DBへ配信しない。認証トークンはCloudflareのsecret管理へ置く。Git接続は未実施。
 
 ## ロールバックと障害
 

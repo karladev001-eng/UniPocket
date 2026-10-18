@@ -1,5 +1,6 @@
 import { ViewEpoch, updateBookmark } from "./article-request";
 import { commitEvent } from "./event-editor";
+import { submitNewArticle } from "./article-submit";
 import "./style.css";
 import {
   type Data,
@@ -1078,12 +1079,12 @@ function articleForm(article?: Article) {
       busy++;
       try {
         user = await session();
-        const result = await api<{ article: Article }>(
-          "/articles" + (article ? "/" + encodeURIComponent(article.id) : ""),
-          article ? "PATCH" : "POST",
-          body,
-          article ? {} : { "Idempotency-Key": draft.key },
-        );
+        const result = article
+          ? await api<{ article: Article }>("/articles/" + encodeURIComponent(article.id), "PATCH", body)
+          : await submitNewArticle(draft, body, api, async () => {
+              changed();
+              if (!(await save())) throw Error("送信前の下書き保存に失敗しました。入力を保持して再試行してください。");
+            });
         data.articleDraft = {};
         changed();
         await save();

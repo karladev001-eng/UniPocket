@@ -12,7 +12,7 @@ self.addEventListener('fetch', event => {
   if(u.pathname==='/sw.js'||u.pathname==='/version.json') return;
   event.respondWith((async()=>{
     const cache=await caches.open(CACHE);
-    if(event.request.mode==='navigate') return await cache.match('/index.html')||fetch(event.request);
+    if(event.request.mode==='navigate') return await cache.match('/')||fetch(event.request);
     return await cache.match(event.request)||await caches.match(event.request)||fetch(event.request);
   })());
 });

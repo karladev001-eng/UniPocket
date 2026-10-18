@@ -3,12 +3,13 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
-const { Miniflare } = require('miniflare');
+const { Miniflare, convertV4MiniflareOptions } = require('miniflare');
 const { build } = require('esbuild');
 
 test('real workerd/D1: migrations, concurrent creation, isolation, bookmarks and views', async () => {
   const built = await build({entryPoints: [new URL('../server/worker.ts', import.meta.url).pathname], bundle: true, write: false, format: 'esm', platform: 'browser', target: 'es2023'});
-  const mf = new Miniflare({modules: true, script: built.outputFiles[0].text, compatibilityDate: '2026-07-01', d1Databases: ['DB']});
+  // Miniflare 5 exposes its supported v4-to-v5 option converter for this source form.
+  const mf = new Miniflare(convertV4MiniflareOptions({modules: true, script: built.outputFiles[0].text, compatibilityDate: '2026-10-18', d1Databases: ['DB']}));
   try {
     const db = await mf.getD1Database('DB');
     const migration = readFileSync(new URL('../migrations/0001_articles.sql', import.meta.url),'utf8');
