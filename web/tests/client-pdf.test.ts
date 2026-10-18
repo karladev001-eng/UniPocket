@@ -1,8 +1,13 @@
 import { execFileSync } from "node:child_process";
 import { build } from "esbuild";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi, beforeEach } from "vitest";
+import { previewPDF } from "../src/pdf";
 import { pdfPages } from "./fixtures/pdf-pages";
 import { textPDF } from "./fixtures/text-pdf";
+import type { PageText } from "../src/pdf-parser";
+
+const pdfMock = vi.hoisted(() => ({ getDocument: vi.fn(), GlobalWorkerOptions: {} }));
+vi.mock("pdfjs-dist/legacy/build/pdf.mjs", () => pdfMock);
 
 // Each run starts in a fresh process: compatibility polyfills must not leak
 // between the baseline, application and worker checks or affect Vitest itself.
@@ -112,5 +117,59 @@ describe("PDF compatibility without newer JavaScript APIs", () => {
       await assert.rejects(previewPDF(...files), /toHex.*not a function/);
       console.log("modern byte API failure reproduced");
     `)).toContain("modern byte API failure reproduced");
+  });
+});
+
+function documentTask(text: PageText) {
+  return {
+    promise: Promise.resolve({
+      numPages: 1,
+      getPage: vi.fn().mockResolvedValue({
+        getViewport: () => ({ width: text.width, height: text.height, convertToViewportPoint: (x: number, y: number) => [x, y] }),
+        getTextContent: vi.fn().mockResolvedValue({ items: text.items.map(item => ({ ...item, transform: [1, 0, 0, 1, item.x, item.y + 5] })) }),
+      }),
+    }),
+    destroy: vi.fn().mockResolvedValue(undefined),
+  };
+}
+describe("local PDF failure diagnostics and cleanup", () => {
+  const file = () => new File(["synthetic"], "private-name.pdf");
+  beforeEach(() => pdfMock.getDocument.mockReset());
+
+  it("identifies file reads without exposing the file name", async () => {
+    const registration = { size: 1, arrayBuffer: () => Promise.reject(Error("read failed")) } as File;
+    await expect(previewPDF(registration, file())).rejects.toThrow("read failed [PDF:R-FILE]");
+    expect(pdfMock.getDocument).not.toHaveBeenCalled();
+  });
+
+  it.each(["R", "A"])("keeps the %s document error when cleanup also rejects", async side => {
+    const { t, a } = pdfPages(), registration = documentTask(t), annual = documentTask(a);
+    const failed = side === "R" ? registration : annual;
+    // Reject when awaited so constructing the fixtures creates no unhandled promise.
+    Object.defineProperty(failed, "promise", { get: () => Promise.reject(TypeError("undefined is not a function")) });
+    registration.destroy.mockRejectedValue(Error("cleanup failure"));
+    pdfMock.getDocument.mockReturnValueOnce(registration).mockReturnValueOnce(annual);
+    await expect(previewPDF(file(), file())).rejects.toThrow(`undefined is not a function [PDF:${side}-OPEN]`);
+    expect(registration.destroy).toHaveBeenCalledOnce();
+    expect(annual.destroy).toHaveBeenCalledOnce();
+  });
+
+  it.each(["R", "A"])("identifies %s text extraction and always releases both tasks", async side => {
+    const { t, a } = pdfPages(), registration = documentTask(t), annual = documentTask(a);
+    const failed = side === "R" ? registration : annual;
+    const page = await (await failed.promise).getPage(1);
+    page.getTextContent.mockRejectedValue(TypeError("text API failed"));
+    pdfMock.getDocument.mockReturnValueOnce(registration).mockReturnValueOnce(annual);
+    await expect(previewPDF(file(), file())).rejects.toThrow(`text API failed [PDF:${side}-TEXT]`);
+    expect(registration.destroy).toHaveBeenCalledOnce();
+    expect(annual.destroy).toHaveBeenCalledOnce();
+  });
+
+  it("identifies cleanup-only failures after a successful preview", async () => {
+    const { t, a } = pdfPages(), registration = documentTask(t), annual = documentTask(a);
+    registration.destroy.mockRejectedValue(Error("release failed"));
+    pdfMock.getDocument.mockReturnValueOnce(registration).mockReturnValueOnce(annual);
+    await expect(previewPDF(file(), file())).rejects.toThrow("release failed [PDF:CLOSE]");
+    expect(annual.destroy).toHaveBeenCalledOnce();
   });
 });

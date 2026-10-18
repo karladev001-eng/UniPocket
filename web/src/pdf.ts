@@ -9,6 +9,26 @@ import worker from "pdfjs-dist/legacy/build/pdf.worker.min.mjs?url";
 import { type Plan } from "./domain";
 GlobalWorkerOptions.workerSrc = worker;
 import { PageText, parsePages } from "./pdf-parser";
+
+type PDFStage = "R-FILE" | "A-FILE" | "R-OPEN" | "A-OPEN" | "R-TEXT" | "A-TEXT" | "LAYOUT" | "PARSE" | "CLOSE";
+class PDFStageError extends Error {
+  constructor(readonly stage: PDFStage, cause: unknown) {
+    super(cause instanceof Error ? cause.message : "破損・パスワードを確認してください。", { cause });
+  }
+}
+async function atStage<T>(stage: PDFStage, run: () => T | Promise<T>): Promise<T> {
+  try {
+    return await run();
+  } catch (error) {
+    throw new PDFStageError(stage, error);
+  }
+}
+function importError(error: unknown): Error {
+  const message = error instanceof Error ? error.message : "破損・パスワードを確認してください。";
+  const code = error instanceof PDFStageError ? ` [PDF:${error.stage}]` : "";
+  // Local diagnostic only: no file names, extracted text, stack or telemetry.
+  return Error(`PDFの取込を中止しました。${message}${code} 既存の予定は変更していません。`);
+}
 async function page(p: PDFPageProxy) {
   const vp = p.getViewport({ scale: 1 }),
     text = await p.getTextContent();
@@ -42,34 +62,50 @@ export async function previewPDF(
     throw Error("PDFは各40MB以内で選択してください。");
   let rt: ReturnType<typeof getDocument> | undefined,
     at: ReturnType<typeof getDocument> | undefined;
+  let failed = false;
   try {
-    rt = getDocument({
-      cMapUrl: "/pdfjs/cmaps/",
-      cMapPacked: true,
-      standardFontDataUrl: "/pdfjs/standard_fonts/",
-      wasmUrl: "/pdfjs/wasm/",
-      data: new Uint8Array(await registration.arrayBuffer()),
+    const registrationBytes = await atStage("R-FILE", () => registration.arrayBuffer());
+    const annualBytes = await atStage("A-FILE", () => annual.arrayBuffer());
+    const [r, a] = await Promise.all([
+      atStage("R-OPEN", () => {
+        rt = getDocument({
+          cMapUrl: "/pdfjs/cmaps/",
+          cMapPacked: true,
+          standardFontDataUrl: "/pdfjs/standard_fonts/",
+          wasmUrl: "/pdfjs/wasm/",
+          data: new Uint8Array(registrationBytes),
+        });
+        return rt.promise;
+      }),
+      atStage("A-OPEN", () => {
+        at = getDocument({
+          cMapUrl: "/pdfjs/cmaps/",
+          cMapPacked: true,
+          standardFontDataUrl: "/pdfjs/standard_fonts/",
+          wasmUrl: "/pdfjs/wasm/",
+          data: new Uint8Array(annualBytes),
+        });
+        return at.promise;
+      }),
+    ]);
+    await atStage("LAYOUT", () => {
+      if (r.numPages !== 1 || a.numPages < 1)
+        throw Error("登録票は1ページの原本を選択してください。");
     });
-    at = getDocument({
-      cMapUrl: "/pdfjs/cmaps/",
-      cMapPacked: true,
-      standardFontDataUrl: "/pdfjs/standard_fonts/",
-      wasmUrl: "/pdfjs/wasm/",
-      data: new Uint8Array(await annual.arrayBuffer()),
-    });
-    const [r, a] = await Promise.all([rt.promise, at.promise]);
-    if (r.numPages !== 1 || a.numPages < 1)
-      throw Error("登録票は1ページの原本を選択してください。");
-    return parsePages(
-      await page(await r.getPage(1)),
-      await page(await a.getPage(1)),
-    );
+    const registrationPage = await atStage("R-TEXT", async () => page(await r.getPage(1)));
+    const annualPage = await atStage("A-TEXT", async () => page(await a.getPage(1)));
+    return await atStage("PARSE", () => parsePages(registrationPage, annualPage));
   } catch (e) {
-    throw Error(
-      `PDFの取込を中止しました。${e instanceof Error ? e.message : "破損・パスワードを確認してください。"} 既存の予定は変更していません。`,
-    );
+    failed = true;
+    throw importError(e);
   } finally {
-    await rt?.destroy();
-    await at?.destroy();
+    // Release both tasks even if one fails. A cleanup error must not conceal
+    // the original failing phase, which is needed to diagnose device errors.
+    const cleanup = await Promise.allSettled(
+      [rt, at].map(task => Promise.resolve().then(() => task?.destroy())),
+    );
+    const rejected = cleanup.find(result => result.status === "rejected");
+    if (!failed && rejected?.status === "rejected")
+      throw importError(new PDFStageError("CLOSE", rejected.reason));
   }
 }
