@@ -11,7 +11,7 @@
   "env": {
     "preview": {
       "name": "uni-pocket-preview",
-      "workers_dev": false,
+      "workers_dev": true,
       "preview_urls": false,
       "d1_databases": [{
         "binding": "DB",
