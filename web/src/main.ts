@@ -1,9 +1,10 @@
+import { ViewEpoch, updateBookmark } from "./article-request";
+import { commitEvent } from "./event-editor";
 import "./style.css";
 import {
   type Data,
   type Note,
   type CampusEvent,
-  type Edit,
   type Plan,
   type Facility,
   emptyData,
@@ -140,7 +141,9 @@ function theme() {
 function route() {
   return location.hash.slice(1).split("/")[0] || "home";
 }
+const pageEpoch = new ViewEpoch();
 function render() {
+  pageEpoch.advance();
   actions.clear();
   action("dismiss-error", () => (errorBox.hidden = true));
   action("update", async () => {
@@ -467,36 +470,22 @@ function editEvent(event?: CampusEvent, resume = false) {
           val(form, "start").slice(11),
         ),
         end = tokyo(val(form, "end").slice(0, 10), val(form, "end").slice(11));
-      if (start >= end) throw Error("終了は開始より後にしてください。");
-      if (existing) {
-        const scope = val(form, "scope"),
-          edits = scope === "course" ? data.courseEdits : data.occurrenceEdits,
-          id = scope === "course" ? cid! : e.id;
-        const x: Edit = {
-          id,
+      await commitEvent(
+        data,
+        e,
+        existing,
+        cid,
+        {
           title: val(form, "title"),
           location: val(form, "location"),
           start,
           end,
           allDay: new FormData(form).has("allDay"),
           cancelled: new FormData(form).has("cancelled"),
-        };
-        const index = edits.findIndex((x) => x.id === id);
-        if (index < 0) edits.push(x);
-        else edits[index] = x;
-      } else
-        data.addedEvents.push({
-          ...e,
-          title: val(form, "title"),
-          location: val(form, "location"),
-          start,
-          end,
-          allDay: new FormData(form).has("allDay"),
-        });
-      delete data.eventDraft;
-      changed();
-      if (!(await save()))
-        throw Error("保存に失敗しました。入力は保持しています。");
+          scope: val(form, "scope") === "course" ? "course" : "occurrence",
+        },
+        { changed, save },
+      );
       d.close();
       render();
     },
@@ -942,6 +931,7 @@ function renderArticles() {
   void loadArticles();
 }
 async function renderArticleDetail(id: string) {
+  const isCurrent = pageEpoch.scope("#articles/" + id, () => location.hash);
   page.innerHTML =
     heading("記事を開いています") + '<p role="status">読み込み中…</p>';
   let a: Article;
@@ -950,14 +940,15 @@ async function renderArticleDetail(id: string) {
     a = (await api<{ article: Article }>("/articles/" + encodeURIComponent(id)))
       .article;
   } catch (e) {
-    if (location.hash !== "#articles/" + id) return;
+    if (!isCurrent()) return;
     page.innerHTML =
       heading("記事を表示できません") +
       `<div class="notice error" role="alert">${esc(e instanceof Error ? e.message : e)}<p>記事が削除されたか、通信できない可能性があります。</p></div><a href="#articles">記事一覧へ戻る</a>`;
     return;
   }
-  if (location.hash !== "#articles/" + id) return;
+  if (!isCurrent()) return;
   const draw = () => {
+    if (!isCurrent()) return;
     action("detail-bookmark", async () => {
       const b = page.querySelector<HTMLButtonElement>(
         "[data-action=detail-bookmark]",
@@ -965,21 +956,24 @@ async function renderArticleDetail(id: string) {
       if (b) b.disabled = true;
       busy++;
       try {
-        user = await session();
-        const result = await api<{
-          bookmarked: boolean;
-          bookmarkCount: number;
-        }>(
-          "/articles/" + encodeURIComponent(id) + "/bookmark",
-          a.bookmarked ? "DELETE" : "PUT",
-          a.bookmarked ? undefined : {},
+        await updateBookmark(
+          a,
+          async () => {
+            user = await session();
+            return api<{ bookmarked: boolean; bookmarkCount: number }>(
+              "/articles/" + encodeURIComponent(id) + "/bookmark",
+              a.bookmarked ? "DELETE" : "PUT",
+              a.bookmarked ? undefined : {},
+            );
+          },
+          isCurrent,
+          draw,
         );
-        a.bookmarked = result.bookmarked;
-        a.bookmarkCount = result.bookmarkCount;
-        draw();
       } catch (e) {
-        error(e);
-        if (b) b.disabled = false;
+        if (isCurrent()) {
+          error(e);
+          if (b) b.disabled = false;
+        }
       } finally {
         busy--;
       }
@@ -1028,8 +1022,9 @@ async function renderArticleDetail(id: string) {
       {},
     );
     a.viewCount = value.viewCount;
-    if (location.hash === "#articles/" + id) draw();
+    draw();
   } catch (e) {
+    if (!isCurrent()) return;
     error(
       Error(
         "閲覧記録を送信できませんでした。表示中の件数は前回取得値です。" +

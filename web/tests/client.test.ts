@@ -1,7 +1,10 @@
+import { ViewEpoch, updateBookmark } from "../src/article-request";
+import { commitEvent } from "../src/event-editor";
 import { describe, it, expect, beforeEach } from "vitest";
 import { indexedDB as fakeIndexedDB } from "fake-indexeddb";
 import {
   emptyData,
+  validateData,
   events,
   install,
   difference,
@@ -34,6 +37,12 @@ const plan = (es = [event()]): Plan => ({
   warnings: [],
   importedAt: "2026-10-01T00:00:00Z",
 });
+beforeEach(() => {
+    Object.defineProperty(globalThis, "indexedDB", {
+      value: new (fakeIndexedDB.constructor as { new (): IDBFactory })(),
+      configurable: true,
+    });
+  });
 describe("personal timetable / import protection", () => {
   it("starts with no personal demo data", () => {
     const d = emptyData();
@@ -100,12 +109,7 @@ describe("personal timetable / import protection", () => {
   });
 });
 describe("IndexedDB durable and conservative saves", () => {
-  beforeEach(() => {
-    Object.defineProperty(globalThis, "indexedDB", {
-      value: new (fakeIndexedDB.constructor as { new (): IDBFactory })(),
-      configurable: true,
-    });
-  });
+
   it("persists notes including images and rejects stale tab writes", async () => {
     const a = new LocalStore(),
       b = new LocalStore(),
@@ -180,6 +184,53 @@ describe("IndexedDB durable and conservative saves", () => {
     expect(row.data.schema).toBe(999);
     b.close();
     db.close();
+  });
+});
+describe("event submission retry after a failed save", () => {
+  it("retains the draft and upserts the same manual event exactly once", async () => {
+    const store = new LocalStore(),
+      data = await store.open(),
+      original = event("manual:retry");
+    data.eventDraft = { event: original, values: { title: "入力中の予定" } };
+    const draft = structuredClone(data.eventDraft),
+      queue = new SaveQueue(store, () => data);
+    let attempts = 0;
+    const persistence = {
+      changed: () => queue.changed(),
+      save: async () => {
+        attempts++;
+        validateData(data);
+        if (attempts === 1) return false;
+        await queue.flush();
+        return true;
+      },
+    };
+    const values = {
+      title: "入力中の予定",
+      location: "情1",
+      start: original.start,
+      end: original.end,
+      allDay: false,
+      cancelled: false,
+      scope: "occurrence" as const,
+    };
+    await expect(
+      commitEvent(data, original, false, undefined, values, persistence),
+    ).rejects.toThrow("保存に失敗");
+    expect(data.addedEvents).toHaveLength(1);
+    expect(data.eventDraft).toEqual(draft);
+    values.title = "再試行で変更した予定";
+    await expect(
+      commitEvent(data, original, false, undefined, values, persistence),
+    ).resolves.toBeUndefined();
+    expect(data.addedEvents).toHaveLength(1);
+    expect(data.eventDraft).toBeUndefined();
+    const reopened = new LocalStore(),
+      restored = await reopened.open();
+    expect(restored.addedEvents).toHaveLength(1);
+    expect(restored.addedEvents[0].title).toBe(values.title);
+    store.close();
+    reopened.close();
   });
 });
 describe("Notion and room boundaries", () => {
@@ -266,5 +317,61 @@ describe("known PDF coordinate parser", () => {
       a.items.filter((i) => i.str !== "月15"),
     );
     expect(() => parsePages(t, missing)).toThrow("揃いません");
+  });
+});
+
+describe("delayed bookmark requests respect the active view", () => {
+  it.each(["#notes", "#articles", "#articles/other"])(
+    "updates server state without redrawing after navigation to %s",
+    async (destination) => {
+      const epoch = new ViewEpoch();
+      epoch.advance();
+      let hash = "#articles/test",
+        draws = 0;
+      const isCurrent = epoch.scope(hash, () => hash),
+        article = { bookmarked: false, bookmarkCount: 2 };
+      let complete!: (value: typeof article) => void;
+      const pending = updateBookmark(
+        article,
+        () => new Promise((resolve) => (complete = resolve)),
+        isCurrent,
+        () => draws++,
+      );
+      hash = destination;
+      epoch.advance();
+      complete({ bookmarked: true, bookmarkCount: 3 });
+      await pending;
+      expect(article).toEqual({ bookmarked: true, bookmarkCount: 3 });
+      expect(draws).toBe(0);
+    },
+  );
+  it("does not redraw an earlier request after revisiting the same article", async () => {
+    const epoch = new ViewEpoch();
+    epoch.advance();
+    let hash = "#articles/test",
+      draws = 0;
+    const current = epoch.scope(hash, () => hash),
+      article = { bookmarked: false, bookmarkCount: 0 };
+    let complete!: (value: typeof article) => void;
+    const pending = updateBookmark(
+      article,
+      () => new Promise((resolve) => (complete = resolve)),
+      current,
+      () => draws++,
+    );
+    hash = "#notes";
+    epoch.advance();
+    hash = "#articles/test";
+    epoch.advance();
+    complete({ bookmarked: true, bookmarkCount: 1 });
+    await pending;
+    expect(draws).toBe(0);
+    await updateBookmark(
+      article,
+      async () => ({ bookmarked: false, bookmarkCount: 0 }),
+      epoch.scope(hash, () => hash),
+      () => draws++,
+    );
+    expect(draws).toBe(1);
   });
 });
