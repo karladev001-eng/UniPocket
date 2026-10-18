@@ -111,6 +111,8 @@ async function save() {
   } catch (e) {
     statusText("保存できませんでした · 入力は保持しています");
     root.querySelector<HTMLElement>("#save-retry")!.hidden = false;
+    const recovery = dialog?.querySelector<HTMLElement>("#note-save-recovery");
+    if (recovery) recovery.hidden = false;
     error(e);
     return false;
   }
@@ -703,7 +705,7 @@ function editNote(id: string, fresh?: Note) {
   let notePinned = data.pinned.includes(id);
   const d = modal(
     "メモ",
-    `<div class="note-top"><button type="button" id="note-pin" class="icon-button" aria-label="ホームに固定" aria-pressed="${data.pinned.includes(id)}">${icon("pin")}</button></div><textarea name="text" class="note-body" aria-label="メモ本文" placeholder="メモを入力…" maxlength="10000">${esc(n.text)}</textarea><div class="checks stack"></div><div class="thumbs attachments"></div><div id="note-palette" class="note-palette" role="group" aria-label="メモの色" hidden>${[["default", "標準"], ["yellow", "イエロー"], ["green", "グリーン"], ["pink", "ピンク"], ["blue", "ブルー"]].map(([value, label]) => `<button type="button" data-color="${value}" class="swatch ${value}" aria-label="${label}" aria-pressed="${value === n.color}"></button>`).join("")}</div><div id="note-more-menu" class="note-more-menu" hidden><button type="button" id="delete-note" class="danger">このメモを削除</button><p class="muted">入力は端末内に自動保存します。HEICはブラウザにより変換が必要です。</p></div><input id="note-images" class="file-native" data-toolbar="true" tabindex="-1" type="file" accept="image/png,image/jpeg,image/webp,image/heic,image/heif,.heic,.heif" multiple><span id="note-file-name" class="muted" role="status"></span><div class="note-tools"><button type="button" id="add-image" class="icon-button" aria-label="画像を追加">${icon("image")}</button><button type="button" id="add-check" class="icon-button" aria-label="チェック項目を追加">${icon("check")}</button><button type="button" id="note-color" class="icon-button" aria-label="色を選ぶ" aria-expanded="false">${icon("color")}</button><button type="button" id="note-more" class="icon-button" aria-label="その他の操作" aria-expanded="false">${icon("more")}</button></div>`,
+    `<div class="note-top"><button type="button" id="note-pin" class="icon-button" aria-label="ホームに固定" aria-pressed="${data.pinned.includes(id)}">${icon("pin")}</button></div><textarea name="text" class="note-body" aria-label="メモ本文" placeholder="メモを入力…" maxlength="10000">${esc(n.text)}</textarea><div class="checks stack"></div><div class="thumbs attachments"></div><div id="note-palette" class="note-palette" role="group" aria-label="メモの色" hidden>${[["default", "標準"], ["yellow", "イエロー"], ["green", "グリーン"], ["pink", "ピンク"], ["blue", "ブルー"]].map(([value, label]) => `<button type="button" data-color="${value}" class="swatch ${value}" aria-label="${label}" aria-pressed="${value === n.color}"></button>`).join("")}</div><div id="note-more-menu" class="note-more-menu" hidden><button type="button" id="delete-note" class="danger">このメモを削除</button><p class="muted">入力は端末内に自動保存します。HEICはブラウザにより変換が必要です。</p></div><input id="note-images" class="file-native" data-toolbar="true" tabindex="-1" type="file" accept="image/png,image/jpeg,image/webp,image/heic,image/heif,.heic,.heif" multiple><span id="note-file-name" class="muted" role="status"></span><div id="note-save-recovery" class="notice error" hidden><p>入力はこの画面に保持しています。再試行しても保存できない場合は、入力データを書き出してからブラウザを再読み込みしてください。書き出しには現在のメモ・画像・チェック項目も含まれます。</p><button type="button" id="note-export-data">入力データを書き出す</button></div><div class="note-tools"><button type="button" id="add-image" class="icon-button" aria-label="画像を追加">${icon("image")}</button><button type="button" id="add-check" class="icon-button" aria-label="チェック項目を追加">${icon("check")}</button><button type="button" id="note-color" class="icon-button" aria-label="色を選ぶ" aria-expanded="false">${icon("color")}</button><button type="button" id="note-more" class="icon-button" aria-label="その他の操作" aria-expanded="false">${icon("more")}</button></div>`,
     async () => {
       if (busy || composing) throw Error("文字変換・画像処理を終えてから完了してください。");
       if (!(await save())) throw Error("保存できませんでした。入力を保持しています。もう一度完了してください。");
@@ -718,6 +720,7 @@ function editNote(id: string, fresh?: Note) {
   d.querySelectorAll("[data-close]").forEach(b => (b as HTMLElement).hidden = true);
   d.querySelector(".note-tools")!.append(d.querySelector(".footer [type=submit]")!);
   const form = d.querySelector("form")!;
+  d.querySelector<HTMLButtonElement>("#note-export-data")!.onclick = exportData;
   d.addEventListener("cancel", e => { e.preventDefault(); if (!composing) form.requestSubmit(); });
   d.addEventListener("requestclose", e => { e.preventDefault(); form.requestSubmit(); });
   const showPanel = (buttonID: string, panelID: string) => {

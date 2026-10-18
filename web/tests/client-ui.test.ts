@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import 'fake-indexeddb/auto';
 import { emptyData, validateData } from '../src/domain';
-import { LocalStore } from '../src/storage';
+import { LocalStore, SaveQueue } from '../src/storage';
 import { backgrounds, visibleBackground, namedAuthor, noteHasContent } from '../src/ui-assets';
 
 describe('UI data compatibility', () => {
@@ -26,6 +26,20 @@ describe('UI data compatibility', () => {
     restored.backgroundMode = 'custom';
     expect(visibleBackground(restored)).toBe('data:image/jpeg;base64,original');
     reopened.close();
+  });
+  it('keeps a new note, images and checklist available to export after a tab conflict', async () => {
+    const winner = new LocalStore(), stale = new LocalStore();
+    const otherData = await winner.open(), current = await stale.open();
+    const note = { id: 'unsaved-new', text: '現在の入力', modified: new Date().toISOString(), color: 'green', images: [{ id: 'image', data: 'data:image/jpeg;base64,current' }], checklist: [{ id: 'check', text: '未保存の項目', done: true }] };
+    current.notes.unshift(note);
+    const queue = new SaveQueue(stale, () => current);
+    queue.changed();
+    await winner.save(otherData);
+    await expect(queue.flush()).rejects.toThrow('別タブ');
+    expect(queue.dirty).toBe(true);
+    // exportData reads current data, not the last successfully saved snapshot.
+    expect(JSON.parse(JSON.stringify(current)).notes[0]).toEqual(note);
+    winner.close(); stale.close();
   });
   it('accepts legacy data and rejects unknown background choices', () => {
     const data = emptyData();
