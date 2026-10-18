@@ -9,6 +9,7 @@ import worker from "pdfjs-dist/legacy/build/pdf.worker.min.mjs?url";
 import { type Plan } from "./domain";
 GlobalWorkerOptions.workerSrc = worker;
 import { PageText, parsePages } from "./pdf-parser";
+import type { TextContent } from "pdfjs-dist/types/src/display/api";
 
 type PDFStage = "R-FILE" | "A-FILE" | "R-OPEN" | "A-OPEN" | "R-TEXT" | "A-TEXT" | "LAYOUT" | "PARSE" | "CLOSE";
 class PDFStageError extends Error {
@@ -29,13 +30,31 @@ function importError(error: unknown): Error {
   // Local diagnostic only: no file names, extracted text, stack or telemetry.
   return Error(`PDFの取込を中止しました。${message}${code} 既存の予定は変更していません。`);
 }
+async function textItems(p: PDFPageProxy): Promise<TextContent["items"]> {
+  // PDF.js handles pure XFA separately, without the text-content stream.
+  if (p.isPureXfa) return (await p.getTextContent()).items;
+  // The legacy build still async-iterates ReadableStream in getTextContent,
+  // but Safari can support getReader without Symbol.asyncIterator.
+  const reader = p.streamTextContent().getReader();
+  const items: TextContent["items"] = [];
+  try {
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      for (const item of (value as TextContent).items) items.push(item);
+    }
+    return items;
+  } finally {
+    reader.releaseLock();
+  }
+}
 async function page(p: PDFPageProxy) {
   const vp = p.getViewport({ scale: 1 }),
-    text = await p.getTextContent();
+    items = await textItems(p);
   return new PageText(
     vp.width,
     vp.height,
-    text.items
+    items
       .filter(
         (i): i is import("pdfjs-dist/types/src/display/api").TextItem =>
           "str" in i,

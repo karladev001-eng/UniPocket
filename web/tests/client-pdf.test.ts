@@ -5,6 +5,7 @@ import { previewPDF } from "../src/pdf";
 import { pdfPages } from "./fixtures/pdf-pages";
 import { textPDF } from "./fixtures/text-pdf";
 import type { PageText } from "../src/pdf-parser";
+import * as pdfParser from "../src/pdf-parser";
 
 const pdfMock = vi.hoisted(() => ({ getDocument: vi.fn(), GlobalWorkerOptions: {} }));
 vi.mock("pdfjs-dist/legacy/build/pdf.mjs", () => pdfMock);
@@ -60,6 +61,52 @@ function run(script: string) {
 }
 
 describe("PDF compatibility without newer JavaScript APIs", () => {
+  it("reads PDF text without ReadableStream async iteration and protects saved data on text failure", async () => {
+    const { t, a } = pdfPages();
+    const encoded = [t, a].map(page => Buffer.from(textPDF(page)).toString("base64"));
+    const { url, workerURL } = await applicationURL();
+    expect(run(`
+      import assert from "node:assert/strict";
+      await import(${JSON.stringify(import.meta.resolve("fake-indexeddb/auto"))});
+      ${missingAPIs}
+      delete ReadableStream.prototype[Symbol.asyncIterator];
+      const { getDocument, GlobalWorkerOptions } = await import(${JSON.stringify(import.meta.resolve("pdfjs-dist/legacy/build/pdf.mjs"))});
+      GlobalWorkerOptions.workerSrc = ${JSON.stringify(workerURL)};
+      assert.equal(ReadableStream.prototype[Symbol.asyncIterator], undefined);
+      const files = ${JSON.stringify(encoded)}.map((bytes, i) => new File([Buffer.from(bytes, "base64")], i + ".pdf"));
+      const baseline = getDocument({ data: new Uint8Array(await files[0].arrayBuffer()) });
+      let pagePrototype;
+      try {
+        const page = await (await baseline.promise).getPage(1);
+        pagePrototype = Object.getPrototypeOf(page);
+        await assert.rejects(page.getTextContent(), { name: "TypeError", message: /not async iterable/ });
+      } finally { await baseline.destroy(); }
+      const { previewPDF, LocalStore } = await import(${JSON.stringify(url)});
+      const plan = await previewPDF(...files);
+      assert.equal(plan.courses[0].title, "数学");
+      assert.equal(plan.courses[0].room, "情1");
+      assert.equal(plan.events.length, 15);
+      const store = new LocalStore(), data = await store.open();
+      data.imports = [plan];
+      data.occurrenceEdits = [{ id: plan.events[0].id, title: "個人の数学" }];
+      await store.save(data);
+      const before = JSON.stringify(data);
+      const originalStream = pagePrototype.streamTextContent;
+      pagePrototype.streamTextContent = () => new ReadableStream({
+        pull(controller) { controller.error(Error("text stream failed")); },
+      });
+      try {
+        await assert.rejects(previewPDF(...files), /text stream failed \\[PDF:R-TEXT\\]/);
+      } finally { pagePrototype.streamTextContent = originalStream; }
+      assert.equal(JSON.stringify(data), before);
+      store.close();
+      const reopened = new LocalStore();
+      assert.equal(JSON.stringify(await reopened.open()), before);
+      reopened.close();
+      console.log("reader compatibility and saved data verified");
+    `)).toContain("reader compatibility and saved data verified");
+  });
+
   it("reproduces the modern build failure and restores worker APIs independently", async () => {
     const modern = import.meta.resolve("pdfjs-dist/build/pdf.mjs");
     expect(run(`${missingAPIs}
@@ -121,12 +168,29 @@ describe("PDF compatibility without newer JavaScript APIs", () => {
 });
 
 function documentTask(text: PageText) {
+  const items = text.items.map(item => ({ ...item, transform: [1, 0, 0, 1, item.x, item.y + 5] }));
+  const stream = new ReadableStream({
+    start(controller) {
+      controller.enqueue({ items: [] });
+      for (let i = 0; i < items.length; i += 25) {
+        controller.enqueue({ items: [
+          { type: "beginMarkedContent", id: "ignored" },
+          { str: " \t" },
+          ...items.slice(i, i + 25),
+        ] });
+      }
+      controller.close();
+    },
+  });
   return {
+    stream,
     promise: Promise.resolve({
       numPages: 1,
       getPage: vi.fn().mockResolvedValue({
+        isPureXfa: false,
         getViewport: () => ({ width: text.width, height: text.height, convertToViewportPoint: (x: number, y: number) => [x, y] }),
-        getTextContent: vi.fn().mockResolvedValue({ items: text.items.map(item => ({ ...item, transform: [1, 0, 0, 1, item.x, item.y + 5] })) }),
+        getTextContent: vi.fn().mockResolvedValue({ items }),
+        streamTextContent: vi.fn().mockReturnValue(stream),
       }),
     }),
     destroy: vi.fn().mockResolvedValue(undefined),
@@ -135,6 +199,44 @@ function documentTask(text: PageText) {
 describe("local PDF failure diagnostics and cleanup", () => {
   const file = () => new File(["synthetic"], "private-name.pdf");
   beforeEach(() => pdfMock.getDocument.mockReset());
+
+  it("preserves chunk order, text filtering and viewport conversion, then unlocks both streams", async () => {
+    const { t, a } = pdfPages(), registration = documentTask(t), annual = documentTask(a);
+    const registrationPage = await (await registration.promise).getPage(1);
+    registrationPage.getViewport = () => ({ width: t.width, height: t.height, convertToViewportPoint: (x: number, y: number) => [x + 11, y + 17] });
+    const expectedPlan = pdfParser.parsePages(t, a);
+    const parse = vi.spyOn(pdfParser, "parsePages").mockReturnValue(expectedPlan);
+    pdfMock.getDocument.mockReturnValueOnce(registration).mockReturnValueOnce(annual);
+    try {
+      await expect(previewPDF(file(), file())).resolves.toBe(expectedPlan);
+      expect(parse).toHaveBeenCalledWith(
+        new pdfParser.PageText(t.width, t.height, t.items.map(item => ({ ...item, x: item.x + 11, y: item.y + 17 }))),
+        a,
+      );
+      expect(registrationPage.getTextContent).not.toHaveBeenCalled();
+      expect(registration.stream.locked).toBe(false);
+      expect(annual.stream.locked).toBe(false);
+      expect(registration.destroy).toHaveBeenCalledOnce();
+      expect(annual.destroy).toHaveBeenCalledOnce();
+    } finally { parse.mockRestore(); }
+  });
+
+  it("keeps pure XFA extraction on PDF.js's dedicated text path", async () => {
+    const { t, a } = pdfPages(), registration = documentTask(t), annual = documentTask(a);
+    for (const task of [registration, annual]) {
+      const page = await (await task.promise).getPage(1);
+      page.isPureXfa = true;
+    }
+    pdfMock.getDocument.mockReturnValueOnce(registration).mockReturnValueOnce(annual);
+    const result = await previewPDF(file(), file());
+    expect(result.courses[0].title).toBe("数学");
+    expect(result.events).toHaveLength(15);
+    for (const task of [registration, annual]) {
+      const page = await (await task.promise).getPage(1);
+      expect(page.getTextContent).toHaveBeenCalledOnce();
+      expect(page.streamTextContent).not.toHaveBeenCalled();
+    }
+  });
 
   it("identifies file reads without exposing the file name", async () => {
     const registration = { size: 1, arrayBuffer: () => Promise.reject(Error("read failed")) } as File;
@@ -158,11 +260,21 @@ describe("local PDF failure diagnostics and cleanup", () => {
     const { t, a } = pdfPages(), registration = documentTask(t), annual = documentTask(a);
     const failed = side === "R" ? registration : annual;
     const page = await (await failed.promise).getPage(1);
-    page.getTextContent.mockRejectedValue(TypeError("text API failed"));
+    let reads = 0;
+    const stream = new ReadableStream({
+      pull(controller) {
+        if (++reads === 1) controller.enqueue({ items: [] });
+        else controller.error(TypeError("text API failed"));
+      },
+    });
+    page.streamTextContent.mockReturnValue(stream);
+    failed.destroy.mockRejectedValue(Error("cleanup failed"));
     pdfMock.getDocument.mockReturnValueOnce(registration).mockReturnValueOnce(annual);
     await expect(previewPDF(file(), file())).rejects.toThrow(`text API failed [PDF:${side}-TEXT]`);
     expect(registration.destroy).toHaveBeenCalledOnce();
     expect(annual.destroy).toHaveBeenCalledOnce();
+    expect(reads).toBe(2);
+    expect(stream.locked).toBe(false);
   });
 
   it("identifies cleanup-only failures after a successful preview", async () => {
