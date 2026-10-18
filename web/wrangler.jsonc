@@ -16,7 +16,7 @@
       "d1_databases": [{
         "binding": "DB",
         "database_name": "uni-pocket-preview",
-        "database_id": "REPLACE_WITH_PREVIEW_D1_ID",
+        "database_id": "b8a2db54-3dd7-414b-a11e-0edafb59fad6",
         "migrations_dir": "migrations"
       }],
       "triggers": {"crons": ["0 * * * *"]}
