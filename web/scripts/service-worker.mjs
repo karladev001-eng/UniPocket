@@ -23,7 +23,7 @@ const id = process.env.BUILD_ID ?? hash.digest("hex").slice(0, 12);
 const version = {
   id,
   builtAt: new Date().toISOString(),
-  changes: ["編集やPDF取込が終わると、保存後にアプリを自動更新", "iPhoneのPDF取込エラーの診断と互換性を改善"],
+  changes: ["週間コマ表示と、次の予定・今日の予定を先に読めるホーム", "設定をコンパクトに整理し、自分の背景画像をプレビュー"],
 };
 await writeFile(
   new URL("version.json", root),
