@@ -2,6 +2,7 @@ import { ViewEpoch, updateBookmark } from "./article-request";
 import { commitEvent } from "./event-editor";
 import { submitNewArticle } from "./article-submit";
 import "./style.css";
+import { periods, weekPresentation, courseColor, updatePresentation } from "./schedule-presentation";
 import { enhanceControls, dismissPicker } from "./ui-controls";
 import { icon, backgrounds, visibleBackground, namedAuthor, noteHasContent } from "./ui-assets";
 import {
@@ -76,12 +77,12 @@ let data: Data = emptyData(),
   frozen = false,
   saveTimer: ReturnType<typeof setTimeout> | undefined,
   selectedDay = dayKey(),
-  view = "day",
+  view = "week",
+  weekend = weekDay(selectedDay) > 5,
   user: User | null = null;
 let page = document.createElement("main"),
   status: HTMLElement,
   errorBox: HTMLElement,
-  updateBox: HTMLElement,
   dialog: HTMLDialogElement | undefined;
 const store = new LocalStore();
 const saves = new SaveQueue(store, () => data);
@@ -92,6 +93,7 @@ function error(e: unknown) {
 }
 function statusText(s: string) {
   status.textContent = s;
+  status.parentElement!.hidden = !/できません|保護中/.test(s);
 }
 function changed() {
   if (frozen) throw Error("更新の保存中です。少し待ってください。");
@@ -111,13 +113,16 @@ async function save() {
     updates?.activity(true);
     return !saves.dirty;
   } catch (e) {
-    statusText("保存できませんでした · 入力は保持しています");
-    root.querySelector<HTMLElement>("#save-retry")!.hidden = false;
-    const recovery = dialog?.querySelector<HTMLElement>("#note-save-recovery");
-    if (recovery) recovery.hidden = false;
-    error(e);
+    reportSaveFailure(e);
     return false;
   }
+}
+function reportSaveFailure(e: unknown) {
+  statusText("保存できませんでした · 入力は保持しています");
+  root.querySelector<HTMLElement>("#save-retry")!.hidden = false;
+  const recovery = dialog?.querySelector<HTMLElement>("#note-save-recovery");
+  if (recovery) recovery.hidden = false;
+  error(e);
 }
 async function flushOrThrow() {
   if (loadFailed)
@@ -128,7 +133,12 @@ async function flushOrThrow() {
     throw Error(
       "文字変換・画像処理・PDF取込・送信を終えてから更新してください。",
     );
-  await saves.flush();
+  try {
+    await saves.flush();
+  } catch (e) {
+    reportSaveFailure(e);
+    throw e;
+  }
   if (saves.dirty)
     throw Error("保存中に入力が変わりました。もう一度保存してください。");
 }
@@ -155,6 +165,8 @@ function route() {
 }
 const pageEpoch = new ViewEpoch();
 function render() {
+  const openDetails = [...page.querySelectorAll<HTMLDetailsElement>("details[id][open]")].map(d => d.id);
+  const previousRoute = root.dataset.route;
   dismissPicker();
   pageEpoch.advance();
   actions.clear();
@@ -163,11 +175,11 @@ function render() {
     try {
       await updates.apply();
     } catch (e) {
-      error(e);
+      reportUpdateFailure(e);
     }
   });
-  action("update-later", () => (updateBox.hidden = true));
   const r = route();
+  root.dataset.route = r;
   document
     .querySelectorAll(".nav a")
     .forEach((a) => {
@@ -182,56 +194,48 @@ function render() {
   else if (r === "articles") renderArticles();
   else if (r === "more") renderMore();
   else renderHome();
+  if (previousRoute === r) for (const id of openDetails) {
+    const details = page.querySelector<HTMLDetailsElement>(`#${id}`);
+    if (details) details.open = true;
+  }
   theme();
   enhanceControls(page);
 }
 function heading(title: string, sub = "静岡大学 · 浜松キャンパス", right = "") {
-  return `<div class="heading"><div><div class="eyebrow">${esc(sub)}</div><h1>${esc(title)}</h1></div><div class="row">${right}</div></div>`;
+  return `<div class="heading"><div>${sub ? `<div class="eyebrow">${esc(sub)}</div>` : ""}<h1>${esc(title)}</h1></div><div class="row">${right}</div></div>`;
 }
 function eventCard(e: CampusEvent) {
   const a = "event-" + e.id;
   action(a, () => editEvent(e));
   return `<div class="event"><div class="time">${e.allDay ? "終日" : timeLabel(e.start) + "<br>" + timeLabel(e.end)}</div><div class="body"><button class="eventtitle" data-action="${esc(a)}">${esc(e.title)}</button><div class="muted">${esc(e.location || "場所未設定")} ${data.occurrenceEdits.some((x) => x.id === e.id) || data.courseEdits.some((x) => x.id === courseID(data, e)) ? '<span class="tag">個人修正</span>' : ""}</div></div>${e.kind === "exam" ? '<span class="tag exam">要確認</span>' : ""}</div>`;
 }
-function renderHome() {
-  const today = dayKey(),
-    todayEvents = events(data).filter((e) => onDay(e, today)),
-    now = new Date(),
-    next = events(data).find((e) => new Date(e.end) > now && !e.allDay);
-  action("home-import", () => openImport());
-  action("home-map", () => openMap());
-  page.innerHTML =
-    heading(
-      "今日のキャンパス",
-      new Intl.DateTimeFormat("ja-JP", {
-        dateStyle: "full",
-        timeZone: "Asia/Tokyo",
-      }).format(now),
-    ) +
-    `<section class="hero card"><div class="eyebrow">UNI POCKET</div><h2>${next ? "次の予定" : "自分のキャンパスを、ひとつに。"}</h2>${next ? `<h3>${esc(next.title)}</h3><p>${dayKey(new Date(next.start))} ${timeLabel(next.start)} · ${esc(next.location)}</p>${btn("予定を確認", "event-" + next.id)}` : `<p>時間割、メモ、教室地図。<br>まずは履修登録確認票を読み込みましょう。</p>${btn("PDFを取り込む", "home-import")}`}</section><div class="cards"><section class="card"><div class="sectiontitle"><h2>今日の予定 <span class="tag">${todayEvents.length}</span></h2><a href="#timetable">時間割へ →</a></div>${todayEvents.map(eventCard).join("") || empty("今日の予定はありません。時間割から個人予定を追加できます。")}</section><section class="card"><h2>キャンパスの営業時間</h2><p class="muted">通常期の目安（元の掲載日 2026-10-07）。臨時変更は公式情報で確認してください。</p>${data.facilities
-      .slice(0, 4)
-      .map(
-        (f) =>
-          `<div class="event"><div class="body"><b>${esc(f.title)}</b><div class="muted">${f.exceptions[today] !== undefined ? "個人設定" : "通常期の目安"} · ${esc(facilityHours(f, today) || "休業")}</div></div></div>`,
-      )
-      .join(
-        "",
-      )}<a href="#more">施設・リンク・地図 →</a></section></div><section class="section"><h2>固定したメモ</h2><div class="cards">${
-      data.notes
-        .filter((n) => data.pinned.includes(n.id))
-        .map(noteCard)
-        .join("") || empty("メモを固定するとここに表示されます。")
-    }</div></section><section class="section card home-map"><div class="sectiontitle"><h2>キャンパスマップ</h2>${btn("拡大・検索", "home-map", "smallbtn")}</div><button class="map-preview" data-action="home-map" aria-label="キャンパスマップを拡大して建物・教室を検索"><img src="/campus-map.png" alt="浜松キャンパスの地図" loading="lazy"></button><p class="muted">建物・登録済み教室を検索。オフラインでも利用できます。</p></section><section class="section"><h2>よく使うリンク</h2><div class="row">${
-      data.links
-        .filter((l) => l.favorite)
-        .map(
-          (l) =>
-            `<a class="card" href="${esc(l.url)}" target="_blank" rel="noopener noreferrer">${esc(l.title)} ↗</a>`,
-        )
-        .join("") || '<a href="#more">リンクのお気に入りを設定 →</a>'
-    }</div></section>`;
-  if (next) action("event-" + next.id, () => editEvent(next));
+function eventDate(e: CampusEvent) {
+  const start = dayKey(new Date(e.start)), end = dayKey(new Date(e.end));
+  return `${start}${e.allDay && end !== start ? "–" + dayKey(new Date(Date.parse(e.end) - 1)) : ""} ${e.allDay ? "終日" : timeLabel(e.start) + "–" + (end === start ? "" : end + " ") + timeLabel(e.end)}`;
 }
+function compactEvent(e: CampusEvent) {
+  action("event-" + e.id, () => editEvent(e));
+  return `<button class="home-event" data-action="${esc("event-" + e.id)}"><span class="when">${e.allDay ? "終日" : timeLabel(e.start)}<small>${e.allDay ? "" : timeLabel(e.end) + " まで"}</small></span><span class="event-body"><strong>${esc(e.title)}</strong><span class="room">${esc(e.location || "場所未設定")}${e.kind === "exam" ? ' · 要確認' : ''}</span></span></button>`;
+}
+function renderHome() {
+  const today = dayKey(), all = events(data),
+    todayEvents = all.filter(e => onDay(e, today)), now = new Date(),
+    next = all.find(e => new Date(e.end) > now && !e.allDay);
+  action("home-import", openImport);
+  action("home-map", () => openMap());
+  action("event-new", () => { selectedDay = today; editEvent(); });
+  action("home-today", () => { selectedDay = today; view = "day"; location.hash = "timetable"; });
+  if (next) action("event-" + next.id, () => editEvent(next));
+  page.innerHTML = heading("ホーム", "", btn("＋ 予定", "event-new", "primary")) +
+    `<div class="date-line"><strong>${esc(new Intl.DateTimeFormat("ja-JP", { month: "long", day: "numeric", weekday: "long", timeZone: "Asia/Tokyo" }).format(now))}</strong><span class="muted">浜松</span></div>` +
+    (next ? `<button class="next-preview" data-action="${esc("event-" + next.id)}"><span class="next-caption"><b>次の予定</b><span>${esc(eventDate(next))}</span></span><strong>${esc(next.title)}</strong><span class="room">${esc(next.location || "場所未設定")}</span></button>` : `<p class="next-preview no-next">次の予定はありません。</p>`) +
+    `<section class="today-schedule"><div class="sectiontitle"><h2>今日の予定 <span class="tag">${todayEvents.length}件</span></h2>${btn("時間割へ", "home-today", "smallbtn")}</div><div class="home-events">${todayEvents.map(compactEvent).join("") || empty("今日の予定はありません。")}</div>${!all.length ? `<p class="import-hint">${btn("時間割PDFを取り込む", "home-import")}</p>` : ""}</section>
+    <details id="home-facilities" class="home-extra"><summary>キャンパスの営業時間</summary><p class="muted">通常期の目安です。臨時変更は公式情報で確認してください。</p>${data.facilities.slice(0, 4).map(f => `<p><b>${esc(f.title)}</b> · ${esc(facilityHours(f, today) || "休業")}</p>`).join("")}<a href="#more">施設を設定 →</a></details>
+    <section class="section"><h2>固定したメモ</h2><div class="cards">${data.notes.filter(n => data.pinned.includes(n.id)).map(noteCard).join("") || empty("メモを固定するとここに表示されます。")}</div></section>
+    <section class="section card home-map"><div class="sectiontitle"><h2>キャンパスマップ</h2>${btn("拡大・検索", "home-map", "smallbtn")}</div><button class="map-preview" data-action="home-map" aria-label="キャンパスマップを拡大して建物・教室を検索"><img src="/campus-map.png" alt="浜松キャンパスの地図" loading="lazy"></button></section>
+    <section class="section"><h2>よく使うリンク</h2><div class="row">${data.links.filter(l => l.favorite).map(l => `<a class="card" href="${esc(l.url)}" target="_blank" rel="noopener noreferrer">${esc(l.title)} ↗</a>`).join("") || '<a href="#more">リンクのお気に入りを設定 →</a>'}</div></section>`;
+}
+
 function shiftMonth(day: string, n: number) {
   const d = new Date(day + "T12:00:00+09:00");
   d.setUTCDate(1);
@@ -255,14 +259,18 @@ function renderTimetable() {
   });
   action("today", () => {
     selectedDay = dayKey();
+    weekend = weekDay(selectedDay) > 5;
     render();
   });
   action("import", openImport);
+  action("weekdays", () => { weekend = false; render(); });
+  action("weekend", () => { weekend = true; render(); });
   action("event-resume", () => editEvent(undefined, true));
   action("event-new", () => editEvent());
   for (const v of ["day", "week", "month"])
     action("view-" + v, () => {
       view = v;
+      if (v === "week") weekend = weekDay(selectedDay) > 5;
       render();
     });
   const all = events(data),
@@ -298,29 +306,25 @@ function renderTimetable() {
         : ""
     }</section>`;
   } else if (view === "week") {
-    const start = addDay(selectedDay, 1 - weekDay(selectedDay));
-    content = `<div class="scroll" tabindex="0" aria-label="週間時間割。横スクロールできます"><div class="week">${Array.from(
-      { length: 7 },
-      (_, i) => {
-        const day = addDay(start, i);
-        return `<section class="card"><h3>${day.slice(5)} ${"月火水木金土日"[i]}</h3>${
-          all
-            .filter((e) => onDay(e, day))
-            .map(eventCard)
-            .join("") || '<p class="muted">予定なし</p>'
-        }${
-          data.showBands
-            ? data.facilities
-                .filter((f) => f.band)
-                .map(
-                  (f) =>
-                    `<p class="tag">${esc(f.title)} ${esc(facilityHours(f, day) || "休業")}</p>`,
-                )
-                .join("")
-            : ""
-        }</section>`;
-      },
-    ).join("")}</div></div>`;
+    const week = weekPresentation(all, selectedDay, weekend);
+    const next = all.find(e => !e.allDay && Date.parse(e.end) > Date.now());
+    const color = (e: CampusEvent) => {
+      const c = data.imports.flatMap(p => p.courses).find(c => c.id === courseID(data, e));
+      return courseColor(c?.title || e.title);
+    };
+    content = `<div class="week-surface"><div class="week-grid ${weekend ? "weekend" : ""}" role="group" aria-label="曜日とコマの週間時間割"><div></div>${week.days.map(day => `<div class="day-heading ${day === dayKey() ? "today" : ""}"><b>${"月火水木金土日"[weekDay(day) - 1]}</b><span>${Number(day.slice(-2))}</span></div>`).join("")}${periods.map(([start, end], index) => `<div class="period"><b>${index + 1}</b><small>${start}<br>${end}</small></div>${week.cells[index].map((cell, dayIndex) => {
+      const e = cell[0], a = `cell-${index}-${dayIndex}`;
+      if (!e) return `<div class="course-cell empty-cell" aria-label="${week.days[dayIndex]} ${index + 1}コマ 空き">—</div>`;
+      action(a, () => {
+        if (cell.length === 1) editEvent(e);
+        else {
+          const d = modal("同じコマの予定", `<div class="stack">${cell.map(event => `<button type="button" data-overlap="${esc(event.id)}"><b>${esc(event.title)}</b><br><small>${esc(eventDate(event))} · ${esc(event.location || "場所未設定")}</small></button>`).join("")}</div>`);
+          d.querySelectorAll<HTMLButtonElement>("[data-overlap]").forEach(b => b.onclick = () => editEvent(cell.find(event => event.id === b.dataset.overlap)!));
+        }
+      });
+      return `<button class="course-cell ${color(e)} ${cell.some(e => e.id === next?.id) ? "next-course" : ""}" data-action="${a}" aria-label="${esc(week.days[dayIndex] + ' ' + (index + 1) + 'コマ ' + cell.map(e => e.title + ' ' + e.location).join('、'))}">${cell.length > 1 ? `<span class="overlap-count">${cell.length}件</span>` : ""}${cell.some(e => e.id === next?.id) ? '<span class="next-course-label">次の予定</span>' : ''}<span class="cell-name">${esc(e.title)}</span><span class="cell-room">${esc(e.location || "場所未設定")}</span></button>`;
+    }).join("")}`).join("")}</div></div>${week.other.length ? `<section class="other-events"><h2>その他の予定 <span class="tag">${week.other.length}件</span></h2>${week.other.map(e => { action("event-" + e.id, () => editEvent(e)); return `<button class="other-event" data-action="${esc("event-" + e.id)}"><strong>${esc(e.title)}</strong><span>${esc(eventDate(e))} · ${esc(e.location || "場所未設定")}</span></button>`; }).join("")}</section>` : ""}`;
+
   } else {
     const first = selectedDay.slice(0, 7) + "-01",
       start = addDay(first, 1 - weekDay(first));
@@ -331,6 +335,7 @@ function renderTimetable() {
           a = "day-" + day;
         action(a, () => {
           selectedDay = day;
+          weekend = weekDay(day) > 5;
           view = "day";
           render();
         });
@@ -343,15 +348,13 @@ function renderTimetable() {
     ).join("")}</div></section>`;
   }
   const courses = data.imports.flatMap((p) => p.courses);
-  page.innerHTML =
-    heading(
-      "時間割",
-      "MY TIMETABLE",
-      btn("PDF取込", "import") +
-        btn("＋ 予定", "event-new", "primary") +
-        (data.eventDraft ? btn("予定の下書きを再開", "event-resume") : ""),
-    ) +
-    `<div class="toolbar">${btn("‹", "prev-date")}<input type="date" id="selected-day" value="${selectedDay}" aria-label="表示日">${btn("›", "next-date")}${btn("今日", "today")}<div class="seg">${["day", "week", "month"].map((v, i) => btn(["日", "週", "月"][i], "view-" + v, v === view ? "selected" : "")).join("")}</div></div>${content}<section class="section card"><h2>登録した講義 <span class="tag">${courses.length}</span></h2><p class="muted">講義を開くと関連記事の絞り込みへ進めます。</p><div class="row">${courses.map((c) => `<button data-course="${esc(c.id)}">${esc(c.title)} <small>${c.weekday ? "月火水木金土"[c.weekday - 1] + " " + ((c.block ?? 0) * 2 + 1) + "・" + ((c.block ?? 0) * 2 + 2) + "時限" : "時間未定"}</small></button>`).join("") || '<p class="muted">PDFを取り込むと講義が表示されます。</p>'}</div></section><details class="section card"><summary>取消・個人修正の管理</summary>${
+  const week = weekPresentation(all, selectedDay, weekend);
+  page.innerHTML = heading("時間割", "", btn("＋ 予定", "event-new", "primary") + `<details class="schedule-menu"><summary aria-label="時間割メニュー">⋯</summary><div>${btn("PDF取込", "import")}${data.eventDraft ? btn("予定の下書きを再開", "event-resume") : ""}</div></details>`) +
+    `<div class="view-tools"><div class="seg">${["day", "week", "month"].map((v, i) => `<button data-action="view-${v}" aria-pressed="${v === view}" class="${v === view ? "selected" : ""}">${["日", "週", "月"][i]}</button>`).join("")}</div>${view === "week" ? `<div class="week-kind"><button data-action="weekdays" aria-pressed="${!weekend}">平日</button><button data-action="weekend" aria-pressed="${weekend}">土日${week.weekendCount ? `<span class="tag">${week.weekendCount}</span>` : ""}</button></div>` : ""}</div>
+    <div class="date-tools"><button data-action="prev-date" aria-label="前の${view === 'week' ? '週' : view === 'month' ? '月' : '日'}">‹</button><label class="date-picker"><span>${esc(view === "week" ? week.start.slice(5).replace('-', '/') + '–' + addDay(week.start, 6).slice(5).replace('-', '/') : view === "month" ? selectedDay.slice(0, 7) : selectedDay)}</span><input type="date" id="selected-day" value="${selectedDay}" aria-label="表示日を選ぶ"></label><button data-action="next-date" aria-label="次の${view === 'week' ? '週' : view === 'month' ? '月' : '日'}">›</button>${btn("今日", "today", "smallbtn")}</div>
+    ${content}${!courses.length ? `<p class="import-hint">${btn("時間割PDFを取り込む", "import", "smallbtn")}</p>` : ""}
+    <details id="registered-courses" class="schedule-fold"><summary>登録した講義 <span class="tag">${courses.length}</span></summary><p class="muted">講義を開くと関連記事を表示します。</p><div class="stack">${courses.map(c => `<button data-course="${esc(c.id)}">${esc(c.title)} <small>${c.weekday ? "月火水木金土"[c.weekday - 1] + " " + ((c.block ?? 0) + 1) + "コマ" : "時間未定"}</small></button>`).join("") || '<p class="muted">PDFを取り込むと講義が表示されます。</p>'}</div></details>
+    ${data.showBands ? `<details id="timetable-facilities" class="schedule-fold"><summary>施設の営業時間</summary><p class="muted">通常期の目安です。臨時変更は公式情報で確認してください。</p>${week.days.map(day => `<h3>${esc(day)}</h3>${data.facilities.filter(f => f.band).map(f => `<p class="muted">${esc(f.title)} · ${esc(facilityHours(f, day) || "休業")}</p>`).join("")}`).join("")}</details>` : ""}<details id="personal-edits" class="schedule-fold"><summary>取消・個人修正の管理</summary>${
       [...data.courseEdits, ...data.occurrenceEdits]
         .map((x) => {
           const a = "reset-" + x.id;
@@ -371,6 +374,7 @@ function renderTimetable() {
     const value = (e.target as HTMLInputElement).value;
     if (value) {
       selectedDay = value;
+      weekend = weekDay(value) > 5;
       render();
     }
   });
@@ -1181,110 +1185,81 @@ function articleForm(article?: Article) {
     }
   };
 }
+let updateState = { message: "更新を確認しています…", ready: false };
+function renderUpdateState() {
+  const box = page.querySelector<HTMLElement>("#more-update-state");
+  if (!box) return;
+  const state = updatePresentation(updateState.message, updateState.ready);
+  box.innerHTML = `<p class="update-label" role="status">${esc(state.label)}</p>${state.detail ? `<p class="muted">${esc(state.detail)}</p>` : ""}<div class="update-actions">${btn("更新を確認", "check-update", "smallbtn")}${state.install ? btn("最新版をインストール", "update", "primary smallbtn") : ""}</div>`;
+}
+function reportUpdateFailure(e: unknown) {
+  updateState = { message: "更新できませんでした。通信・保存状態を確認して再試行してください。 " + (e instanceof Error ? e.message : String(e)), ready: false };
+  renderUpdateState();
+}
 function renderMore() {
   action("map", () => openMap());
-  action("facilities", () => editFacilities());
-  action("links", () => editLinks());
+  action("facilities", editFacilities);
+  action("links", editLinks);
   action("export-data", exportData);
   action("check-update", () => updates.check());
-  action("clear-bg", () => {
-    data.backgroundMode = "none";
-    changed();
-    render();
-  });
+  action("clear-bg", () => { data.backgroundMode = "none"; changed(); render(); });
+  action("custom-bg", () => { data.backgroundMode = "custom"; changed(); render(); });
   action("profile", async () => {
     try {
       user = await session();
-      const d = modal(
-        "表示名",
-        field(
-          "displayName",
-          "記事に表示する名前",
-          user.displayName,
-          "text",
-          'required maxlength="40"',
-        ) +
-          `<p class="muted">同じ表示名でもユーザーIDが違えば別の投稿者です。</p>`,
-        async (f) => {
-          user = (
-            await api<{ user: User }>("/session", "PATCH", {
-              displayName: val(f, "displayName"),
-            })
-          ).user;
-          d.close();
-          render();
-        },
-      );
-    } catch (e) {
-      error(e);
-    }
+      const d = modal("ユーザー名", field("displayName", "記事に表示する名前", namedAuthor(user.displayName) ? user.displayName : "", "text", 'required maxlength="40"') +
+        `<p class="muted">${anonymousNotice}</p>`, async f => {
+          user = (await api<{ user: User }>("/session", "PATCH", { displayName: val(f, "displayName") })).user;
+          d.close(); render();
+        });
+    } catch (e) { error(e); }
   });
-  page.innerHTML =
-    heading("その他", "CAMPUS & SETTINGS") +
-    `<div class="cards"><section class="card"><h2>キャンパスマップ</h2><p class="muted">建物・登録済み教室を検索。地図はオフラインでも利用できます。</p>${btn("教室・建物を探す", "map", "primary")}</section><section class="card"><h2>施設の営業時間</h2><p class="muted">通常期の目安・2026-10-07掲載情報を移植。曜日別時間と臨時の個人設定を変更できます。</p>${btn("施設を管理", "facilities")}</section><section class="card"><h2>リンク</h2><div class="stack">${data.links.map((l) => `<a href="${esc(l.url)}" target="_blank" rel="noopener noreferrer">${l.favorite ? "★ " : ""}${esc(l.title)} ↗</a>`).join("")}</div><hr>${btn("リンクとお気に入りを編集", "links")}</section><section class="card stack"><h2>外観</h2>${choice(
-      "theme",
-      "テーマ",
-      [
-        ["green", "グリーン"],
-        ["blue", "ブルー"],
-        ["rose", "ローズ"],
-        ["mono", "モノトーン"],
-      ],
-      data.theme,
-    )}<h3>背景</h3><div class="background-samples">${backgrounds.map(b => `<button type="button" data-background="${b.id}" aria-pressed="${data.backgroundMode === b.id}"><img src="${esc(b.image)}" alt=""><span>${b.name}</span></button>`).join("")}</div><p class="muted">選択中: ${esc(backgrounds.find(b => b.id === data.backgroundMode)?.name || (data.backgroundMode !== "none" && data.background ? "自分の画像" : "背景なし"))}</p>${data.background ? btn("保存済みの自分の画像を使う", "custom-bg") : ""}<label>自分の背景画像<input id="background" type="file" accept="image/png,image/jpeg,image/webp,image/heic,.heic"></label>${btn("背景を解除", "clear-bg")}<p class="muted">背景画像はこのブラウザに保存します。</p></section><section class="card stack"><h2>時間割の表示</h2>${field("startHour", "表示開始時刻", String(data.startHour), "number", 'min="0" max="23"')}${field("endHour", "表示終了時刻", String(data.endHour), "number", 'min="1" max="24"')}<label class="check"><input name="bands" type="checkbox" ${data.showBands ? "checked" : ""}>営業時間の帯を表示</label><p class="muted">表示時間外の予定も日・週の一覧で確認できます。</p></section><section class="card"><h2>匿名ユーザー</h2><p>${esc(user?.displayName ?? "このブラウザで自動準備")}</p><p class="muted">${anonymousNotice}</p>${btn("表示名を設定", "profile")}</section><section class="card"><h2>このアプリの更新</h2><p class="muted">この画面のビルド ${esc(__APP_BUILD_ID__)}</p><div id="version" class="muted">配信情報を読み込み中…</div><div class="toolbar">${btn("更新を確認", "check-update")}</div><p class="muted">起動・前面復帰・通信復帰時に新版を取得します。全タブの編集・取込・処理が終わり、保存に成功すると自動で適用します。</p><details><summary>インストールする</summary><p>Android/PC: ブラウザのメニューから「アプリをインストール」「ホーム画面に追加」を選択。iPhone: Safariの共有から「ホーム画面に追加」を選択してください。HTTPSの公開URLで利用できます。</p></details></section><section class="card"><h2>端末内データ</h2><p class="muted">予定・メモ・画像・背景はIndexedDBに保存。初回は新規データで始まり、Swift版のデータは取り込みません。外部カレンダー接続は初回対象外です。</p><div class="toolbar">${btn("入力データを書き出す", "export-data")}</div><p class="muted">別タブとの保存競合時は、現在の入力を書き出してから再読み込みできます。書き出しにはメモ・画像も含まれます。</p></section></div>`;
-  action("custom-bg", () => { data.backgroundMode = "custom"; changed(); render(); });
-  page.querySelectorAll<HTMLButtonElement>("[data-background]").forEach(button => button.onclick = () => {
-    data.backgroundMode = button.dataset.background!; changed(); render();
-  });
-  page.querySelector<HTMLSelectElement>("[name=theme]")!.onchange = (e) => {
-    data.theme = (e.target as HTMLSelectElement).value;
-    changed();
-    theme();
-  };
+  const backgroundName = backgrounds.find(b => b.id === data.backgroundMode)?.name || (data.backgroundMode !== "none" && data.background ? "自分の画像" : "背景なし");
+  const activeCustom = data.backgroundMode === "custom" || (!data.backgroundMode && !!data.background);
+  page.innerHTML = heading("その他", "") +
+    `<section class="settings-update"><h2>アプリの更新</h2><div id="more-update-state"></div></section><div class="settings-list">
+    <details id="appearance-settings" class="setting"><summary><span>背景・テーマ<small>${esc(backgroundName)}</small></span><span aria-hidden="true">›</span></summary><div class="setting-content">${choice("theme", "テーマ", [["green", "グリーン"], ["blue", "ブルー"], ["rose", "ローズ"], ["mono", "モノトーン"]], data.theme)}<h3>背景</h3><div class="background-samples">${backgrounds.map(b => `<button type="button" data-background="${b.id}" aria-pressed="${data.backgroundMode === b.id}"><span class="background-thumb"><img src="${esc(b.image)}" alt=""><span class="selection-check" aria-hidden="true">✓</span></span><span>${b.name}</span></button>`).join("")}${data.background ? `<button type="button" data-action="custom-bg" aria-pressed="${activeCustom}"><span class="background-thumb"><img src="${esc(data.background)}" alt="自分の背景画像"><span class="selection-check" aria-hidden="true">✓</span></span><span>自分の画像</span></button>` : ""}</div><p id="background-state" class="muted" role="status">${data.background ? "自分の画像を選択できます。" : "自分の画像はまだありません。"}</p><div class="row"><button type="button" id="change-background">${data.background ? "画像を変更" : "画像を選ぶ"}</button>${btn("背景なし", "clear-bg")}</div><input id="background" type="file" data-toolbar="true" class="file-native" tabindex="-1" accept="image/png,image/jpeg,image/webp,image/heic,.heic" aria-label="自分の背景画像を変更"><p class="muted">画像はこのブラウザに保存します。</p></div></details>
+    <details id="display-settings" class="setting"><summary><span>時間割の表示<small>${data.startHour}:00–${data.endHour}:00</small></span><span aria-hidden="true">›</span></summary><div class="setting-content stack">${field("startHour", "日表示の開始時刻", String(data.startHour), "number", 'min="0" max="23"')}${field("endHour", "日表示の終了時刻", String(data.endHour), "number", 'min="1" max="24"')}<label class="check"><input name="bands" type="checkbox" ${data.showBands ? "checked" : ""}>施設の営業時間を表示</label><p class="muted">週間は1〜5コマ表示。終日・コマ外の予定も一覧で確認できます。</p></div></details>
+    <details id="campus-settings" class="setting"><summary><span>施設・リンク<small>営業時間・地図・お気に入り</small></span><span aria-hidden="true">›</span></summary><div class="setting-content"><div class="row">${btn("施設の営業時間", "facilities")}${btn("キャンパスマップ", "map")}</div><p class="muted">営業時間は通常期の目安です。臨時変更は公式情報で確認してください。</p><div class="stack">${data.links.map(l => `<a href="${esc(l.url)}" target="_blank" rel="noopener noreferrer">${l.favorite ? "★ " : ""}${esc(l.title)} ↗</a>`).join("")}</div><p>${btn("リンクを編集", "links")}</p></div></details>
+    <div class="setting"><button class="setting-profile" data-action="profile"><span>ユーザー名<small id="profile-name">${esc(namedAuthor(user?.displayName) ? user!.displayName : "未設定")}</small></span><span aria-hidden="true">›</span></button></div>
+    <details id="data-settings" class="setting"><summary><span>データ<small>書き出し・保存について</small></span><span aria-hidden="true">›</span></summary><div class="setting-content">${btn("入力データを書き出す", "export-data")}<p class="muted">保存に失敗したときや別タブと競合したときは、現在の入力を書き出してから再読み込みできます。メモ・画像も含まれます。</p><p class="muted">${anonymousNotice}</p></div></details></div>
+    <details id="install-information" class="settings-information"><summary>ホーム画面に追加</summary><p class="muted">iPhone: Safariの共有から「ホーム画面に追加」。Android/PC: ブラウザのメニューから「アプリをインストール」を選びます。HTTPSの公開URLで利用できます。</p></details>
+    <details id="diagnostic-information" class="settings-information"><summary>詳細情報</summary><p class="muted">この画面のビルド ${esc(__APP_BUILD_ID__)}</p><div id="version" class="muted">配信情報を読み込み中…</div></details>`;
+  renderUpdateState();
+  page.querySelectorAll<HTMLButtonElement>("[data-background]").forEach(button => button.onclick = () => { data.backgroundMode = button.dataset.background!; changed(); render(); });
+  page.querySelector<HTMLSelectElement>("[name=theme]")!.onchange = e => { data.theme = (e.target as HTMLSelectElement).value; changed(); theme(); };
   for (const name of ["startHour", "endHour"] as const)
-    page.querySelector<HTMLInputElement>(`[name=${name}]`)!.onchange = (e) => {
-      const value = Number((e.target as HTMLInputElement).value),
-        start = name === "startHour" ? value : data.startHour,
-        end = name === "endHour" ? value : data.endHour;
-      if (!Number.isInteger(value) || start < 0 || end > 24 || start >= end) {
-        error(Error("表示時間は0〜24時で、終了を開始より後にしてください。"));
-        return;
-      }
-      data[name] = value;
-      changed();
+    page.querySelector<HTMLInputElement>(`[name=${name}]`)!.onchange = e => {
+      const value = Number((e.target as HTMLInputElement).value), start = name === "startHour" ? value : data.startHour, end = name === "endHour" ? value : data.endHour;
+      if (!Number.isInteger(value) || start < 0 || end > 24 || start >= end) { error(Error("表示時間は0〜24時で、終了を開始より後にしてください。")); return; }
+      data[name] = value; changed();
     };
-  page.querySelector<HTMLInputElement>("[name=bands]")!.onchange = (e) => {
-    data.showBands = (e.target as HTMLInputElement).checked;
-    changed();
-  };
-  page.querySelector<HTMLInputElement>("#background")!.onchange = async (e) => {
-    const f = (e.target as HTMLInputElement).files?.[0];
-    if (!f) return;
+  page.querySelector<HTMLInputElement>("[name=bands]")!.onchange = e => { data.showBands = (e.target as HTMLInputElement).checked; changed(); };
+  page.querySelector<HTMLButtonElement>("#change-background")!.onclick = () => page.querySelector<HTMLInputElement>("#background")!.click();
+  page.querySelector<HTMLInputElement>("#background")!.onchange = async e => {
+    const input = e.target as HTMLInputElement, file = input.files?.[0];
+    if (!file) return;
     busy++;
+    const box = page.querySelector<HTMLElement>("#background-state");
+    if (box) box.textContent = "画像を読み込んでいます…";
     try {
-      data.background = await imageData(f);
-      data.backgroundMode = "custom";
-      changed();
-      render();
+      const image = await imageData(file);
+      data.background = image; data.backgroundMode = "custom";
+      changed(); render();
     } catch (e) {
+      if (box?.isConnected) box.textContent = "画像を読み込めませんでした。前の画像と選択を保持しています。";
       error(e);
     } finally {
-      busy--;
-      updates?.activity();
+      input.value = "";
+      busy--; updates?.activity();
     }
   };
-  void fetch("/version.json", { cache: "no-store" })
-    .then((r) => r.json())
-    .then((v) => {
-      const el = page.querySelector("#version");
-      if (el)
-        el.innerHTML = `<p>配信中のビルド ${esc(v.id)} · ${esc(v.builtAt)}</p>${Array.isArray(v.changes) ? "<ul>" + v.changes.map((s: string) => `<li>${esc(s)}</li>`).join("") + "</ul>" : ""}`;
-    })
-    .catch(() => {
-      const el = page.querySelector("#version");
-      if (el) el.textContent = "開発中、またはビルド情報を取得できません。";
-    });
+  const version = page.querySelector("#version")!;
+  void fetch("/version.json", { cache: "no-store" }).then(r => { if (!r.ok) throw Error(); return r.json(); }).then(v => {
+    if (version.isConnected) version.innerHTML = `<p>配信中のビルド ${esc(v.id)} · ${esc(v.builtAt)}</p>${Array.isArray(v.changes) ? "<ul>" + v.changes.map((s: string) => `<li>${esc(s)}</li>`).join("") + "</ul>" : ""}`;
+  }).catch(() => { if (version.isConnected) version.textContent = "配信情報を取得できません。"; });
 }
+
 function exportData() {
   const blob = new Blob([JSON.stringify(data, null, 2)], {
       type: "application/json",
@@ -1454,7 +1429,7 @@ function editLinks() {
     draw();
   };
 }
-root.innerHTML = `<div class="background"></div><header class="top"><a href="#home" class="brand mutedlink">▣ Uni Pocket</a><span class="online" id="connection"></span></header><div id="update" class="notice" role="status" hidden></div><div id="error" class="notice error" role="alert" hidden></div><div class="page"><div class="statusline row between"><span id="save-status" role="status" aria-live="polite">データを読み込んでいます…</span><button id="save-retry" data-action="save-global" class="smallbtn" hidden>再試行</button></div><main id="page"></main></div><nav class="nav" aria-label="メインナビゲーション">${[
+root.innerHTML = `<div class="background"></div><header class="top"><a href="#home" class="brand mutedlink">▣ Uni Pocket</a><span class="online" id="connection"></span></header><div id="error" class="notice error" role="alert" hidden></div><div class="page"><div class="statusline row between"><span id="save-status" role="status" aria-live="polite">データを読み込んでいます…</span><button id="save-retry" data-action="save-global" class="smallbtn" hidden>再試行</button></div><main id="page"></main></div><nav class="nav" aria-label="メインナビゲーション">${[
   ["home", "ホーム"],
   ["timetable", "時間割"],
   ["articles", "記事"],
@@ -1469,7 +1444,6 @@ root.innerHTML = `<div class="background"></div><header class="top"><a href="#ho
 page = root.querySelector("#page")!;
 status = root.querySelector("#save-status")!;
 errorBox = root.querySelector("#error")!;
-updateBox = root.querySelector("#update")!;
 root.addEventListener("click", (e) => {
   const button = (e.target as HTMLElement).closest<HTMLElement>(
     "[data-action]",
@@ -1539,10 +1513,10 @@ async function boot() {
       if (dialog) dialog.inert = v;
     },
     notice: (message, ready) => {
-      updateBox.hidden = false;
-      updateBox.innerHTML = `<p>${esc(message)}</p>${ready ? `<div class="row">${btn("更新を再試行", "update", "primary")}${btn("あとで", "update-later")}</div>` : ""}`;
+      updateState = { message, ready };
+      renderUpdateState();
     },
-    error,
+    error: reportUpdateFailure,
   });
   render();
   if (loadFailed) {
@@ -1551,6 +1525,8 @@ async function boot() {
   if (data.eventDraft) editEvent(undefined, true);
   try {
     user = (await api<{ user: User | null }>("/session")).user;
+    const label = page.querySelector("#profile-name");
+    if (label) label.textContent = namedAuthor(user?.displayName) ? user!.displayName : "未設定";
   } catch {
     /* Shared API availability never blocks personal features. */
   }
