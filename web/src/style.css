@@ -832,7 +832,7 @@ summary { cursor: pointer; }
 .next-main:hover { background: transparent; }
 .next-caption { color: inherit; font-size: 12px; margin: 0 0 2px; opacity: .85; }
 .next-time { font-size: 30px; font-weight: 650; line-height: 1.2; display: block; font-variant-numeric: tabular-nums; margin-bottom: 4px; }
-.next-time small { font-size: 15px; font-weight: 450; }
+.next-time small { font-size: 15px; font-weight: 450; color: inherit; }
 .next-preview strong { font-size: 16px; line-height: 1.35; }
 .next-preview .room { color: inherit; margin: 0; }
 .location-link { display: block; min-height: 44px; max-width: 100%; padding: 5px 0; border: 0; border-radius: 4px; background: transparent; text-align: left; text-decoration: underline; text-underline-offset: 3px; overflow-wrap: anywhere; }
@@ -841,7 +841,7 @@ summary { cursor: pointer; }
 .next-preview > span.room { min-height: 35px; padding-top: 8px; }
 .home-event { padding: 3px 12px; min-height: 88px; gap: 9px; align-items: center; }
 .home-event .event-body { padding-left: 9px; }
-.home-event .eventtitle { display: block; width: 100%; min-height: 44px; padding: 3px 0; }
+.home-event .eventtitle { display: block; width: 100%; min-height: 44px; padding: 3px 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; text-align: left; }
 .home-event .room { margin: 0; }
 .home-event span.room { display: flex; align-items: center; min-height: 34px; }
 .home-event .when { font-size: 16px; }
