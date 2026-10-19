@@ -172,3 +172,150 @@ test('anonymous view keeps issued cookie when a post-write read fails; retry cou
   assert.equal(retry.status,200); assert.equal(retry.data.viewCount,1);
   assert.equal((DB.sqlite.prepare('SELECT COUNT(*) n FROM sessions').get() as any).n,2);
 });
+
+const FIXED_NOW = Date.parse('2026-10-20T15:00:00.000Z'); // JST has just entered October 21.
+function fixedTime(t: {after: (fn: () => void) => void}) {
+  const now = Date.now; Date.now = () => FIXED_NOW; t.after(() => { Date.now = now; });
+}
+function seedRanking(DB: SQLiteD1, firstAuthor: string, secondAuthor = firstAuthor, count = 67) {
+  const viewers = Array.from({length: 5}, () => crypto.randomUUID());
+  for (const id of viewers) DB.sqlite.prepare('INSERT INTO profiles VALUES(?,?,?)').run(id, '閲覧者', '2026-01-01T00:00:00.000Z');
+  return Array.from({length: count}, (_, i) => {
+    const id = `00000000-0000-4000-8000-${String(i + 1).padStart(12, '0')}`;
+    // Repeated timestamps exercise the ID tie-break across page boundaries.
+    const createdAt = new Date(FIXED_NOW - Math.floor(i / 3) * 3600000).toISOString();
+    const title = `${i % 4 === 0 ? '検索一致' : '記事'}${i}`;
+    const category = i % 2 ? '生活' : '学習'; const courseId = `course-${i % 3}`;
+    const authorId = i % 2 ? secondAuthor : firstAuthor;
+    DB.sqlite.prepare(`INSERT INTO articles(id,author_id,public_url,title,summary,category,course_id,created_at,updated_at)
+      VALUES(?,?,?,?,?,?,?,?,?)`).run(id, authorId, `https://demo.notion.site/seed-${i}`, title, '紹介文', category, courseId, createdAt, createdAt);
+    const views = i % 5; const bookmarks = i % 3;
+    for (let n = 0; n < views; n++) DB.sqlite.prepare('INSERT INTO view_events VALUES(?,?,?)').run(id, viewers[n], '2026-10-15');
+    for (let n = 0; n < bookmarks; n++) DB.sqlite.prepare('INSERT INTO bookmarks VALUES(?,?)').run(viewers[n], id);
+    return {id, createdAt, title, category, courseId, authorId, rankKey: views + bookmarks * 3};
+  });
+}
+type SeedRow = ReturnType<typeof seedRanking>[number];
+const newestOrder = (a: SeedRow, b: SeedRow) => b.createdAt.localeCompare(a.createdAt) || b.id.localeCompare(a.id);
+const popularOrder = (a: SeedRow, b: SeedRow) => b.rankKey - a.rankKey || newestOrder(a,b);
+
+test('popular ranks the complete population before limit, uses all tie-breaks, and preserves old newest clients', async t => {
+  fixedTime(t);
+  const {DB,send,session} = app(); const author = await session();
+  const rows = seedRanking(DB,author.user.id);
+  // An old article outside the first twenty newest results must win the first popular page.
+  const winner = rows[66]; winner.rankKey += 30;
+  for (let i = 0; i < 10; i++) {
+    const viewer = crypto.randomUUID(); DB.sqlite.prepare('INSERT INTO profiles VALUES(?,?,?)').run(viewer,'保存者',winner.createdAt);
+    DB.sqlite.prepare('INSERT INTO bookmarks VALUES(?,?)').run(viewer,winner.id);
+  }
+  const popular = await send('/api/articles?sort=popular'); assert.equal(popular.status,200);
+  assert.deepEqual(popular.data.articles.map((a: any) => a.id), [...rows].sort(popularOrder).slice(0,20).map(a=>a.id));
+  assert.equal(popular.data.articles[0].id,winner.id);
+  assert.ok(!('rankKey' in popular.data.articles[0]));
+  const defaultList = await send('/api/articles'); const newest = await send('/api/articles?sort=newest');
+  assert.deepEqual(defaultList.data,newest.data);
+  assert.deepEqual(newest.data.articles.map((a: any)=>a.id), [...rows].sort(newestOrder).slice(0,20).map(a=>a.id));
+  const legacy = JSON.parse(atob(newest.data.nextCursor)); assert.equal(legacy.length,2);
+  const legacyNext = await send(`/api/articles?cursor=${encodeURIComponent(newest.data.nextCursor)}`);
+  assert.deepEqual(legacyNext.data.articles.map((a: any)=>a.id), [...rows].sort(newestOrder).slice(20,40).map(a=>a.id));
+  DB.sqlite.exec('DELETE FROM view_events; DELETE FROM bookmarks;');
+  const zero = await send('/api/articles?sort=popular');
+  assert.deepEqual(zero.data.articles.map((a: any)=>a.id),newest.data.articles.map((a: any)=>a.id));
+  // Retention and ranking changes never subtract historical cumulative display counts.
+  const viewed = zero.data.articles.find((a: any)=>a.id === rows[2].id); assert.equal(viewed.viewCount,2);
+});
+
+test('popular and newest traverse over fifty fixed rows with no duplicates or omissions', async t => {
+  fixedTime(t);
+  const {DB,send,session} = app(); const author = await session(); const rows = seedRanking(DB,author.user.id);
+  for (const sort of ['popular','newest']) {
+    const ids: string[] = []; let cursor: string | null = null; let pages = 0;
+    do {
+      const result = await send(`/api/articles?sort=${sort}&limit=7${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`);
+      assert.equal(result.status,200); ids.push(...result.data.articles.map((a: any)=>a.id));
+      cursor = result.data.nextCursor; assert.ok(++pages < 12);
+    } while (cursor);
+    assert.equal(ids.length,rows.length); assert.equal(new Set(ids).size,rows.length);
+    assert.deepEqual(ids,[...rows].sort(sort === 'popular' ? popularOrder : newestOrder).map(a=>a.id));
+  }
+});
+
+test('popular applies q/category/course/author/bookmarked filters before SQL rank and paging', async t => {
+  fixedTime(t);
+  const {DB,send,session} = app(); const a = await session(); const b = await session();
+  const rows = seedRanking(DB,a.user.id,b.user.id);
+  const saved = rows.filter((_,i)=>i % 4 === 0 || i % 7 === 0);
+  for (const row of saved) DB.sqlite.prepare('INSERT INTO bookmarks VALUES(?,?)').run(a.user.id,row.id);
+  for (const row of saved) row.rankKey += 3;
+  const cases: [string, (row: SeedRow) => boolean][] = [
+    ['q=検索一致', row=>row.title.includes('検索一致')],
+    ['category=学習', row=>row.category === '学習'],
+    ['courseId=course-1', row=>row.courseId === 'course-1'],
+    [`authorId=${b.user.id}`,row=>row.authorId === b.user.id],
+    ['bookmarked=1',row=>saved.includes(row)],
+    [`q=検索一致&category=学習&courseId=course-1&authorId=${a.user.id}&bookmarked=1`,
+      row=>row.title.includes('検索一致') && row.category === '学習' && row.courseId === 'course-1' && row.authorId === a.user.id && saved.includes(row)],
+  ];
+  for (const [query,filter] of cases) {
+    const expected = rows.filter(filter).sort(popularOrder).map(a=>a.id); const actual: string[] = []; let cursor: string | null = null;
+    do {
+      const result = await send(`/api/articles?sort=popular&limit=3&${query}${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`, 'GET',undefined,a.cookie);
+      assert.equal(result.status,200,query); actual.push(...result.data.articles.map((a: any)=>a.id)); cursor = result.data.nextCursor;
+    } while (cursor);
+    assert.deepEqual(actual,expected,query);
+  }
+  assert.equal((await send('/api/articles?sort=popular&bookmarked=1')).status,401);
+  for (const q of ["' OR 1=1 --", '%', '_']) {
+    const result = await send(`/api/articles?sort=popular&q=${encodeURIComponent(q)}`);
+    assert.equal(result.status,200); assert.deepEqual(result.data.articles,[]);
+  }
+});
+
+test('popular uses exactly seven JST calendar days and fixes that window through cursor continuation', async t => {
+  fixedTime(t);
+  const {DB,send,session} = app(); const author = await session(); const rows = seedRanking(DB,author.user.id,author.user.id,4);
+  DB.sqlite.exec('DELETE FROM view_events; DELETE FROM bookmarks; UPDATE articles SET view_count=0;');
+  const viewer = author.user.id;
+  // At 15:00 UTC October 20, the JST window is October 15–21 inclusive.
+  for (const [i,day] of [[0,'2026-10-14'],[1,'2026-10-15'],[2,'2026-10-21'],[3,'2026-10-22']] as const) {
+    DB.sqlite.prepare('INSERT INTO view_events VALUES(?,?,?)').run(rows[i].id,viewer,day);
+    rows[i].rankKey = i === 1 || i === 2 ? 1 : 0;
+  }
+  const otherViewer = (DB.sqlite.prepare('SELECT id FROM profiles WHERE id<>? LIMIT 1').get(viewer) as any).id;
+  DB.sqlite.prepare('INSERT INTO view_events VALUES(?,?,?)').run(rows[3].id,otherViewer,'2026-10-22');
+  const first = await send('/api/articles?sort=popular&limit=1');
+  assert.equal(first.data.articles[0].id,rows[2].id); assert.equal(first.data.articles[0].viewCount,1);
+  const window = JSON.parse(atob(first.data.nextCursor)); assert.equal(window.startDay,'2026-10-15'); assert.equal(window.endDay,'2026-10-21');
+  // The first request before midnight would still count October 14 and exclude October 21.
+  Date.now = () => FIXED_NOW - 1;
+  const previous = await send('/api/articles?sort=popular&limit=1'); assert.equal(previous.data.articles[0].id,rows[1].id);
+  const previousWindow = JSON.parse(atob(previous.data.nextCursor)); assert.equal(previousWindow.startDay,'2026-10-14'); assert.equal(previousWindow.endDay,'2026-10-20');
+  Date.now = () => FIXED_NOW + 86400000;
+  const continued = await send(`/api/articles?sort=popular&limit=1&cursor=${encodeURIComponent(first.data.nextCursor)}`);
+  assert.equal(continued.data.articles[0].id,rows[1].id);
+  const continuedWindow = JSON.parse(atob(continued.data.nextCursor)); assert.equal(continuedWindow.startDay,window.startDay); assert.equal(continuedWindow.endDay,window.endDay);
+  const refreshed = await send('/api/articles?sort=popular&limit=1'); assert.equal(refreshed.data.articles[0].id,rows[3].id);
+});
+
+test('sort and cursor input reject malformed or mixed positions', async t => {
+  fixedTime(t);
+  const {DB,send,session} = app(); const author = await session(); seedRanking(DB,author.user.id,author.user.id,3);
+  const first = await send('/api/articles?sort=popular&limit=1'); const cursor = JSON.parse(atob(first.data.nextCursor));
+  const newest = await send('/api/articles?limit=1');
+  const encode = (value: unknown) => encodeURIComponent(btoa(JSON.stringify(value)));
+  const invalid: unknown[] = [null, [], {}, [cursor.createdAt,cursor.id], {...cursor,sort:'newest'}, {...cursor,version:2},
+    {...cursor,startDay:'2026-02-30'}, {...cursor,endDay:'2026-13-01'}, {...cursor,startDay:'2026-10-14'},
+    {...cursor,rankKey:-1}, {...cursor,rankKey:0.5}, {...cursor,rankKey:'3'}, {...cursor,rankKey:Number.MAX_SAFE_INTEGER+1},
+    {...cursor,rankKey:null}, {...cursor,createdAt:'2026-02-30T00:00:00.000Z'}, {...cursor,createdAt:'2026-10-20T24:00:00.000Z'},
+    {...cursor,id:'-'.repeat(36)}, {...cursor,id:"00000000-0000-4000-8000-00000000000'"}, {...cursor,extra:true}];
+  for (const value of invalid) assert.equal((await send(`/api/articles?sort=popular&cursor=${encode(value)}`)).status,400,JSON.stringify(value));
+  for (const raw of ['', '%%%', 'a'.repeat(1025)]) assert.equal((await send(`/api/articles?sort=popular&cursor=${raw}`)).status,400);
+  for (const sort of ['', 'latest', 'POPULAR', "popular' OR 1=1 --"]) assert.equal((await send(`/api/articles?sort=${encodeURIComponent(sort)}`)).status,400);
+  for (const sort of ['newest','']) assert.equal((await send(`/api/articles?${sort ? `sort=${sort}&` : ''}cursor=${encodeURIComponent(first.data.nextCursor)}`)).status,400);
+  assert.equal((await send(`/api/articles?sort=popular&cursor=${encodeURIComponent(newest.data.nextCursor)}`)).status,400);
+  for (const position of [['2026-02-30T00:00:00.000Z',cursor.id], [cursor.createdAt,'-'.repeat(36)], [cursor.createdAt,cursor.id,0]]) {
+    assert.equal((await send(`/api/articles?sort=newest&cursor=${encode(position)}`)).status,400);
+  }
+  const valid = await send(`/api/articles?sort=popular&limit=1&cursor=${encode({...cursor,rankKey:0})}`); assert.equal(valid.status,200);
+});

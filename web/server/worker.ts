@@ -3,15 +3,48 @@ import { ApiError, articleInput, jsonBody, textField } from './validation.ts';
 
 const COOKIE = '__Host-campus_session';
 const SESSION_SECONDS = 60 * 60 * 24 * 365;
-const SELECT = `SELECT a.id, a.author_id AS authorId, p.display_name AS authorName,
+const ARTICLE_COLUMNS = `a.id, a.author_id AS authorId, p.display_name AS authorName,
  a.title, a.public_url AS publicUrl, a.embed_url AS embedUrl, a.summary, a.category,
  a.course_id AS courseId, a.created_at AS createdAt, a.updated_at AS updatedAt,
  a.view_count AS viewCount,
  (SELECT COUNT(*) FROM bookmarks b WHERE b.article_id=a.id) AS bookmarkCount,
  EXISTS(SELECT 1 FROM bookmarks b WHERE b.article_id=a.id AND b.user_id=?) AS bookmarked,
- a.author_id=? AS canEdit FROM articles a JOIN profiles p ON p.id=a.author_id`;
+ a.author_id=? AS canEdit`;
+const ARTICLE_FROM = ' FROM articles a JOIN profiles p ON p.id=a.author_id';
+const SELECT = `SELECT ${ARTICLE_COLUMNS}${ARTICLE_FROM}`;
 function article(row: Article): Article { return {...row, bookmarked: !!row.bookmarked, canEdit: !!row.canEdit}; }
 export function jstDay(now = Date.now()): string { return new Date(now + 9 * 3600000).toISOString().slice(0, 10); }
+interface PopularCursor {
+  sort: 'popular'; version: 1; startDay: string; endDay: string;
+  rankKey: number; createdAt: string; id: string;
+}
+function validDay(value: unknown): value is string {
+  return typeof value === 'string' && /^\d{4}-\d\d-\d\d$/.test(value)
+    && Number.isFinite(Date.parse(value)) && new Date(value).toISOString().slice(0, 10) === value;
+}
+function validPosition(createdAt: unknown, id: unknown): boolean {
+  return typeof createdAt === 'string' && /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z$/.test(createdAt)
+    && Number.isFinite(Date.parse(createdAt)) && new Date(createdAt).toISOString() === createdAt
+    && typeof id === 'string' && /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(id);
+}
+function readCursor(value: string | null, sort: 'popular' | 'newest'): PopularCursor | [string, string] | null {
+  if (value === null) return null;
+  const invalid = () => new ApiError(400, 'cursorが不正です。');
+  if (!value || value.length > 1024) throw invalid();
+  let parsed: unknown;
+  try { parsed = JSON.parse(atob(value)); } catch { throw invalid(); }
+  if (sort === 'newest') {
+    if (!Array.isArray(parsed) || parsed.length !== 2 || !validPosition(parsed[0], parsed[1])) throw invalid();
+    return parsed as [string, string];
+  }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw invalid();
+  const cursor = parsed as PopularCursor;
+  if (Object.keys(cursor).sort().join(',') !== 'createdAt,endDay,id,rankKey,sort,startDay,version'
+    || cursor.sort !== 'popular' || cursor.version !== 1 || !validDay(cursor.startDay) || !validDay(cursor.endDay)
+    || Date.parse(cursor.endDay) - Date.parse(cursor.startDay) !== 6 * 86400000
+    || !Number.isSafeInteger(cursor.rankKey) || cursor.rankKey < 0 || !validPosition(cursor.createdAt, cursor.id)) throw invalid();
+  return cursor;
+}
 export async function digest(value: string): Promise<string> {
   const hash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));
   return Array.from(new Uint8Array(hash), b => b.toString(16).padStart(2, '0')).join('');
@@ -98,8 +131,16 @@ async function route(request: Request, env: Env, issued: {cookie?: string}): Pro
   }
   if (path === '/api/articles') {
     if (method === 'GET') {
+      const sort = url.searchParams.get('sort') ?? 'newest';
+      if (sort !== 'popular' && sort !== 'newest') throw new ApiError(400, 'sortが不正です。');
+      const cursor = readCursor(url.searchParams.get('cursor'), sort);
+      const popularCursor = cursor && !Array.isArray(cursor) ? cursor : null;
+      // The calendar window travels with the cursor; ranks themselves may change.
+      const endDay = popularCursor?.endDay ?? jstDay();
+      const startDay = popularCursor?.startDay ?? new Date(Date.parse(endDay) - 6 * 86400000).toISOString().slice(0, 10);
       const q = textField(url.searchParams.get('q') || '', 'q', 120);
       const conditions: string[] = []; const values: unknown[] = [user?.id || '', user?.id || ''];
+      if (sort === 'popular') values.push(startDay, endDay);
       for (const [param, column] of [['category', 'a.category'], ['courseId', 'a.course_id'], ['authorId', 'a.author_id']] as const) {
         const value = textField(url.searchParams.get(param) || '', param, 120);
         if (value) { conditions.push(`${column}=?`); values.push(value); }
@@ -114,17 +155,31 @@ async function route(request: Request, env: Env, issued: {cookie?: string}): Pro
       const limitString = url.searchParams.get('limit') || '20';
       if (!/^\d+$/.test(limitString) || +limitString < 1 || +limitString > 50) throw new ApiError(400, 'limitは1–50です。');
       const limit = +limitString;
-      const cursor = url.searchParams.get('cursor');
-      if (cursor) {
-        let parsed: unknown;
-        try { parsed = JSON.parse(atob(cursor)); } catch { throw new ApiError(400, 'cursorが不正です。'); }
-        if (!Array.isArray(parsed) || parsed.length !== 2 || typeof parsed[0] !== 'string' || typeof parsed[1] !== 'string' || !/^\d{4}-\d\d-\d\dT[\d:.]+Z$/.test(parsed[0]) || !/^[a-f0-9-]{36}$/.test(parsed[1])) throw new ApiError(400, 'cursorが不正です。');
-        conditions.push('(a.created_at < ? OR (a.created_at=? AND a.id<?))'); values.push(parsed[0], parsed[0], parsed[1]);
+      if (Array.isArray(cursor)) {
+        conditions.push('(a.created_at < ? OR (a.created_at=? AND a.id<?))'); values.push(cursor[0], cursor[0], cursor[1]);
       }
-      const result = await env.DB.prepare(`${SELECT}${conditions.length ? ` WHERE ${conditions.join(' AND ')}` : ''} ORDER BY a.created_at DESC,a.id DESC LIMIT ?`).bind(...values, limit + 1).all<Article>();
-      const articles = result.results.slice(0, limit).map(article);
-      const last = articles.at(-1);
-      return response({articles, nextCursor: result.results.length > limit && last ? btoa(JSON.stringify([last.createdAt, last.id])) : null});
+      const where = conditions.length ? ` WHERE ${conditions.join(' AND ')}` : '';
+      let sql = `${SELECT}${where} ORDER BY a.created_at DESC,a.id DESC LIMIT ?`;
+      if (sort === 'popular') {
+        // Rank the entire filtered population in SQL before applying the page limit.
+        sql = `WITH ranked AS (SELECT ${ARTICLE_COLUMNS},
+          (SELECT COUNT(*) FROM view_events v WHERE v.article_id=a.id AND v.day_jst>=? AND v.day_jst<=?)
+          + 3 * (SELECT COUNT(*) FROM bookmarks b WHERE b.article_id=a.id) AS rankKey
+          ${ARTICLE_FROM}${where}) SELECT * FROM ranked`;
+        if (popularCursor) {
+          sql += ' WHERE (rankKey<? OR (rankKey=? AND (createdAt<? OR (createdAt=? AND id<?))))';
+          values.push(popularCursor.rankKey, popularCursor.rankKey, popularCursor.createdAt, popularCursor.createdAt, popularCursor.id);
+        }
+        sql += ' ORDER BY rankKey DESC,createdAt DESC,id DESC LIMIT ?';
+      }
+      const result = await env.DB.prepare(sql).bind(...values, limit + 1).all<Article & {rankKey?: number}>();
+      const rows = result.results.slice(0, limit);
+      const articles = rows.map(({rankKey: _rankKey, ...row}) => article(row));
+      const last = rows.at(-1);
+      const next = last && (sort === 'popular'
+        ? {sort, version: 1, startDay, endDay, rankKey: last.rankKey, createdAt: last.createdAt, id: last.id}
+        : [last.createdAt, last.id]);
+      return response({articles, nextCursor: result.results.length > limit && next ? btoa(JSON.stringify(next)) : null});
     }
     if (method === 'POST') {
       user = requireUser(user);
