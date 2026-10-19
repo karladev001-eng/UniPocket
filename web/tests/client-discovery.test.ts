@@ -4,7 +4,8 @@ import { emptyData, validateData, install, events, tokyo, type CampusEvent, type
 import { setEventMemo, eventMemoText } from '../src/event-memos';
 import { LocalStore, SaveQueue } from '../src/storage';
 import { MapViewport } from '../src/map-viewport';
-import { appendUnique } from '../src/article-request';
+import { appendUnique, BookmarkRequests, type BookmarkState } from '../src/article-request';
+import { mapCandidates, resolveRoom } from '../src/map';
 
 const occurrence = (id: string): CampusEvent => ({ id, title: '授業', start: tokyo('2026-10-20', '09:00'), end: tokyo('2026-10-20', '10:00'), location: '共12', kind: 'lecture', allDay: false });
 const plan = (entries: CampusEvent[]): Plan => ({ key: 'same-pdf', year: 2026, courses: [], events: entries, warnings: [], importedAt: new Date().toISOString() });
@@ -94,5 +95,67 @@ describe('map movement and ranking pagination boundaries', () => {
     expect(all.map(a => a.id)).toEqual(Array.from({ length: 56 }, (_, i) => String(i)));
     expect(all[0]).toBe(first[0]); expect(all[0].bookmarked).toBe(true);
     expect(appendUnique([], [first[0], first[0]])).toEqual([first[0]]);
+  });
+});
+
+
+describe('discovery review regressions', () => {
+  it('uses every resolved building for multiple registered room names, without guessing unknown rooms', () => {
+    for (const query of ['情13/共11', '情1、工1']) {
+      const resolved = resolveRoom(query);
+      expect(resolved.kind).toBe('ambiguous');
+      expect(mapCandidates(query).map(b => b.id).sort()).toEqual(resolved.ids);
+    }
+    expect(mapCandidates('情13/共11').map(b => b.id).sort()).toEqual(['102', '811']);
+    expect(mapCandidates('情1、工1').map(b => b.id).sort()).toEqual(['101', '201']);
+    for (const query of ['', '  ', 'オンライン', '未知999', '情13/未知999']) expect(mapCandidates(query)).toEqual([]);
+    expect(mapCandidates('情13').map(b => b.id)).toContain('102');
+    expect(mapCandidates('工').length).toBeGreaterThan(1);
+  });
+  it('applies a bookmark response to replacement card state and controls, retaining the pending lock across redraws', async () => {
+    const requests = new BookmarkRequests();
+    let resolve!: (state: BookmarkState) => void;
+    const original = { id: 'one', bookmarked: false, bookmarkCount: 2 };
+    let cards = [original, { id: 'two', bookmarked: false, bookmarkCount: 1 }];
+    type Control = { disabled: boolean; pressed: string; count: number; label: string };
+    const control = (): Control => ({ disabled: requests.has('one'), pressed: String(cards[0].bookmarked), count: cards[0].bookmarkCount, label: '' });
+    let button = control();
+    const sync = () => {
+      button.disabled = requests.has('one');
+      button.pressed = String(cards[0].bookmarked);
+      button.count = cards[0].bookmarkCount;
+      button.label = `ブックマーク${cards[0].bookmarkCount}件、${cards[0].bookmarked ? '解除する' : '登録する'}`;
+    };
+    const running = requests.update('one', () => new Promise(done => { resolve = done; }), state => {
+      Object.assign(original, state);
+      Object.assign(cards.find(card => card.id === 'one')!, state);
+    }, sync);
+    expect(button.disabled).toBe(true);
+    const detachedButton = button;
+    // A list request redraws the DOM and may even replace the article objects.
+    cards = cards.map(card => ({ ...card }));
+    button = control();
+    expect(button.disabled).toBe(true);
+    let duplicateRequests = 0;
+    await requests.update('one', async () => { duplicateRequests++; return { bookmarked: false, bookmarkCount: 1 }; }, () => {}, sync);
+    expect(duplicateRequests).toBe(0);
+    resolve({ bookmarked: true, bookmarkCount: 3 });
+    await running;
+    expect(button).not.toBe(detachedButton);
+    expect(button).toEqual({ disabled: false, pressed: 'true', count: 3, label: 'ブックマーク3件、解除する' });
+    expect(cards.map(card => card.id)).toEqual(['one', 'two']);
+    expect(cards[0]).toMatchObject({ bookmarked: true, bookmarkCount: 3 });
+  });
+  it('protects a completed bookmark response from an older list GET, and releases replacement controls on failure', async () => {
+    const requests = new BookmarkRequests(), requestRevision = requests.revision;
+    const state = { id: 'one', bookmarked: false, bookmarkCount: 4 };
+    await requests.update('one', async () => ({ bookmarked: true, bookmarkCount: 5 }), next => Object.assign(state, next), () => {});
+    expect(requests.reconcile([{ id: 'one', bookmarked: false, bookmarkCount: 4 }], requestRevision)[0]).toMatchObject({ bookmarked: true, bookmarkCount: 5 });
+    // A later GET remains authoritative for new changes made elsewhere.
+    expect(requests.reconcile([{ id: 'one', bookmarked: false, bookmarkCount: 3 }], requests.revision)[0]).toMatchObject({ bookmarked: false, bookmarkCount: 3 });
+    let disabled = false;
+    await expect(requests.update('one', async () => { throw Error('network'); }, () => {}, () => { disabled = requests.has('one'); })).rejects.toThrow('network');
+    expect(disabled).toBe(false); expect(requests.has('one')).toBe(false);
+    expect(state).toMatchObject({ bookmarked: true, bookmarkCount: 5 });
   });
 });

@@ -67,3 +67,11 @@ export function searchBuildings(q: string) {
       ),
   );
 }
+
+// Composite registered rooms resolve as separate known buildings, not a substring.
+export function mapCandidates(query: string) {
+  const resolved = resolveRoom(query);
+  if (!query.trim() || resolved.kind === "online") return [];
+  const ids = new Set([...resolved.ids, ...searchBuildings(query).map(b => b.id)]);
+  return catalog.buildings.filter(b => ids.has(b.id));
+}

@@ -1,6 +1,6 @@
 import { MapViewport } from "./map-viewport";
 import { setEventMemo, eventMemoText } from "./event-memos";
-import { ViewEpoch, updateBookmark, appendUnique } from "./article-request";
+import { ViewEpoch, updateBookmark, appendUnique, BookmarkRequests } from "./article-request";
 import { commitEvent } from "./event-editor";
 import { submitNewArticle } from "./article-submit";
 import "./style.css";
@@ -40,7 +40,7 @@ import {
   type Article,
   type User,
 } from "./api";
-import { catalog, resolveRoom, searchBuildings } from "./map";
+import { catalog, resolveRoom, mapCandidates } from "./map";
 import { installUpdates } from "./update";
 const root = document.querySelector<HTMLDivElement>("#app")!;
 const esc = (s: unknown) =>
@@ -908,6 +908,7 @@ function editNote(id: string, fresh?: Note) {
   d.addEventListener("close", () => render());
   d.querySelector<HTMLTextAreaElement>("[name=text]")!.focus();
 }
+const bookmarkRequests = new BookmarkRequests();
 const articleFilters = {
   q: "",
   category: "",
@@ -931,7 +932,7 @@ function articleKey() {
 async function loadArticles(more = false) {
   if (more && (articleLoading || !nextCursor)) return;
   const key = articleKey(), request = ++articleRequest, filter = { ...articleFilters },
-    sort = filter.bookmarked ? "newest" : articleSort, cursor = more ? nextCursor : null;
+    sort = filter.bookmarked ? "newest" : articleSort, cursor = more ? nextCursor : null, bookmarkRevision = bookmarkRequests.revision;
   const isCurrent = pageEpoch.scope(location.hash, () => location.hash);
   const current = () => request === articleRequest && key === articleKey() && isCurrent() && route() === "articles" && !location.hash.split("/")[1];
   articleLoading = true; articleError = "";
@@ -947,7 +948,7 @@ async function loadArticles(more = false) {
     if (cursor) params.set("cursor", cursor);
     const result = await api<{ articles: Article[]; nextCursor: string | null }>("/articles?" + params);
     if (!current()) return;
-    articles = appendUnique(more ? articles : [], result.articles);
+    articles = appendUnique(more ? articles : [], bookmarkRequests.reconcile(result.articles, bookmarkRevision));
     nextCursor = result.nextCursor; articleFetched = new Date().toISOString();
   } catch (e) {
     if (!current()) return;
@@ -956,32 +957,39 @@ async function loadArticles(more = false) {
     if (current()) { articleLoading = false; updateArticleList(); }
   }
 }
-function articleStats(a: Article, actionName: string) {
-  return `<div class="article-stats"><span class="view-count" role="img" aria-label="閲覧${esc(a.viewCount)}回">${icon("eye")}<span aria-hidden="true">${esc(a.viewCount)}</span></span><button type="button" class="bookmark-toggle" data-action="${esc(actionName)}" aria-pressed="${a.bookmarked}" aria-label="ブックマーク${esc(a.bookmarkCount)}件、${a.bookmarked ? "解除する" : "登録する"}">${icon("bookmark")}<span aria-hidden="true">${esc(a.bookmarkCount)}</span></button></div>`;
+function articleStats(a: Article, actionName: string, pending = false) {
+  return `<div class="article-stats"><span class="view-count" role="img" aria-label="閲覧${esc(a.viewCount)}回">${icon("eye")}<span aria-hidden="true">${esc(a.viewCount)}</span></span><button type="button" class="bookmark-toggle" data-action="${esc(actionName)}" ${pending ? "disabled" : ""} aria-pressed="${a.bookmarked}" aria-label="ブックマーク${esc(a.bookmarkCount)}件、${a.bookmarked ? "解除する" : "登録する"}">${icon("bookmark")}<span aria-hidden="true">${esc(a.bookmarkCount)}</span></button></div>`;
 }
 function articleCard(a: Article) {
   action("article-" + a.id, () => (location.hash = "articles/" + a.id));
   if (namedAuthor(a.authorName)) action("author-" + a.id, () => filterAuthor(a.authorId));
   action("bookmark-" + a.id, async () => {
+    if (bookmarkRequests.has(a.id)) return;
     const isCurrent = pageEpoch.scope(location.hash, () => location.hash);
-    const b = page.querySelector<HTMLButtonElement>(`[data-action="bookmark-${CSS.escape(a.id)}"]`);
-    if (b) b.disabled = true;
+    const sync = () => {
+      if (route() !== "articles" || location.hash.split("/")[1]) return;
+      const current = articles.find(article => article.id === a.id);
+      const button = page.querySelector<HTMLButtonElement>(`[data-action="bookmark-${CSS.escape(a.id)}"]`);
+      if (!current || !button) return;
+      button.disabled = bookmarkRequests.has(a.id);
+      button.setAttribute("aria-pressed", String(current.bookmarked));
+      button.setAttribute("aria-label", `ブックマーク${current.bookmarkCount}件、${current.bookmarked ? "解除する" : "登録する"}`);
+      button.querySelector("span")!.textContent = String(current.bookmarkCount);
+    };
     busy++;
     try {
-      await updateBookmark(a, async () => {
+      await bookmarkRequests.update(a.id, async () => {
         user = await session();
         return api<{ bookmarked: boolean; bookmarkCount: number }>("/articles/" + encodeURIComponent(a.id) + "/bookmark", a.bookmarked ? "DELETE" : "PUT", a.bookmarked ? undefined : {});
-      }, isCurrent, () => {
-        // Update only this control: save/remove never reorders or replaces the reading card.
-        if (!b?.isConnected) return;
-        b.setAttribute("aria-pressed", String(a.bookmarked));
-        b.setAttribute("aria-label", `ブックマーク${a.bookmarkCount}件、${a.bookmarked ? "解除する" : "登録する"}`);
-        b.querySelector("span")!.textContent = String(a.bookmarkCount);
-      });
+      }, state => {
+        Object.assign(a, state);
+        const current = articles.find(article => article.id === a.id);
+        if (current) Object.assign(current, state);
+      }, sync);
     } catch (e) { if (isCurrent()) error(e); }
-    finally { if (b) b.disabled = false; busy--; updates?.activity(); }
+    finally { busy--; updates?.activity(); }
   });
-  return `<article class="card article-card"><span class="tag">${esc(a.category || "未分類")}</span><h3><button class="article-title" data-action="article-${esc(a.id)}">${esc(a.title)}</button></h3><p class="article-summary">${esc(a.summary)}</p><div class="article-byline">${namedAuthor(a.authorName) ? `<button class="author" data-action="author-${esc(a.id)}">${esc(a.authorName)}</button>` : '<span class="muted">匿名ユーザー</span>'}</div>${articleStats(a, "bookmark-" + a.id)}</article>`;
+  return `<article class="card article-card"><span class="tag">${esc(a.category || "未分類")}</span><h3><button class="article-title" data-action="article-${esc(a.id)}">${esc(a.title)}</button></h3><p class="article-summary">${esc(a.summary)}</p><div class="article-byline">${namedAuthor(a.authorName) ? `<button class="author" data-action="author-${esc(a.id)}">${esc(a.authorName)}</button>` : '<span class="muted">匿名ユーザー</span>'}</div>${articleStats(a, "bookmark-" + a.id, bookmarkRequests.has(a.id))}</article>`;
 }
 
 function filterAuthor(id: string) {
@@ -1333,7 +1341,7 @@ function openMap(room = "") {
   const d = modal("キャンパスマップ", `<div class="map-search"><input id="map-query" type="text" inputmode="search" value="${esc(query)}" placeholder="建物・登録済み教室" aria-label="建物・登録済み教室を検索" role="combobox" aria-controls="map-suggestions" aria-expanded="false" autocomplete="off"><button type="button" id="map-clear" aria-label="検索語を消す" ${query ? "" : "hidden"}>×</button><div id="map-suggestions" class="map-suggestions" role="listbox" aria-label="建物の候補" hidden></div></div><p id="map-state" class="map-state" role="status" hidden></p><div class="sr-only" id="map-announcement" aria-live="polite"></div><div class="map-viewport"><svg class="map-canvas" viewBox="${viewport.box.join(" ")}" tabindex="0" role="img" aria-label="浜松キャンパスの地図"><image href="/campus-map.png" x="${mx}" y="${my}" width="${mw}" height="${mh}"/><g id="map-highlight"></g></svg><div class="map-zoom"><button type="button" id="map-plus" aria-label="地図を拡大">＋</button><button type="button" id="map-minus" aria-label="地図を縮小">−</button><button type="button" id="map-reset">全体</button></div><div id="building-info" class="map-selected" hidden></div></div>`, undefined, "保存", { singleClose: true, className: "map-modal" });
   const input = d.querySelector<HTMLInputElement>("#map-query")!, list = d.querySelector<HTMLElement>("#map-suggestions")!, canvas = d.querySelector<SVGSVGElement>(".map-canvas")!;
   const paintViewport = () => canvas.setAttribute("viewBox", viewport.box.join(" "));
-  const matches = () => query.trim() && resolveRoom(query).kind !== "online" ? searchBuildings(query) : [];
+  const matches = () => mapCandidates(query);
   const choose = (id: string) => {
     selected = id; mapBuilding = id; mapLocation = query;
     suggestions = false; active = -1;
@@ -1382,6 +1390,7 @@ function openMap(room = "") {
   });
   d.querySelector<HTMLButtonElement>("#map-clear")!.onclick = () => {
     input.value = query = selected = mapBuilding = mapLocation = "";
+    d.querySelector("#map-announcement")!.textContent = "";
     suggestions = false; active = -1; paint(); input.focus();
   };
   d.querySelector<HTMLButtonElement>("#map-plus")!.onclick = () => { viewport.scale(viewport.zoom * 1.25); paint(); };
