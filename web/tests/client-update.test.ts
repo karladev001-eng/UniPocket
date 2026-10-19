@@ -128,25 +128,41 @@ describe("actual service worker update protocol", () => {
     });
     expect(h.skips).toBe(1);
   });
-  it("never caches API/auth responses and serves the current installed shell offline", async () => {
+  it.each([
+    ["https://pocket.test/cdn-cgi/access/authorized", "GET", "navigate"],
+    ["https://pocket.test/cdn-cgi/access/authorized?code=test-only&state=test-only", "GET", "navigate"],
+    ["https://pocket.test/cdn-cgi/access/login", "GET", "navigate"],
+    ["https://pocket.test/cdn-cgi/access/logout", "GET", "navigate"],
+    ["https://pocket.test/cdn-cgi/trace", "GET", "navigate"],
+    ["https://pocket.test/cdn-cgi/challenge-platform/test.js", "GET", "cors"],
+    ["https://pocket.test/api/session", "GET", "navigate"],
+    ["https://pocket.test/sw.js", "GET", "navigate"],
+    ["https://pocket.test/version.json", "GET", "navigate"],
+    ["https://access.example/", "GET", "navigate"],
+    ["https://access.example/cdn-cgi/access/login", "GET", "navigate"],
+    ["https://pocket.test/", "POST", "navigate"],
+  ])("leaves %s (%s, %s) to browser networking", async (url, method, mode) => {
     const h = harness();
-    let handled = false;
-    await h.dispatch("fetch", {
-      request: { url: "https://pocket.test/api/session", method: "GET" },
-      respondWith: () => (handled = true),
-    });
-    expect(handled).toBe(false);
-    let result: unknown;
-    await h.dispatch("fetch", {
-      request: {
-        url: "https://pocket.test/timetable/2026",
-        method: "GET",
-        mode: "navigate",
-      },
-      respondWith: (p: Promise<unknown>) => (result = p),
-    });
-    expect(await result).toBe("old-index");
+    const respondWith = vi.fn();
+    await h.dispatch("fetch", { request: { url, method, mode }, respondWith });
+    await Promise.allSettled(respondWith.mock.calls.map(([response]) => response));
+    expect(respondWith).not.toHaveBeenCalled();
   });
+  it.each(["/", "/#notes", "/timetable/2026"])(
+    "serves the installed shell offline for app navigation %s", async (path) => {
+      const h = harness();
+      let result: unknown;
+      await h.dispatch("fetch", {
+        request: {
+          url: "https://pocket.test" + path,
+          method: "GET",
+          mode: "navigate",
+        },
+        respondWith: (p: Promise<unknown>) => (result = p),
+      });
+      expect(await result).toBe("old-index");
+    },
+  );
 });
 
 describe("automatic worker update safety", () => {

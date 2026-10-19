@@ -9,6 +9,8 @@ self.addEventListener('activate', event => event.waitUntil(self.clients.claim())
 self.addEventListener('fetch', event => {
   const u=new URL(event.request.url);
   if(event.request.method!=='GET'||u.origin!==location.origin||u.pathname.startsWith('/api/')) return;
+  // Cloudflare callbacks must reach the network to establish the Access session.
+  if(u.pathname.startsWith('/cdn-cgi/')) return;
   if(u.pathname==='/sw.js'||u.pathname==='/version.json') return;
   event.respondWith((async()=>{
     const cache=await caches.open(CACHE);
