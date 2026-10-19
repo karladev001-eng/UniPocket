@@ -23,7 +23,7 @@ const id = process.env.BUILD_ID ?? hash.digest("hex").slice(0, 12);
 const version = {
   id,
   builtAt: new Date().toISOString(),
-  changes: ["週間コマ表示と、次の予定・今日の予定を先に読めるホーム", "設定をコンパクトに整理し、自分の背景画像をプレビュー"],
+  changes: ["授業専用の時間割と、日・3日・週・月を切り替えられる予定表", "ホームで次の予定を強調し、予定の場所からキャンパスマップへ"],
 };
 await writeFile(
   new URL("version.json", root),

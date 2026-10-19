@@ -3,6 +3,7 @@ import { commitEvent } from "./event-editor";
 import { submitNewArticle } from "./article-submit";
 import "./style.css";
 import { periods, weekPresentation, courseColor, updatePresentation } from "./schedule-presentation";
+import { type CalendarMode, minutePixels, lectureEvents, initialCalendarMode, shiftCalendarDay, calendarDays, daySegments, overlapGroups, nextEvent, eventKind, initialScrollMinute } from "./calendar-presentation";
 import { enhanceControls, dismissPicker } from "./ui-controls";
 import { icon, backgrounds, visibleBackground, namedAuthor, noteHasContent } from "./ui-assets";
 import {
@@ -48,7 +49,7 @@ const esc = (s: unknown) =>
       ]!,
   );
 const btn = (label: string, action: string, cls = "") =>
-  `<button class="${cls}" data-action="${esc(action)}">${label}</button>`;
+  `<button type="button" class="${cls}" data-action="${esc(action)}">${label}</button>`;
 const field = (
   name: string,
   label: string,
@@ -77,7 +78,7 @@ let data: Data = emptyData(),
   frozen = false,
   saveTimer: ReturnType<typeof setTimeout> | undefined,
   selectedDay = dayKey(),
-  view = "week",
+  calendarMode: CalendarMode = initialCalendarMode(window.innerWidth),
   weekend = weekDay(selectedDay) > 5,
   user: User | null = null;
 let page = document.createElement("main"),
@@ -190,6 +191,7 @@ function render() {
     });
   page.innerHTML = "";
   if (r === "timetable") renderTimetable();
+  else if (r === "calendar") renderCalendar();
   else if (r === "notes") renderNotes();
   else if (r === "articles") renderArticles();
   else if (r === "more") renderMore();
@@ -204,187 +206,174 @@ function render() {
 function heading(title: string, sub = "静岡大学 · 浜松キャンパス", right = "") {
   return `<div class="heading"><div>${sub ? `<div class="eyebrow">${esc(sub)}</div>` : ""}<h1>${esc(title)}</h1></div><div class="row">${right}</div></div>`;
 }
-function eventCard(e: CampusEvent) {
-  const a = "event-" + e.id;
-  action(a, () => editEvent(e));
-  return `<div class="event"><div class="time">${e.allDay ? "終日" : timeLabel(e.start) + "<br>" + timeLabel(e.end)}</div><div class="body"><button class="eventtitle" data-action="${esc(a)}">${esc(e.title)}</button><div class="muted">${esc(e.location || "場所未設定")} ${data.occurrenceEdits.some((x) => x.id === e.id) || data.courseEdits.some((x) => x.id === courseID(data, e)) ? '<span class="tag">個人修正</span>' : ""}</div></div>${e.kind === "exam" ? '<span class="tag exam">要確認</span>' : ""}</div>`;
+function navigate(destination: string) {
+  if (route() === destination) render();
+  else location.hash = destination;
+}
+function colorFor(e: CampusEvent) {
+  const c = data.imports.flatMap(p => p.courses).find(c => c.id === courseID(data, e));
+  return courseColor(c?.title || e.title);
+}
+function locationControl(location: string, key: string) {
+  const r = resolveRoom(location);
+  if (r.kind === "missing" || r.kind === "online") return `<span class="room">${esc(location || "場所未設定")}</span>`;
+  const a = "location-" + key;
+  action(a, () => showLocation(location));
+  return btn(`${esc(location)} <span aria-hidden="true">↗</span>`, a, "room location-link");
 }
 function eventDate(e: CampusEvent) {
   const start = dayKey(new Date(e.start)), end = dayKey(new Date(e.end));
-  return `${start}${e.allDay && end !== start ? "–" + dayKey(new Date(Date.parse(e.end) - 1)) : ""} ${e.allDay ? "終日" : timeLabel(e.start) + "–" + (end === start ? "" : end + " ") + timeLabel(e.end)}`;
+  return `${start}${e.allDay && dayKey(new Date(Date.parse(e.end) - 1)) !== start ? "–" + dayKey(new Date(Date.parse(e.end) - 1)) : ""} ${e.allDay ? "終日" : timeLabel(e.start) + "–" + (end === start ? "" : end + " ") + timeLabel(e.end)}`;
 }
 function compactEvent(e: CampusEvent) {
-  action("event-" + e.id, () => editEvent(e));
-  return `<button class="home-event" data-action="${esc("event-" + e.id)}"><span class="when">${e.allDay ? "終日" : timeLabel(e.start)}<small>${e.allDay ? "" : timeLabel(e.end) + " まで"}</small></span><span class="event-body"><strong>${esc(e.title)}</strong><span class="room">${esc(e.location || "場所未設定")}${e.kind === "exam" ? ' · 要確認' : ''}</span></span></button>`;
+  action("event-" + e.id, () => showEvent(e));
+  return `<div class="home-event"><span class="when">${e.allDay ? "終日" : timeLabel(e.start)}<small>${e.allDay ? "" : timeLabel(e.end) + " まで"}</small></span><div class="event-body"><button class="eventtitle" data-action="${esc("event-" + e.id)}"><strong>${esc(e.title)}</strong></button>${locationControl(e.location, "today-" + e.id)}${e.kind === "exam" ? '<span class="tag exam">試験・要確認</span>' : ''}</div></div>`;
+}
+let mapLocation = "", mapBuilding = "", mapFocusPending = false;
+function showLocation(location: string) {
+  const r = resolveRoom(location);
+  if (["missing", "online"].includes(r.kind)) return;
+  mapLocation = location;
+  mapBuilding = r.kind === "matched" ? r.ids[0] : "";
+  mapFocusPending = true;
+  dialog?.close();
+  navigate("home");
+}
+function homeMap() {
+  const r = resolveRoom(mapLocation), b = catalog.buildings.find(b => b.id === mapBuilding);
+  action("home-map", () => openMap());
+  action("map-search", () => openMap(mapLocation));
+  const candidates = r.kind === "ambiguous" ? r.ids.map(id => {
+    const candidate = catalog.buildings.find(b => b.id === id)!;
+    const a = "map-select-" + id;
+    action(a, () => { mapBuilding = id; mapFocusPending = true; render(); });
+    return btn(esc(candidate.name), a, id === mapBuilding ? "primary" : "");
+  }).join("") : "";
+  return `<section class="section card home-map"><div class="sectiontitle"><h2 id="campus-map-heading" tabindex="-1">キャンパスマップ</h2>${btn("拡大・検索", "home-map", "smallbtn")}</div>${mapLocation ? `<div class="map-result" role="status"><b>${esc(mapLocation)}</b><p>${b ? `${esc(b.name)} · 建物の位置` : r.kind === "ambiguous" ? "複数候補があります。建物を選択してください。" : "場所を特定できません。元の場所名を確認し、建物を検索してください。"}</p>${candidates ? `<div class="row">${candidates}</div>` : ""}${!b && r.kind !== "ambiguous" ? btn("建物を検索", "map-search", "smallbtn") : ""}</div>` : ""}<div class="mapwrap home-map-image"><button class="map-preview" data-action="home-map" aria-label="キャンパスマップを拡大して建物・教室を検索"><img src="/campus-map.png" alt="浜松キャンパスの地図" loading="lazy"></button><svg viewBox="${catalog.viewBox.join(" ")}" role="img" aria-label="${esc(b ? b.name + 'の建物の位置' : '建物の選択なし')}">${b ? `${b.mapPolygon.length ? `<polygon points="${b.mapPolygon.map(p => p.join(",")).join(" ")}"/>` : ""}<circle cx="${b.mapCenter[0]}" cy="${b.mapCenter[1]}" r="13"/>` : ""}</svg></div>${mapLocation ? `<p class="muted">建物座標による概略位置です。教室内の位置は示していません。</p>` : ""}</section>`;
 }
 function renderHome() {
-  const today = dayKey(), all = events(data),
-    todayEvents = all.filter(e => onDay(e, today)), now = new Date(),
-    next = all.find(e => new Date(e.end) > now && !e.allDay);
+  const today = dayKey(), all = events(data), todayEvents = all.filter(e => onDay(e, today)), now = new Date(), next = nextEvent(all, now.getTime());
   action("home-import", openImport);
-  action("home-map", () => openMap());
   action("event-new", () => { selectedDay = today; editEvent(); });
-  action("home-today", () => { selectedDay = today; view = "day"; location.hash = "timetable"; });
-  if (next) action("event-" + next.id, () => editEvent(next));
-  page.innerHTML = heading("ホーム", "", btn("＋ 予定", "event-new", "primary")) +
-    `<div class="date-line"><strong>${esc(new Intl.DateTimeFormat("ja-JP", { month: "long", day: "numeric", weekday: "long", timeZone: "Asia/Tokyo" }).format(now))}</strong><span class="muted">浜松</span></div>` +
-    (next ? `<button class="next-preview" data-action="${esc("event-" + next.id)}"><span class="next-caption"><b>次の予定</b><span>${esc(eventDate(next))}</span></span><strong>${esc(next.title)}</strong><span class="room">${esc(next.location || "場所未設定")}</span></button>` : `<p class="next-preview no-next">次の予定はありません。</p>`) +
-    `<section class="today-schedule"><div class="sectiontitle"><h2>今日の予定 <span class="tag">${todayEvents.length}件</span></h2>${btn("時間割へ", "home-today", "smallbtn")}</div><div class="home-events">${todayEvents.map(compactEvent).join("") || empty("今日の予定はありません。")}</div>${!all.length ? `<p class="import-hint">${btn("時間割PDFを取り込む", "home-import")}</p>` : ""}</section>
+  action("home-timetable", () => { selectedDay = today; weekend = weekDay(today) > 5; navigate("timetable"); });
+  action("home-calendar", () => { selectedDay = today; navigate("calendar"); });
+  if (next) action("event-" + next.id, () => showEvent(next));
+  page.innerHTML = heading("ホーム", "", btn("＋ 予定", "event-new", "timetable-entry")) +
+    `<div class="date-line"><strong>${esc(new Intl.DateTimeFormat("ja-JP", { month: "long", day: "numeric", weekday: "long", timeZone: "Asia/Tokyo" }).format(now))}</strong>${btn('▦ 時間割を見る', "home-timetable", "timetable-entry")}</div>` +
+    (next ? `<section class="next-preview"><button class="next-main" data-action="${esc("event-" + next.id)}"><span class="next-caption">${Date.parse(next.start) <= now.getTime() ? "いまの予定" : "次の予定"} · ${esc(dayKey(new Date(next.start)) === today ? "今日" : dayKey(new Date(next.start)))}</span><span class="next-time">${esc(timeLabel(next.start))}<small>–${esc(timeLabel(next.end))}</small></span><strong>${esc(next.title)}</strong></button>${locationControl(next.location, "next-" + next.id)}</section>` : `<p class="next-preview no-next">次の予定はありません。</p>`) +
+    `<section class="today-schedule"><div class="sectiontitle"><h2>今日の予定 <span class="tag">${todayEvents.length}件</span></h2>${btn("予定表へ", "home-calendar", "smallbtn")}</div><div class="home-events">${todayEvents.map(compactEvent).join("") || empty("今日の予定はありません。")}</div>${!all.length ? `<p class="import-hint">${btn("時間割PDFを取り込む", "home-import")}</p>` : ""}</section>
     <details id="home-facilities" class="home-extra"><summary>キャンパスの営業時間</summary><p class="muted">通常期の目安です。臨時変更は公式情報で確認してください。</p>${data.facilities.slice(0, 4).map(f => `<p><b>${esc(f.title)}</b> · ${esc(facilityHours(f, today) || "休業")}</p>`).join("")}<a href="#more">施設を設定 →</a></details>
     <section class="section"><h2>固定したメモ</h2><div class="cards">${data.notes.filter(n => data.pinned.includes(n.id)).map(noteCard).join("") || empty("メモを固定するとここに表示されます。")}</div></section>
-    <section class="section card home-map"><div class="sectiontitle"><h2>キャンパスマップ</h2>${btn("拡大・検索", "home-map", "smallbtn")}</div><button class="map-preview" data-action="home-map" aria-label="キャンパスマップを拡大して建物・教室を検索"><img src="/campus-map.png" alt="浜松キャンパスの地図" loading="lazy"></button></section>
+    ${homeMap()}
     <section class="section"><h2>よく使うリンク</h2><div class="row">${data.links.filter(l => l.favorite).map(l => `<a class="card" href="${esc(l.url)}" target="_blank" rel="noopener noreferrer">${esc(l.title)} ↗</a>`).join("") || '<a href="#more">リンクのお気に入りを設定 →</a>'}</div></section>`;
+  if (mapFocusPending) {
+    mapFocusPending = false;
+    requestAnimationFrame(() => {
+      const target = page.querySelector<HTMLElement>("#campus-map-heading");
+      target?.focus({ preventScroll: true });
+      target?.scrollIntoView({ block: "start", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth" });
+    });
+  }
 }
-
-function shiftMonth(day: string, n: number) {
-  const d = new Date(day + "T12:00:00+09:00");
-  d.setUTCDate(1);
-  d.setUTCMonth(d.getUTCMonth() + n);
-  return dayKey(d);
+function showEvent(e: CampusEvent) {
+  const canMap = !["missing", "online"].includes(resolveRoom(e.location).kind);
+  const d = modal(e.title, `<p class="tag">${esc(eventKind(e))}</p><p class="event-detail-date">${esc(eventDate(e))}</p><div class="detail-location">${canMap ? `<button type="button" id="detail-map" class="location-link">${esc(e.location)} ↗ キャンパスマップ</button>` : esc(e.location || "場所未設定")}</div><p>${data.occurrenceEdits.some(x => x.id === e.id) || data.courseEdits.some(x => x.id === courseID(data, e)) ? "個人修正が適用されています。" : ""}</p><button type="button" id="detail-edit" class="primary">予定を編集</button>`);
+  d.querySelector("#detail-map")?.addEventListener("click", () => showLocation(e.location));
+  d.querySelector("#detail-edit")!.addEventListener("click", () => editEvent(e));
+}
+function eventChooser(title: string, all: CampusEvent[]) {
+  const d = modal(title, `<div class="stack">${all.map((e, i) => `<button type="button" data-choose="${i}"><b>${esc(e.title)}</b><br><small>${esc(eventKind(e))} · ${esc(eventDate(e))}<br>${esc(e.location || "場所未設定")}</small></button>`).join("")}</div>`);
+  d.querySelectorAll<HTMLButtonElement>("[data-choose]").forEach(b => b.onclick = () => showEvent(all[Number(b.dataset.choose)]));
+}
+function dateTools(label: string) {
+  return `<div class="date-tools"><button data-action="prev-date" aria-label="前の${label}">‹</button><label class="date-picker"><span>${esc(label === "月" ? selectedDay.slice(0, 7) : label === "週" ? addDay(selectedDay, 1 - weekDay(selectedDay)).slice(5) + "–" + addDay(selectedDay, 7 - weekDay(selectedDay)).slice(5) : selectedDay)}</span><input type="date" id="selected-day" value="${selectedDay}" aria-label="表示日を選ぶ"></label><button data-action="next-date" aria-label="次の${label}">›</button>${btn("今日", "today", "smallbtn")}</div>`;
+}
+function bindDatePicker() {
+  page.querySelector("#selected-day")?.addEventListener("change", e => {
+    const value = (e.target as HTMLInputElement).value;
+    if (value) { selectedDay = value; weekend = weekDay(value) > 5; render(); }
+  });
 }
 function renderTimetable() {
-  action("prev-date", () => {
-    selectedDay =
-      view === "month"
-        ? shiftMonth(selectedDay, -1)
-        : addDay(selectedDay, view === "week" ? -7 : -1);
-    render();
-  });
-  action("next-date", () => {
-    selectedDay =
-      view === "month"
-        ? shiftMonth(selectedDay, 1)
-        : addDay(selectedDay, view === "week" ? 7 : 1);
-    render();
-  });
-  action("today", () => {
-    selectedDay = dayKey();
-    weekend = weekDay(selectedDay) > 5;
-    render();
-  });
+  action("prev-date", () => { selectedDay = addDay(selectedDay, -7); render(); });
+  action("next-date", () => { selectedDay = addDay(selectedDay, 7); render(); });
+  action("today", () => { selectedDay = dayKey(); weekend = weekDay(selectedDay) > 5; render(); });
   action("import", openImport);
   action("weekdays", () => { weekend = false; render(); });
   action("weekend", () => { weekend = true; render(); });
+  action("event-new", () => { window.addEventListener("hashchange", () => editEvent(), { once: true }); navigate("calendar"); });
   action("event-resume", () => editEvent(undefined, true));
-  action("event-new", () => editEvent());
-  for (const v of ["day", "week", "month"])
-    action("view-" + v, () => {
-      view = v;
-      if (v === "week") weekend = weekDay(selectedDay) > 5;
-      render();
-    });
-  const all = events(data),
-    current = all.filter((e) => onDay(e, selectedDay));
-  let content = "";
-  if (view === "day") {
-    const outside = current.filter(
-      (e) =>
-        e.allDay ||
-        new Date(e.start).getTime() <
-          new Date(
-            tokyo(selectedDay, String(data.startHour).padStart(2, "0") + ":00"),
-          ).getTime() ||
-        new Date(e.end).getTime() >
-          new Date(
-            data.endHour === 24
-              ? tokyo(addDay(selectedDay, 1))
-              : tokyo(
-                  selectedDay,
-                  String(data.endHour).padStart(2, "0") + ":00",
-                ),
-          ).getTime(),
-    );
-    content = `<section class="card"><h2>${esc(selectedDay)} の予定</h2>${current.map(eventCard).join("") || empty("この日の予定はありません。")}${outside.length ? '<p class="muted">終日・表示時間外の予定も上の一覧に含めて表示しています。</p>' : ""}${
-      data.showBands
-        ? `<hr><h3>営業時間の帯</h3>${data.facilities
-            .filter((f) => f.band)
-            .map(
-              (f) =>
-                `<p class="muted">${esc(f.title)} · ${esc(facilityHours(f, selectedDay) || "休業")}</p>`,
-            )
-            .join("")}`
-        : ""
-    }</section>`;
-  } else if (view === "week") {
-    const week = weekPresentation(all, selectedDay, weekend);
-    const next = all.find(e => !e.allDay && Date.parse(e.end) > Date.now());
-    const color = (e: CampusEvent) => {
-      const c = data.imports.flatMap(p => p.courses).find(c => c.id === courseID(data, e));
-      return courseColor(c?.title || e.title);
-    };
-    content = `<div class="week-surface"><div class="week-grid ${weekend ? "weekend" : ""}" role="group" aria-label="曜日とコマの週間時間割"><div></div>${week.days.map(day => `<div class="day-heading ${day === dayKey() ? "today" : ""}"><b>${"月火水木金土日"[weekDay(day) - 1]}</b><span>${Number(day.slice(-2))}</span></div>`).join("")}${periods.map(([start, end], index) => `<div class="period"><b>${index + 1}</b><small>${start}<br>${end}</small></div>${week.cells[index].map((cell, dayIndex) => {
-      const e = cell[0], a = `cell-${index}-${dayIndex}`;
-      if (!e) return `<div class="course-cell empty-cell" aria-label="${week.days[dayIndex]} ${index + 1}コマ 空き">—</div>`;
-      action(a, () => {
-        if (cell.length === 1) editEvent(e);
-        else {
-          const d = modal("同じコマの予定", `<div class="stack">${cell.map(event => `<button type="button" data-overlap="${esc(event.id)}"><b>${esc(event.title)}</b><br><small>${esc(eventDate(event))} · ${esc(event.location || "場所未設定")}</small></button>`).join("")}</div>`);
-          d.querySelectorAll<HTMLButtonElement>("[data-overlap]").forEach(b => b.onclick = () => editEvent(cell.find(event => event.id === b.dataset.overlap)!));
-        }
-      });
-      return `<button class="course-cell ${color(e)} ${cell.some(e => e.id === next?.id) ? "next-course" : ""}" data-action="${a}" aria-label="${esc(week.days[dayIndex] + ' ' + (index + 1) + 'コマ ' + cell.map(e => e.title + ' ' + e.location).join('、'))}">${cell.length > 1 ? `<span class="overlap-count">${cell.length}件</span>` : ""}${cell.some(e => e.id === next?.id) ? '<span class="next-course-label">次の予定</span>' : ''}<span class="cell-name">${esc(e.title)}</span><span class="cell-room">${esc(e.location || "場所未設定")}</span></button>`;
-    }).join("")}`).join("")}</div></div>${week.other.length ? `<section class="other-events"><h2>その他の予定 <span class="tag">${week.other.length}件</span></h2>${week.other.map(e => { action("event-" + e.id, () => editEvent(e)); return `<button class="other-event" data-action="${esc("event-" + e.id)}"><strong>${esc(e.title)}</strong><span>${esc(eventDate(e))} · ${esc(e.location || "場所未設定")}</span></button>`; }).join("")}</section>` : ""}`;
-
-  } else {
-    const first = selectedDay.slice(0, 7) + "-01",
-      start = addDay(first, 1 - weekDay(first));
-    content = `<section class="card"><h2>${selectedDay.slice(0, 7)}</h2><div class="calendar">${[..."月火水木金土日"].map((d) => `<div class="muted">${d}</div>`).join("")}${Array.from(
-      { length: 42 },
-      (_, i) => {
-        const day = addDay(start, i),
-          a = "day-" + day;
-        action(a, () => {
-          selectedDay = day;
-          weekend = weekDay(day) > 5;
-          view = "day";
-          render();
-        });
-        return `<button data-action="${a}" class="${day === dayKey() ? "today" : ""}" aria-label="${day}の予定">${Number(day.slice(-2))}${all
-          .filter((e) => onDay(e, day))
-          .slice(0, 3)
-          .map((e) => `<span class="eventdot">${esc(e.title)}</span>`)
-          .join("")}</button>`;
-      },
-    ).join("")}</div></section>`;
-  }
-  const courses = data.imports.flatMap((p) => p.courses);
-  const week = weekPresentation(all, selectedDay, weekend);
+  const all = lectureEvents(events(data)), week = weekPresentation(all, selectedDay, weekend), next = nextEvent(all);
+  const courses = data.imports.flatMap(p => p.courses);
+  const content = `<div class="week-surface"><div class="week-grid ${weekend ? "weekend" : ""}" role="group" aria-label="曜日とコマの講義専用時間割"><div></div>${week.days.map(day => `<div class="day-heading ${day === dayKey() ? "today" : ""}"><b>${"月火水木金土日"[weekDay(day) - 1]}</b><span>${Number(day.slice(-2))}</span></div>`).join("")}${periods.map(([start, end], index) => `<div class="period"><b>${index + 1}</b><small>${start}<br>${end}</small></div>${week.cells[index].map((cell, dayIndex) => {
+    const e = cell[0], a = `cell-${index}-${dayIndex}`;
+    if (!e) return `<div class="course-cell empty-cell" aria-label="${week.days[dayIndex]} ${index + 1}コマ 空き">—</div>`;
+    action(a, () => cell.length === 1 ? showEvent(e) : eventChooser("同じコマの授業・試験", cell));
+    return `<button class="course-cell ${colorFor(e)} ${cell.some(e => e.id === next?.id) ? "next-course" : ""}" data-action="${a}" aria-label="${esc(week.days[dayIndex] + ' ' + (index + 1) + 'コマ ' + cell.map(e => eventKind(e) + ' ' + e.title + ' ' + e.location).join('、'))}">${cell.length > 1 ? `<span class="overlap-count">${cell.length}件</span>` : ""}${cell.some(e => e.id === next?.id) ? '<span class="next-course-label">次の授業</span>' : ''}<span class="cell-name">${e.kind === "exam" ? "試験・要確認 " : ""}${esc(e.title)}</span><span class="cell-room">${esc(e.location || "場所未設定")}</span></button>`;
+  }).join("")}`).join("")}</div></div>${week.other.length ? `<section class="other-events"><h2>コマ外の授業・試験 <span class="tag">${week.other.length}件</span></h2>${week.other.map(e => { action("event-" + e.id, () => showEvent(e)); return `<button class="other-event" data-action="${esc("event-" + e.id)}"><strong>${esc(eventKind(e))} · ${esc(e.title)}</strong><span>${esc(eventDate(e))} · ${esc(e.location || "場所未設定")}</span></button>`; }).join("")}</section>` : ""}`;
   page.innerHTML = heading("時間割", "", btn("＋ 予定", "event-new", "primary") + `<details class="schedule-menu"><summary aria-label="時間割メニュー">⋯</summary><div>${btn("PDF取込", "import")}${data.eventDraft ? btn("予定の下書きを再開", "event-resume") : ""}</div></details>`) +
-    `<div class="view-tools"><div class="seg">${["day", "week", "month"].map((v, i) => `<button data-action="view-${v}" aria-pressed="${v === view}" class="${v === view ? "selected" : ""}">${["日", "週", "月"][i]}</button>`).join("")}</div>${view === "week" ? `<div class="week-kind"><button data-action="weekdays" aria-pressed="${!weekend}">平日</button><button data-action="weekend" aria-pressed="${weekend}">土日${week.weekendCount ? `<span class="tag">${week.weekendCount}</span>` : ""}</button></div>` : ""}</div>
-    <div class="date-tools"><button data-action="prev-date" aria-label="前の${view === 'week' ? '週' : view === 'month' ? '月' : '日'}">‹</button><label class="date-picker"><span>${esc(view === "week" ? week.start.slice(5).replace('-', '/') + '–' + addDay(week.start, 6).slice(5).replace('-', '/') : view === "month" ? selectedDay.slice(0, 7) : selectedDay)}</span><input type="date" id="selected-day" value="${selectedDay}" aria-label="表示日を選ぶ"></label><button data-action="next-date" aria-label="次の${view === 'week' ? '週' : view === 'month' ? '月' : '日'}">›</button>${btn("今日", "today", "smallbtn")}</div>
-    ${content}${!courses.length ? `<p class="import-hint">${btn("時間割PDFを取り込む", "import", "smallbtn")}</p>` : ""}
-    <details id="registered-courses" class="schedule-fold"><summary>登録した講義 <span class="tag">${courses.length}</span></summary><p class="muted">講義を開くと関連記事を表示します。</p><div class="stack">${courses.map(c => `<button data-course="${esc(c.id)}">${esc(c.title)} <small>${c.weekday ? "月火水木金土"[c.weekday - 1] + " " + ((c.block ?? 0) + 1) + "コマ" : "時間未定"}</small></button>`).join("") || '<p class="muted">PDFを取り込むと講義が表示されます。</p>'}</div></details>
-    ${data.showBands ? `<details id="timetable-facilities" class="schedule-fold"><summary>施設の営業時間</summary><p class="muted">通常期の目安です。臨時変更は公式情報で確認してください。</p>${week.days.map(day => `<h3>${esc(day)}</h3>${data.facilities.filter(f => f.band).map(f => `<p class="muted">${esc(f.title)} · ${esc(facilityHours(f, day) || "休業")}</p>`).join("")}`).join("")}</details>` : ""}<details id="personal-edits" class="schedule-fold"><summary>取消・個人修正の管理</summary>${
-      [...data.courseEdits, ...data.occurrenceEdits]
-        .map((x) => {
-          const a = "reset-" + x.id;
-          action(a, () => {
-            data.courseEdits = data.courseEdits.filter((e) => e.id !== x.id);
-            data.occurrenceEdits = data.occurrenceEdits.filter(
-              (e) => e.id !== x.id,
-            );
-            changed();
-            render();
-          });
-          return `<p>${esc(x.title || x.id)} ${x.cancelled ? "取消" : ""} ${btn("修正を解除", a, "smallbtn")}</p>`;
-        })
-        .join("") || "<p>個人修正はありません。</p>"
-    }</details>`;
-  page.querySelector("#selected-day")?.addEventListener("change", (e) => {
-    const value = (e.target as HTMLInputElement).value;
-    if (value) {
-      selectedDay = value;
-      weekend = weekDay(value) > 5;
-      render();
-    }
-  });
-  page.querySelectorAll<HTMLElement>("[data-course]").forEach(
-    (b) =>
-      (b.onclick = () => {
-        articleFilters.courseId = b.dataset.course!;
-        location.hash = "articles";
-      }),
-  );
+    `<div class="schedule-links"><a href="#home">‹ ホームへ</a><a href="#calendar">予定表へ ›</a></div><div class="view-tools"><span class="muted">授業・試験</span><div class="week-kind"><button data-action="weekdays" aria-pressed="${!weekend}">平日</button><button data-action="weekend" aria-pressed="${weekend}">土日${week.weekendCount ? `<span class="tag">${week.weekendCount}</span>` : ""}</button></div></div>${dateTools("週")}${!all.length ? empty("講義が未登録です。時間割PDFを取り込んでください。") : !all.some(e => calendarDays(selectedDay, "week").some(day => onDay(e, day))) ? '<p class="muted">この週の授業・試験はありません。</p>' : ""}${content}${!courses.length ? `<p class="import-hint">${btn("時間割PDFを取り込む", "import", "smallbtn")}</p>` : ""}
+    <details id="registered-courses" class="schedule-fold"><summary>登録した講義 <span class="tag">${courses.length}</span></summary><p class="muted">講義を開くと関連記事を表示します。</p><div class="stack">${courses.map(c => `<button data-course="${esc(c.id)}">${esc(c.title)} <small>${c.weekday ? "月火水木金土日"[c.weekday - 1] + " " + ((c.block ?? 0) + 1) + "コマ" : "時間未定"}</small></button>`).join("") || '<p class="muted">PDFを取り込むと講義が表示されます。</p>'}</div></details>
+    ${data.showBands ? `<details id="timetable-facilities" class="schedule-fold"><summary>施設の営業時間</summary><p class="muted">通常期の目安です。臨時変更は公式情報で確認してください。</p>${week.days.map(day => `<h3>${esc(day)}</h3>${data.facilities.filter(f => f.band).map(f => `<p class="muted">${esc(f.title)} · ${esc(facilityHours(f, day) || "休業")}</p>`).join("")}`).join("")}</details>` : ""}<details id="personal-edits" class="schedule-fold"><summary>取消・個人修正の管理</summary>${[...data.courseEdits, ...data.occurrenceEdits].map(x => {
+      const a = "reset-" + x.id;
+      action(a, () => { data.courseEdits = data.courseEdits.filter(e => e.id !== x.id); data.occurrenceEdits = data.occurrenceEdits.filter(e => e.id !== x.id); changed(); render(); });
+      return `<p>${esc(x.title || x.id)} ${x.cancelled ? "取消" : ""} ${btn("修正を解除", a, "smallbtn")}</p>`;
+    }).join("") || "<p>個人修正はありません。</p>"}</details>`;
+  bindDatePicker();
+  page.querySelectorAll<HTMLElement>("[data-course]").forEach(b => b.onclick = () => { articleFilters.courseId = b.dataset.course!; location.hash = "articles"; });
+}
+function renderCalendar() {
+  const mode = calendarMode, all = events(data), days = calendarDays(selectedDay, mode);
+  action("prev-date", () => { selectedDay = shiftCalendarDay(selectedDay, mode, -1); render(); });
+  action("next-date", () => { selectedDay = shiftCalendarDay(selectedDay, mode, 1); render(); });
+  action("today", () => { selectedDay = dayKey(); render(); });
+  action("event-new", () => editEvent());
+  action("event-resume", () => editEvent(undefined, true));
+  for (const v of ["day", "three", "week", "month"] as CalendarMode[]) action("calendar-" + v, () => { calendarMode = v; render(); });
+  const labels: Record<CalendarMode, string> = { day: "日", three: "3日", week: "週", month: "月" };
+  let content: string;
+  if (mode === "month") {
+    content = `<div class="month-calendar" role="group" aria-label="${esc(selectedDay.slice(0, 7))}の月予定表">${[..."月火水木金土日"].map(d => `<div class="month-weekday">${d}</div>`).join("")}${days.map(day => {
+      const current = all.filter(e => onDay(e, day)), a = "month-" + day, c = "month-list-" + day;
+      action(a, () => { selectedDay = day; calendarMode = "day"; render(); });
+      action(c, () => eventChooser(day + " の予定", current));
+      return `<div class="month-day ${day.slice(0, 7) !== selectedDay.slice(0, 7) ? "outside-month" : ""} ${day === dayKey() ? "today" : ""}"><button class="month-date" data-action="${a}" aria-label="${day}の時間軸を開く">${Number(day.slice(-2))}</button>${current.length ? `<button class="month-count" data-action="${c}" aria-label="${day}の${current.length}件をすべて確認">${current.length}件<span>${current.slice(0, 2).map(e => `<small>${esc((e.allDay ? "終日 " : timeLabel(e.start) + " ") + e.title)}</small>`).join("")}</span></button>` : '<span class="month-empty">予定なし</span>'}</div>`;
+    }).join("")}</div>`;
+  } else {
+    const estimatedWidth = Math.max(84, ((page.clientWidth || window.innerWidth - 24) - 46) / days.length);
+    const columnWidth = mode === "week" ? Math.max(120, estimatedWidth) : estimatedWidth;
+    const maxColumns = Math.max(1, Math.floor(columnWidth / 48));
+    content = `<div class="timeline-scroll" tabindex="0" aria-label="00時から24時の予定表。縦に時間、横に日付。"><div class="timeline ${mode === "week" ? "full-week" : ""}" style="--day-count:${days.length}"><div class="timeline-top"><div class="timeline-head"><span class="time-corner">時刻</span>${days.map(day => `<div class="timeline-date ${day === dayKey() ? "today" : ""}"><b>${Number(day.slice(5, 7))}/${Number(day.slice(-2))}</b><span>${"月火水木金土日"[weekDay(day) - 1]}</span></div>`).join("")}</div><div class="all-day-row"><span class="all-day-label">終日</span>${days.map(day => `<div>${all.filter(e => e.allDay && onDay(e, day)).map(e => { const a = "event-" + e.id; action(a, () => showEvent(e)); return `<button class="all-day-event ${colorFor(e)}" data-action="${esc(a)}">${esc(eventKind(e))} · ${esc(e.title)}</button>`; }).join("") || '<span aria-label="終日予定なし">—</span>'}</div>`).join("")}</div></div><div class="timeline-body"><div class="time-axis">${Array.from({ length: 49 }, (_, i) => `<span style="top:${i * 30 * minutePixels}px">${String(Math.floor(i / 2)).padStart(2, "0")}:${i % 2 ? "30" : "00"}</span>`).join("")}</div>${days.map(day => {
+      const groups = overlapGroups(daySegments(all, day));
+      return `<div class="timeline-day" data-day="${day}">${Array.from({ length: 48 }, (_, i) => {
+        const a = `slot-${day}-${i}`, time = String(Math.floor(i / 2)).padStart(2, "0") + (i % 2 ? ":30" : ":00");
+        action(a, () => { selectedDay = day; editEvent(undefined, false, tokyo(day, time)); });
+        return `<button class="time-slot" data-action="${a}" style="top:${i * 30 * minutePixels}px" aria-label="${day} ${time}に個人予定を追加"></button>`;
+      }).join("")}${groups.map((group, index) => {
+        if (group.columns > maxColumns) {
+          const a = `density-${day}-${index}`;
+          action(a, () => eventChooser(day + " この時間の予定", group.segments.map(s => s.event)));
+          return `<button class="dense-events" data-action="${a}" style="top:${group.start * minutePixels}px;height:${Math.max(44, (group.end - group.start) * minutePixels)}px"><b>この時間に${group.segments.length}件</b><small>${minuteLabel(group.start)}–${minuteLabel(group.end)}</small></button>`;
+        }
+        return group.segments.map(s => {
+          const a = "event-" + s.event.id;
+          action(a, () => showEvent(s.event));
+          const duration = (s.end - s.start) * minutePixels;
+          return `<button class="timeline-event ${colorFor(s.event)} ${duration < 44 ? "short-event" : ""}" data-action="${esc(a)}" style="top:${s.start * minutePixels}px;height:${Math.max(44, duration)}px;left:calc(${100 * s.column / group.columns}% + 2px);width:calc(${100 / group.columns}% - 4px);--real-height:${duration}px" aria-label="${esc(eventKind(s.event) + ' ' + s.event.title + ' ' + eventDate(s.event) + ' ' + s.event.location)}"><span class="duration-marker" aria-hidden="true"></span><small>${s.continuesBefore ? "前日から " : ""}${minuteLabel(s.start)}–${minuteLabel(s.end)}${s.continuesAfter ? " 翌日へ" : ""}</small><strong>${esc(s.event.title)}</strong><span class="timeline-kind">${esc(eventKind(s.event))}${s.event.location ? ' · ' + esc(s.event.location) : ''}</span></button>`;
+        }).join("");
+      }).join("")}${day === dayKey() ? `<div class="now-line" style="top:${((Date.now() - Date.parse(tokyo(day))) / 60000) * minutePixels}px" aria-label="現在時刻"></div>` : ""}</div>`;
+    }).join("")}</div></div></div>`;
+  }
+  page.innerHTML = heading("予定表", "", btn("＋ 予定", "event-new", "primary") + `<details class="schedule-menu"><summary aria-label="予定表メニュー">⋯</summary><div><a href="#timetable">時間割を開く</a>${data.eventDraft ? btn("予定の下書きを再開", "event-resume") : ""}</div></details>`) + `<div class="view-tools"><div class="seg">${(["day", "three", "week", "month"] as CalendarMode[]).map(v => `<button data-action="calendar-${v}" class="${v === mode ? "selected" : ""}" aria-pressed="${v === mode}">${labels[v]}</button>`).join("")}</div></div>${dateTools(labels[mode])}${mode === "week" ? '<p class="calendar-hint">横にスクロールして全曜日を表示</p>' : ""}${content}`;
+  bindDatePicker();
+  const scroller = page.querySelector<HTMLElement>(".timeline-scroll");
+  if (scroller) {
+    const minute = initialScrollMinute(all, days, Date.now(), data.startHour);
+    scroller.scrollTop = Math.max(0, (minute - 60) * minutePixels);
+  }
+}
+function minuteLabel(value: number) {
+  return String(Math.floor(value / 60)).padStart(2, "0") + ":" + String(Math.floor(value % 60)).padStart(2, "0");
 }
 function modal(
   title: string,
@@ -441,7 +430,7 @@ const val = (f: HTMLFormElement, key: string) =>
 function dateTimeValue(iso: string) {
   return dayKey(new Date(iso)) + "T" + timeLabel(iso);
 }
-function editEvent(event?: CampusEvent, resume = false) {
+function editEvent(event?: CampusEvent, resume = false, initialStart?: string) {
   if (
     !resume &&
     data.eventDraft &&
@@ -456,8 +445,8 @@ function editEvent(event?: CampusEvent, resume = false) {
   const e = event ?? {
       id: "manual:" + uid(),
       title: "",
-      start: tokyo(selectedDay, "09:00"),
-      end: tokyo(selectedDay, "10:00"),
+      start: initialStart ?? tokyo(selectedDay, "09:00"),
+      end: initialStart ? new Date(Date.parse(initialStart) + 3600000).toISOString() : tokyo(selectedDay, "10:00"),
       location: "",
       kind: "personal",
       allDay: false,
@@ -549,9 +538,8 @@ function editEvent(event?: CampusEvent, resume = false) {
   form.addEventListener("change", capture);
   d.querySelector("[data-action=event-map]")?.addEventListener("click", () => {
     const room = (d.querySelector("[name=location]") as HTMLInputElement).value;
-    d.close();
-    location.hash = "more";
-    setTimeout(() => openMap(room), 0);
+    capture();
+    showLocation(room);
   });
   d.querySelector("[data-action=event-articles]")?.addEventListener(
     "click",
@@ -1273,7 +1261,7 @@ function exportData() {
 }
 function openMap(room = "") {
   const resolved = resolveRoom(room);
-  let selected = resolved.ids[0] ?? "",
+  let selected = resolved.kind === "matched" ? resolved.ids[0] : "",
     query = room;
   const d = modal(
     "浜松キャンパスの教室・建物",
@@ -1431,14 +1419,14 @@ function editLinks() {
 }
 root.innerHTML = `<div class="background"></div><header class="top"><a href="#home" class="brand mutedlink">▣ Uni Pocket</a><span class="online" id="connection"></span></header><div id="error" class="notice error" role="alert" hidden></div><div class="page"><div class="statusline row between"><span id="save-status" role="status" aria-live="polite">データを読み込んでいます…</span><button id="save-retry" data-action="save-global" class="smallbtn" hidden>再試行</button></div><main id="page"></main></div><nav class="nav" aria-label="メインナビゲーション">${[
   ["home", "ホーム"],
-  ["timetable", "時間割"],
+  ["calendar", "予定表"],
   ["articles", "記事"],
   ["notes", "メモ"],
   ["more", "その他"],
 ]
   .map(
     ([id, t]) =>
-      `<a href="#${id}"><span class="symbol" aria-hidden="true">${icon(id)}</span>${t}</a>`,
+      `<a href="#${id}"><span class="symbol" aria-hidden="true">${icon(id === "calendar" ? "timetable" : id)}</span>${t}</a>`,
   )
   .join("")}</nav>`;
 page = root.querySelector("#page")!;
@@ -1470,6 +1458,26 @@ window.addEventListener("hashchange", () => {
   }
   render();
 });
+let calendarResizeTimer: ReturnType<typeof setTimeout> | undefined;
+window.addEventListener("resize", () => {
+  clearTimeout(calendarResizeTimer);
+  calendarResizeTimer = setTimeout(() => {
+    if (route() !== "calendar") return;
+    const previous = page.querySelector<HTMLElement>(".timeline-scroll");
+    const top = previous?.scrollTop, left = previous?.scrollLeft;
+    render();
+    const current = page.querySelector<HTMLElement>(".timeline-scroll");
+    if (current && top !== undefined) { current.scrollTop = top; current.scrollLeft = left ?? 0; }
+  }, 100);
+});
+setInterval(() => {
+  const now = Date.now(), today = dayKey(new Date(now));
+  page.querySelectorAll<HTMLElement>(".now-line").forEach(line => {
+    line.hidden = line.parentElement?.dataset.day !== today;
+    line.style.top = ((now - Date.parse(tokyo(today))) / 60000) * minutePixels + "px";
+  });
+  if (route() === "home" && !dialog?.open) render();
+}, 60000);
 window.addEventListener("beforeunload", (e) => {
   if (saves.dirty || busy || submitting) {
     e.preventDefault();
