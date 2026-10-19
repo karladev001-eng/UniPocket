@@ -1,4 +1,6 @@
-import { ViewEpoch, updateBookmark } from "./article-request";
+import { MapViewport } from "./map-viewport";
+import { setEventMemo, eventMemoText } from "./event-memos";
+import { ViewEpoch, updateBookmark, appendUnique } from "./article-request";
 import { commitEvent } from "./event-editor";
 import { submitNewArticle } from "./article-submit";
 import "./style.css";
@@ -86,6 +88,8 @@ let page = document.createElement("main"),
   status: HTMLElement,
   errorBox: HTMLElement,
   dialog: HTMLDialogElement | undefined;
+let memoSaveStatus: ((state: string, reason?: unknown) => void) | undefined;
+let lastSaveError: unknown;
 const store = new LocalStore();
 const saves = new SaveQueue(store, () => data);
 function error(e: unknown) {
@@ -100,6 +104,7 @@ function statusText(s: string) {
 function changed() {
   if (frozen) throw Error("更新の保存中です。少し待ってください。");
   saves.changed();
+  memoSaveStatus?.("保存中");
   statusText("保存中…");
   root.querySelector<HTMLElement>("#save-retry")!.hidden = true;
   clearTimeout(saveTimer);
@@ -109,8 +114,11 @@ async function save() {
   clearTimeout(saveTimer);
   try {
     statusText("保存中…");
+    memoSaveStatus?.("保存中");
     await saves.flush();
     statusText(saves.dirty ? "保存中…" : "この端末に保存済み");
+    memoSaveStatus?.(saves.dirty ? "保存中" : "保存済み");
+    lastSaveError = undefined;
     root.querySelector<HTMLElement>("#save-retry")!.hidden = true;
     updates?.activity(true);
     return !saves.dirty;
@@ -120,6 +128,8 @@ async function save() {
   }
 }
 function reportSaveFailure(e: unknown) {
+  lastSaveError = e;
+  memoSaveStatus?.("保存できません", e);
   statusText("保存できませんでした · 入力は保持しています");
   root.querySelector<HTMLElement>("#save-retry")!.hidden = false;
   const recovery = dialog?.querySelector<HTMLElement>("#note-save-recovery");
@@ -257,12 +267,11 @@ function renderHome() {
   action("home-import", openImport);
   action("event-new", () => { selectedDay = today; editEvent(); });
   action("home-timetable", () => { selectedDay = today; weekend = weekDay(today) > 5; navigate("timetable"); });
-  action("home-calendar", () => { selectedDay = today; navigate("calendar"); });
   if (next) action("event-" + next.id, () => showEvent(next));
   page.innerHTML = heading("ホーム", "", btn("＋ 予定", "event-new", "timetable-entry")) +
-    `<div class="date-line"><strong>${esc(new Intl.DateTimeFormat("ja-JP", { month: "long", day: "numeric", weekday: "long", timeZone: "Asia/Tokyo" }).format(now))}</strong>${btn('▦ 時間割を見る', "home-timetable", "timetable-entry")}</div>` +
+    `<div class="date-line"><strong>${esc(new Intl.DateTimeFormat("ja-JP", { month: "long", day: "numeric", weekday: "long", timeZone: "Asia/Tokyo" }).format(now))}</strong>${btn(icon('clock') + ' 時間割を見る', "home-timetable", "timetable-entry")}</div>` +
     (next ? `<section class="next-preview"><button class="next-main" data-action="${esc("event-" + next.id)}"><span class="next-caption">${Date.parse(next.start) <= now.getTime() ? "いまの予定" : "次の予定"} · ${esc(dayKey(new Date(next.start)) === today ? "今日" : dayKey(new Date(next.start)))}</span><span class="next-time">${esc(timeLabel(next.start))}<small>–${esc(timeLabel(next.end))}</small></span><strong>${esc(next.title)}</strong></button>${locationControl(next.location, "next-" + next.id)}</section>` : `<p class="next-preview no-next">次の予定はありません。</p>`) +
-    `<section class="today-schedule"><div class="sectiontitle"><h2>今日の予定 <span class="tag">${todayEvents.length}件</span></h2>${btn("予定表へ", "home-calendar", "smallbtn")}</div><div class="home-events">${todayEvents.map(compactEvent).join("") || empty("今日の予定はありません。")}</div>${!all.length ? `<p class="import-hint">${btn("時間割PDFを取り込む", "home-import")}</p>` : ""}</section>
+    `<section class="today-schedule"><div class="sectiontitle"><h2>今日の予定 <span class="tag">${todayEvents.length}件</span></h2></div><div class="home-events">${todayEvents.map(compactEvent).join("") || empty("今日の予定はありません。")}</div>${!all.length ? `<p class="import-hint">${btn("時間割PDFを取り込む", "home-import")}</p>` : ""}</section>
     <details id="home-facilities" class="home-extra"><summary>キャンパスの営業時間</summary><p class="muted">通常期の目安です。臨時変更は公式情報で確認してください。</p>${data.facilities.slice(0, 4).map(f => `<p><b>${esc(f.title)}</b> · ${esc(facilityHours(f, today) || "休業")}</p>`).join("")}<a href="#more">施設を設定 →</a></details>
     <section class="section"><h2>固定したメモ</h2><div class="cards">${data.notes.filter(n => data.pinned.includes(n.id)).map(noteCard).join("") || empty("メモを固定するとここに表示されます。")}</div></section>
     ${homeMap()}
@@ -278,10 +287,45 @@ function renderHome() {
 }
 function showEvent(e: CampusEvent) {
   const canMap = !["missing", "online"].includes(resolveRoom(e.location).kind);
-  const d = modal(e.title, `<p class="tag">${esc(eventKind(e))}</p><p class="event-detail-date">${esc(eventDate(e))}</p><div class="detail-location">${canMap ? `<button type="button" id="detail-map" class="location-link">${esc(e.location)} ↗ キャンパスマップ</button>` : esc(e.location || "場所未設定")}</div><p>${data.occurrenceEdits.some(x => x.id === e.id) || data.courseEdits.some(x => x.id === courseID(data, e)) ? "個人修正が適用されています。" : ""}</p><button type="button" id="detail-edit" class="primary">予定を編集</button>`);
-  d.querySelector("#detail-map")?.addEventListener("click", () => showLocation(e.location));
-  d.querySelector("#detail-edit")!.addEventListener("click", () => editEvent(e));
+  const d = modal(e.title, `<div class="event-meta">${esc(eventDate(e))}<div class="detail-location">${canMap ? `<button type="button" id="detail-map" class="location-link">${esc(e.location)} ↗</button>` : esc(e.location || "場所未設定")}</div></div><label class="event-memo-label" for="event-memo">この予定のメモ</label><textarea id="event-memo" maxlength="5000" rows="10">${esc(eventMemoText(data, e.id))}</textarea><div class="memo-save-line"><span id="event-memo-status" role="status" aria-live="polite">保存済み</span><span id="event-memo-count">${eventMemoText(data, e.id).length} / 5000</span></div><div id="event-memo-recovery" class="notice error" hidden><p id="event-memo-error"></p><button type="button" id="event-memo-retry">再試行</button><button type="button" id="event-memo-export">入力を書き出す</button></div><button type="button" id="detail-edit" class="text-action">予定を編集</button>`, undefined, "保存", { singleClose: true, className: "event-detail" });
+  const form = d.querySelector("form")!, input = d.querySelector<HTMLTextAreaElement>("#event-memo")!;
+  const status = (state: string, reason?: unknown) => {
+    d.querySelector("#event-memo-status")!.textContent = state;
+    const recovery = d.querySelector<HTMLElement>("#event-memo-recovery")!;
+    recovery.hidden = state !== "保存できません";
+    if (reason) d.querySelector("#event-memo-error")!.textContent = reason instanceof Error ? reason.message : String(reason);
+  };
+  memoSaveStatus = status;
+  if (saves.dirty) status(lastSaveError ? "保存できません" : "保存中", lastSaveError);
+  input.oninput = () => {
+    setEventMemo(data, e.id, input.value);
+    d.querySelector("#event-memo-count")!.textContent = `${input.value.length} / 5000`;
+    changed();
+  };
+  let leaving = false;
+  const leave = async (next: () => void = () => { d.close(); render(); }) => {
+    if (leaving || composing || frozen) return;
+    leaving = true;
+    form.inert = true;
+    submitting++;
+    try {
+      if (await save()) next();
+    } finally {
+      submitting--;
+      form.inert = false;
+      leaving = false;
+      updates?.activity();
+    }
+  };
+  d.addEventListener("requestclose", ev => { ev.preventDefault(); void leave(); });
+  d.addEventListener("cancel", ev => { ev.preventDefault(); void leave(); });
+  d.addEventListener("close", () => { if (memoSaveStatus === status) memoSaveStatus = undefined; });
+  d.querySelector("#detail-map")?.addEventListener("click", () => void leave(() => showLocation(e.location)));
+  d.querySelector("#detail-edit")!.addEventListener("click", () => void leave(() => editEvent(e)));
+  d.querySelector<HTMLButtonElement>("#event-memo-retry")!.onclick = () => void save();
+  d.querySelector<HTMLButtonElement>("#event-memo-export")!.onclick = exportData;
 }
+
 function eventChooser(title: string, all: CampusEvent[]) {
   const d = modal(title, `<div class="stack">${all.map((e, i) => `<button type="button" data-choose="${i}"><b>${esc(e.title)}</b><br><small>${esc(eventKind(e))} · ${esc(eventDate(e))}<br>${esc(e.location || "場所未設定")}</small></button>`).join("")}</div>`);
   d.querySelectorAll<HTMLButtonElement>("[data-choose]").forEach(b => b.onclick = () => showEvent(all[Number(b.dataset.choose)]));
@@ -381,19 +425,23 @@ function modal(
   content: string,
   submit?: (form: HTMLFormElement) => Promise<void> | void,
   submitText = "保存",
+  options: { singleClose?: boolean; className?: string } = {},
 ) {
   if (dialog) {
     dialog.close();
     dialog.remove();
   }
   dialog = document.createElement("dialog");
-  dialog.className = "modal";
-  dialog.innerHTML = `<form><div class="row between"><h2>${esc(title)}</h2><button type="button" data-close aria-label="閉じる">×</button></div>${content}<div role="alert" class="modal-error error notice" hidden></div><div class="footer"><button type="button" data-close>閉じる</button>${submit ? `<button class="primary" type="submit">${esc(submitText)}</button>` : ""}</div></form>`;
+  dialog.className = "modal " + (options.className ?? "");
+  dialog.innerHTML = `<form><div class="modal-heading"><h2>${esc(title)}</h2><button type="button" data-close aria-label="${options.className === "map-modal" ? "地図を閉じる" : "閉じる"}">×</button></div>${content}<div role="alert" class="modal-error error notice" hidden></div>${options.singleClose ? "" : `<div class="footer"><button type="button" data-close>閉じる</button>${submit ? `<button class="primary" type="submit">${esc(submitText)}</button>` : ""}</div>`}</form>`;
   document.body.append(dialog);
   dialog
     .querySelectorAll("[data-close]")
-    .forEach((b) => b.addEventListener("click", () => dialog?.close()));
+    .forEach((b) => b.addEventListener("click", () => {
+      if (current.dispatchEvent(new Event("requestclose", { cancelable: true }))) current.close();
+    }));
   const current = dialog;
+  if (!submit) current.querySelector("form")!.onsubmit = e => e.preventDefault();
   current.addEventListener("close", () => {
     current.remove();
     if (dialog === current) dialog = undefined;
@@ -867,6 +915,7 @@ const articleFilters = {
   authorId: "",
   bookmarked: "",
 };
+let articleSort: "popular" | "newest" = "popular";
 let priorFilters: typeof articleFilters | undefined,
   articles: Article[] = [],
   nextCursor: string | null = null,
@@ -877,53 +926,67 @@ let priorFilters: typeof articleFilters | undefined,
   lastFilterKey = "",
   searchTimer: ReturnType<typeof setTimeout> | undefined;
 function articleKey() {
-  return JSON.stringify(articleFilters);
+  return JSON.stringify({ ...articleFilters, sort: articleFilters.bookmarked ? "newest" : articleSort });
 }
 async function loadArticles(more = false) {
-  const key = articleKey(),
-    request = ++articleRequest;
-  articleLoading = true;
-  articleError = "";
-  if (!more && key !== lastFilterKey) {
-    articles = [];
-    articleFetched = "";
-  }
+  if (more && (articleLoading || !nextCursor)) return;
+  const key = articleKey(), request = ++articleRequest, filter = { ...articleFilters },
+    sort = filter.bookmarked ? "newest" : articleSort, cursor = more ? nextCursor : null;
+  const isCurrent = pageEpoch.scope(location.hash, () => location.hash);
+  const current = () => request === articleRequest && key === articleKey() && isCurrent() && route() === "articles" && !location.hash.split("/")[1];
+  articleLoading = true; articleError = "";
+  if (!more) nextCursor = null;
+  if (!more && key !== lastFilterKey) { articles = []; articleFetched = ""; }
   lastFilterKey = key;
   updateArticleList();
   try {
-    if (articleFilters.bookmarked) user = await session();
-    const params = new URLSearchParams(
-      Object.entries(articleFilters).filter(([, v]) => v),
-    );
-    params.set("limit", "20");
-    if (more && nextCursor) params.set("cursor", nextCursor);
-    const result = await api<{
-      articles: Article[];
-      nextCursor: string | null;
-    }>("/articles?" + params);
-    if (request !== articleRequest) return;
-    articles = more ? [...articles, ...result.articles] : result.articles;
-    nextCursor = result.nextCursor;
-    articleFetched = new Date().toISOString();
+    if (filter.bookmarked) user = await session();
+    if (!current()) return;
+    const params = new URLSearchParams(Object.entries(filter).filter(([, v]) => v));
+    params.set("sort", sort); params.set("limit", "20");
+    if (cursor) params.set("cursor", cursor);
+    const result = await api<{ articles: Article[]; nextCursor: string | null }>("/articles?" + params);
+    if (!current()) return;
+    articles = appendUnique(more ? articles : [], result.articles);
+    nextCursor = result.nextCursor; articleFetched = new Date().toISOString();
   } catch (e) {
-    if (request !== articleRequest) return;
+    if (!current()) return;
     articleError = e instanceof Error ? e.message : String(e);
   } finally {
-    if (request === articleRequest) {
-      articleLoading = false;
-      updateArticleList();
-    }
+    if (current()) { articleLoading = false; updateArticleList(); }
   }
+}
+function articleStats(a: Article, actionName: string) {
+  return `<div class="article-stats"><span class="view-count" role="img" aria-label="閲覧${esc(a.viewCount)}回">${icon("eye")}<span aria-hidden="true">${esc(a.viewCount)}</span></span><button type="button" class="bookmark-toggle" data-action="${esc(actionName)}" aria-pressed="${a.bookmarked}" aria-label="ブックマーク${esc(a.bookmarkCount)}件、${a.bookmarked ? "解除する" : "登録する"}">${icon("bookmark")}<span aria-hidden="true">${esc(a.bookmarkCount)}</span></button></div>`;
 }
 function articleCard(a: Article) {
   action("article-" + a.id, () => (location.hash = "articles/" + a.id));
   if (namedAuthor(a.authorName)) action("author-" + a.id, () => filterAuthor(a.authorId));
-  return `<article class="card"><div class="row between"><span class="tag">${esc(a.category || "未分類")}</span>${a.bookmarked ? '<span class="pin" aria-label="ブックマーク済み">◆</span>' : ""}</div><h3 style="margin-top:14px"><button class="article-title" data-action="article-${esc(a.id)}">${esc(a.title)}</button></h3><p class="muted">${esc(a.summary)}</p>${namedAuthor(a.authorName) ? `<button class="author" data-action="author-${esc(a.id)}">${esc(a.authorName)}</button>` : '<span class="muted">匿名ユーザー</span>'}<div class="stats"><span>閲覧 ${esc(a.viewCount)}</span><span>ブックマーク ${esc(a.bookmarkCount)}</span></div></article>`;
+  action("bookmark-" + a.id, async () => {
+    const isCurrent = pageEpoch.scope(location.hash, () => location.hash);
+    const b = page.querySelector<HTMLButtonElement>(`[data-action="bookmark-${CSS.escape(a.id)}"]`);
+    if (b) b.disabled = true;
+    busy++;
+    try {
+      await updateBookmark(a, async () => {
+        user = await session();
+        return api<{ bookmarked: boolean; bookmarkCount: number }>("/articles/" + encodeURIComponent(a.id) + "/bookmark", a.bookmarked ? "DELETE" : "PUT", a.bookmarked ? undefined : {});
+      }, isCurrent, () => {
+        // Update only this control: save/remove never reorders or replaces the reading card.
+        if (!b?.isConnected) return;
+        b.setAttribute("aria-pressed", String(a.bookmarked));
+        b.setAttribute("aria-label", `ブックマーク${a.bookmarkCount}件、${a.bookmarked ? "解除する" : "登録する"}`);
+        b.querySelector("span")!.textContent = String(a.bookmarkCount);
+      });
+    } catch (e) { if (isCurrent()) error(e); }
+    finally { if (b) b.disabled = false; busy--; updates?.activity(); }
+  });
+  return `<article class="card article-card"><span class="tag">${esc(a.category || "未分類")}</span><h3><button class="article-title" data-action="article-${esc(a.id)}">${esc(a.title)}</button></h3><p class="article-summary">${esc(a.summary)}</p><div class="article-byline">${namedAuthor(a.authorName) ? `<button class="author" data-action="author-${esc(a.id)}">${esc(a.authorName)}</button>` : '<span class="muted">匿名ユーザー</span>'}</div>${articleStats(a, "bookmark-" + a.id)}</article>`;
 }
+
 function filterAuthor(id: string) {
   priorFilters = { ...articleFilters };
   articleFilters.authorId = id;
-  articleFilters.bookmarked = "";
   render();
 }
 function updateArticleList() {
@@ -933,53 +996,52 @@ function updateArticleList() {
   action("articles-retry", () => loadArticles());
   action("articles-more", () => loadArticles(true));
 }
+function filterCount() { return [articleFilters.category, articleFilters.courseId, articleFilters.authorId].filter(Boolean).length; }
+function clearArticleConditions() {
+  articleFilters.category = articleFilters.courseId = articleFilters.authorId = "";
+  priorFilters = undefined;
+}
+function articleFilterSheet() {
+  const draft = { ...articleFilters }, courses = data.imports.flatMap(p => p.courses);
+  const categories = [...new Set(["授業", "学生生活", "学習", "その他", articleFilters.category].filter(Boolean))];
+  const options = (name: string, items: string[][], value: string) => items.map(([id, label]) => `<label class="filter-option"><span>${esc(label)}</span><input type="radio" name="${name}" value="${esc(id)}" ${id === value ? "checked" : ""}><span class="filter-check" aria-hidden="true">✓</span></label>`).join("");
+  const d = modal("記事を絞り込む", `<fieldset><legend>カテゴリ</legend>${options("category", [["", "すべて"], ...categories.map(c => [c, c])], draft.category)}</fieldset><fieldset><legend>講義</legend>${options("courseId", [["", "すべて"], ...courses.map(c => [c.id, c.title]), ...(draft.courseId && !courses.some(c => c.id === draft.courseId) ? [[draft.courseId, "現在の講義条件"]] : [])], draft.courseId)}</fieldset>${draft.authorId ? '<label class="filter-option"><span>選択中の投稿者で絞り込む</span><input type="checkbox" name="keepAuthor" checked></label>' : ""}<button type="button" id="article-filter-reset" class="text-action">条件を解除</button>`, form => {
+    articleFilters.category = val(form, "category");
+    articleFilters.courseId = val(form, "courseId");
+    articleFilters.authorId = new FormData(form).has("keepAuthor") ? draft.authorId : "";
+    d.close(); render();
+  }, "適用", { className: "article-filter" });
+  d.querySelector<HTMLButtonElement>("#article-filter-reset")!.onclick = () => { clearArticleConditions(); d.close(); render(); };
+}
 function renderArticles() {
   const id = location.hash.split("/")[1];
-  if (id) {
-    void renderArticleDetail(id);
-    return;
-  }
+  if (id) { void renderArticleDetail(id); return; }
   action("article-new", () => articleForm());
+  action("article-filters", articleFilterSheet);
+  action("article-clear-filters", () => { clearArticleConditions(); render(); });
   action("author-back", () => {
-    if (priorFilters) Object.assign(articleFilters, priorFilters);
-    else articleFilters.authorId = "";
-    priorFilters = undefined;
-    render();
+    if (priorFilters) Object.assign(articleFilters, priorFilters); else articleFilters.authorId = "";
+    priorFilters = undefined; render();
   });
-  const courses = data.imports.flatMap((p) => p.courses);
-  page.innerHTML =
-    heading(
-      "記事",
-      "CAMPUS READING",
-      btn("＋ Notion記事を登録", "article-new", "primary"),
-    ) +
-    `<p class="muted">Notionで公開されたページを共有。本文はNotionから表示します。</p>${articleFilters.authorId ? `<div class="notice">投稿者で絞り込み中（ID: ${esc(articleFilters.authorId.slice(0, 12))}…） ${btn("元の検索へ戻る", "author-back", "smallbtn")}</div>` : ""}<div class="filters stack"><div class="row"><input id="article-query" type="search" placeholder="タイトル・紹介文で検索" value="${esc(articleFilters.q)}" aria-label="記事検索"><select id="article-category" aria-label="カテゴリ">${[["", "カテゴリすべて"], ["授業", "授業"], ["学生生活", "学生生活"], ["学習", "学習"], ["その他", "その他"], ...(articleFilters.category && !["授業", "学生生活", "学習", "その他"].includes(articleFilters.category) ? [[articleFilters.category, articleFilters.category]] : [])].map(([v, l]) => `<option value="${esc(v)}" ${v === articleFilters.category ? "selected" : ""}>${esc(l)}</option>`).join("")}</select><select id="article-course" aria-label="講義">${[["", "講義すべて"], ...courses.map((c) => [c.id, c.title])].map(([v, l]) => `<option value="${esc(v)}" ${v === articleFilters.courseId ? "selected" : ""}>${esc(l)}</option>`).join("")}</select></div><div class="seg">${btn("すべて", "articles-all", !articleFilters.bookmarked ? "selected" : "")}${btn("ブックマーク", "articles-bookmarks", articleFilters.bookmarked ? "selected" : "")}</div></div><div id="article-list"></div>`;
-  action("articles-all", () => {
-    articleFilters.bookmarked = "";
-    render();
+  const tab = articleFilters.bookmarked ? "bookmarks" : articleSort, count = filterCount();
+  page.innerHTML = heading("記事", "", btn("＋ 登録", "article-new", "text-action")) +
+    `<div class="article-search-row"><input id="article-query" type="search" placeholder="タイトル・紹介文で検索" value="${esc(articleFilters.q)}" aria-label="記事検索"><button type="button" class="article-filter-button" data-action="article-filters" aria-label="記事を絞り込む、${count}件適用">${icon("sliders")}<span>${count || ""}</span></button></div><div class="article-tabs" role="group" aria-label="記事の並びと対象">${[["popular", "人気"], ["newest", "新着"], ["bookmarks", "ブックマーク"]].map(([value, label]) => `<button type="button" data-action="articles-${value}" aria-pressed="${tab === value}" class="${tab === value ? "selected" : ""}">${label}</button>`).join("")}</div>${count ? `<div class="article-filter-state">${count}件の条件を適用 ${btn("解除", "article-clear-filters", "text-action")}${articleFilters.authorId && priorFilters ? btn("元の検索へ", "author-back", "text-action") : ""}</div>` : ""}<div id="article-list"></div>`;
+  for (const value of ["popular", "newest", "bookmarks"] as const) action("articles-" + value, () => {
+    articleFilters.bookmarked = value === "bookmarks" ? "1" : "";
+    if (value !== "bookmarks") articleSort = value;
+    clearTimeout(searchTimer); render();
   });
-  action("articles-bookmarks", () => {
-    articleFilters.bookmarked = "1";
-    render();
-  });
-  page.querySelector<HTMLInputElement>("#article-query")!.oninput = (e) => {
+  page.querySelector<HTMLInputElement>("#article-query")!.oninput = e => {
     articleFilters.q = (e.target as HTMLInputElement).value;
-    clearTimeout(searchTimer);
-    searchTimer = setTimeout(() => void loadArticles(), 350);
+    // Invalidate now, before the debounce, so an older in-flight result cannot flash.
+    articleRequest++; articleLoading = false; nextCursor = null; articles = []; articleError = "";
+    updateArticleList(); clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => { if (route() === "articles" && !location.hash.split("/")[1]) void loadArticles(); }, 350);
   };
-  page.querySelector<HTMLSelectElement>("#article-category")!.onchange = (
-    e,
-  ) => {
-    articleFilters.category = (e.target as HTMLSelectElement).value;
-    void loadArticles();
-  };
-  page.querySelector<HTMLSelectElement>("#article-course")!.onchange = (e) => {
-    articleFilters.courseId = (e.target as HTMLSelectElement).value;
-    void loadArticles();
-  };
-  updateArticleList();
-  void loadArticles();
+  clearTimeout(searchTimer);
+  updateArticleList(); void loadArticles();
 }
+
 async function renderArticleDetail(id: string) {
   const isCurrent = pageEpoch.scope("#articles/" + id, () => location.hash);
   page.innerHTML =
@@ -1064,7 +1126,7 @@ async function renderArticleDetail(id: string) {
     }
     page.innerHTML =
       heading(a.title, "NOTION ARTICLE") +
-      `<div class="row"><a href="#articles">‹ 元の一覧・検索へ</a><span class="tag">${esc(a.category || "未分類")}</span></div><section class="card section"><p>${esc(a.summary)}</p><div class="row between">${namedAuthor(a.authorName) ? `<button class="author" data-action="detail-author">${esc(a.authorName)}</button>` : '<span class="muted">匿名ユーザー</span>'}${btn(a.bookmarked ? "◆ ブックマーク解除" : "◇ ブックマーク", "detail-bookmark", "primary")}</div><div class="stats"><span>閲覧 <span class="count">${esc(a.viewCount)}</span></span><span>ブックマーク <span class="count">${esc(a.bookmarkCount)}</span></span></div><p class="muted">閲覧はこのアプリ内で開いた記録（日本時間1日1回）。保存は匿名ブラウザID単位の件数です。</p>${a.canEdit ? `<hr><div class="row">${btn("登録情報を編集", "detail-edit")}${btn("登録を削除", "detail-delete", "danger")}</div>` : ""}</section><div class="notice"><p>${navigator.onLine ? "Notionの読込には通信が必要です。公開・表示できるかをここで確認してください。" : "オフラインです。通信が戻ってから再読み込みしてください。"}</p><div class="row">${embedURL ? btn("再読み込み", "frame-retry") : ""}${publicURL ? `<a href="${esc(publicURL)}" target="_blank" rel="noopener noreferrer">Notionで開く ↗</a>` : ""}</div><p class="muted">非公開化・削除・表示制限で読めない場合は元ページを開いてください。読込完了イベントから公開状態は判定しません。</p></div>${embedURL ? `<iframe class="article-frame" title="${esc(a.title)} — Notion本文" src="${esc(embedURL)}" sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox" referrerpolicy="strict-origin-when-cross-origin" allow="fullscreen"></iframe>` : empty("公式埋め込みURLが未登録です。「Notionで開く」から本文を読めます。")}`;
+      `<div class="row"><a href="#articles">‹ 元の一覧・検索へ</a><span class="tag">${esc(a.category || "未分類")}</span></div><section class="card section"><p>${esc(a.summary)}</p><div class="row between">${namedAuthor(a.authorName) ? `<button class="author" data-action="detail-author">${esc(a.authorName)}</button>` : '<span class="muted">匿名ユーザー</span>'}</div>${articleStats(a, "detail-bookmark")}<p class="muted">閲覧はこのアプリ内で開いた記録（日本時間1日1回）。保存は匿名ブラウザID単位の件数です。</p>${a.canEdit ? `<hr><div class="row">${btn("登録情報を編集", "detail-edit")}${btn("登録を削除", "detail-delete", "danger")}</div>` : ""}</section><div class="notice"><p>${navigator.onLine ? "Notionの読込には通信が必要です。公開・表示できるかをここで確認してください。" : "オフラインです。通信が戻ってから再読み込みしてください。"}</p><div class="row">${embedURL ? btn("再読み込み", "frame-retry") : ""}${publicURL ? `<a href="${esc(publicURL)}" target="_blank" rel="noopener noreferrer">Notionで開く ↗</a>` : ""}</div><p class="muted">非公開化・削除・表示制限で読めない場合は元ページを開いてください。読込完了イベントから公開状態は判定しません。</p></div>${embedURL ? `<iframe class="article-frame" title="${esc(a.title)} — Notion本文" src="${esc(embedURL)}" sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox" referrerpolicy="strict-origin-when-cross-origin" allow="fullscreen"></iframe>` : empty("公式埋め込みURLが未登録です。「Notionで開く」から本文を読めます。")}`;
   };
   draw();
   try {
@@ -1261,55 +1323,104 @@ function exportData() {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 function openMap(room = "") {
-  const resolved = resolveRoom(room);
-  let selected = resolved.kind === "matched" ? resolved.ids[0] : "",
-    query = room;
-  const d = modal(
-    "浜松キャンパスの教室・建物",
-    `<label>建物・登録済み教室を検索<input id="map-query" type="search" value="${esc(query)}" placeholder="例: 情1、登録済み教室"></label><p class="muted" id="resolution"></p><div class="building-list"></div><div class="mapwrap"><img src="/campus-map.png" alt="浜松キャンパス北向き概略地図"><svg viewBox="${catalog.viewBox.join(" ")}" aria-label="選択した建物の位置" role="img"></svg></div><div id="building-info"></div><p class="muted">${esc(catalog.accuracy)} · 出典日 ${catalog.sourceDate}。不明な教室から建物を推測しません。</p>`,
-  );
-  const draw = () => {
-    const b = catalog.buildings.find((b) => b.id === selected),
-      matches = searchBuildings(query);
-    d.querySelector(".building-list")!.innerHTML =
-      matches
-        .map(
-          (b) =>
-            `<button type="button" data-building="${b.id}" class="${b.id === selected ? "primary" : ""}">${esc(b.name)} <small>${esc(b.category)}</small></button>`,
-        )
-        .join("") || empty("該当する建物はありません。");
-    const r = resolveRoom(query);
-    d.querySelector("#resolution")!.textContent = query
-      ? ({
-          matched: "登録済み教室・建物に一致しました。",
-          ambiguous: "複数候補があります。建物を選択してください。",
-          missing: "",
-          online: "オンラインの予定です。地図上の教室はありません。",
-          unknown: "教室は未登録です。下の建物名・別名で検索できます。",
-        }[r.kind] ?? "")
-      : "";
-    d.querySelector("svg")!.innerHTML = b
-      ? `${b.mapPolygon.length ? `<polygon points="${b.mapPolygon.map((p) => p.join(",")).join(" ")}"/>` : ""}<circle cx="${b.mapCenter[0]}" cy="${b.mapCenter[1]}" r="13"/>`
-      : "";
-    d.querySelector("#building-info")!.innerHTML = b
-      ? `<div class="notice"><b>${esc(b.name)}</b><p class="muted">${esc(b.aliases.join(" / "))}</p></div>`
-      : "";
-    d.querySelectorAll<HTMLButtonElement>("[data-building]").forEach(
-      (el) =>
-        (el.onclick = () => {
-          selected = el.dataset.building!;
-          draw();
-        }),
-    );
+  let query = room || mapLocation, selected = mapBuilding;
+  if (!selected) { const r = resolveRoom(query); selected = r.kind === "matched" ? r.ids[0] : ""; }
+  let suggestions = false, active = -1;
+  const viewport = new MapViewport(catalog.viewBox);
+  const initial = catalog.buildings.find(b => b.id === selected);
+  if (initial) viewport.center(initial.mapCenter);
+  const [mx, my, mw, mh] = catalog.viewBox;
+  const d = modal("キャンパスマップ", `<div class="map-search"><input id="map-query" type="text" inputmode="search" value="${esc(query)}" placeholder="建物・登録済み教室" aria-label="建物・登録済み教室を検索" role="combobox" aria-controls="map-suggestions" aria-expanded="false" autocomplete="off"><button type="button" id="map-clear" aria-label="検索語を消す" ${query ? "" : "hidden"}>×</button><div id="map-suggestions" class="map-suggestions" role="listbox" aria-label="建物の候補" hidden></div></div><p id="map-state" class="map-state" role="status" hidden></p><div class="sr-only" id="map-announcement" aria-live="polite"></div><div class="map-viewport"><svg class="map-canvas" viewBox="${viewport.box.join(" ")}" tabindex="0" role="img" aria-label="浜松キャンパスの地図"><image href="/campus-map.png" x="${mx}" y="${my}" width="${mw}" height="${mh}"/><g id="map-highlight"></g></svg><div class="map-zoom"><button type="button" id="map-plus" aria-label="地図を拡大">＋</button><button type="button" id="map-minus" aria-label="地図を縮小">−</button><button type="button" id="map-reset">全体</button></div><div id="building-info" class="map-selected" hidden></div></div>`, undefined, "保存", { singleClose: true, className: "map-modal" });
+  const input = d.querySelector<HTMLInputElement>("#map-query")!, list = d.querySelector<HTMLElement>("#map-suggestions")!, canvas = d.querySelector<SVGSVGElement>(".map-canvas")!;
+  const paintViewport = () => canvas.setAttribute("viewBox", viewport.box.join(" "));
+  const matches = () => query.trim() && resolveRoom(query).kind !== "online" ? searchBuildings(query) : [];
+  const choose = (id: string) => {
+    selected = id; mapBuilding = id; mapLocation = query;
+    suggestions = false; active = -1;
+    const b = catalog.buildings.find(b => b.id === id)!;
+    viewport.center(b.mapCenter);
+    input.blur(); paint();
+    d.querySelector("#map-announcement")!.textContent = b.name + "を選択しました。";
   };
-  draw();
-  d.querySelector<HTMLInputElement>("#map-query")!.oninput = (e) => {
-    query = (e.target as HTMLInputElement).value;
-    const r = resolveRoom(query);
-    selected = r.kind === "matched" ? r.ids[0] : "";
-    draw();
+  const paint = () => {
+    const found = matches(), b = catalog.buildings.find(b => b.id === selected), open = suggestions && !!query.trim() && !!found.length;
+    list.hidden = !open;
+    list.innerHTML = open ? found.map((b, i) => `<button type="button" role="option" id="map-option-${i}" data-building="${b.id}" aria-selected="${i === active}">${esc(b.name)}</button>`).join("") : "";
+    input.setAttribute("aria-expanded", String(open));
+    if (open && active >= 0) input.setAttribute("aria-activedescendant", "map-option-" + active);
+    else input.removeAttribute("aria-activedescendant");
+    d.querySelector<HTMLButtonElement>("#map-clear")!.hidden = !query;
+    const state = d.querySelector<HTMLElement>("#map-state")!;
+    state.textContent = query.trim() && !b ? resolveRoom(query).kind === "online" ? "オンライン" : !found.length ? "見つかりません" : "" : "";
+    state.hidden = !state.textContent;
+    d.querySelector("#map-highlight")!.innerHTML = b ? `${b.mapPolygon.length ? `<polygon points="${b.mapPolygon.map(p => p.join(",")).join(" ")}"/>` : ""}<circle cx="${b.mapCenter[0]}" cy="${b.mapCenter[1]}" r="13"/>` : "";
+    const info = d.querySelector<HTMLElement>("#building-info")!;
+    info.textContent = b?.name ?? ""; info.hidden = !b;
+    list.querySelectorAll<HTMLButtonElement>("[data-building]").forEach(button => button.onclick = () => choose(button.dataset.building!));
+    list.querySelector<HTMLElement>('[aria-selected="true"]')?.scrollIntoView({ block: "nearest" });
+    d.querySelector<HTMLButtonElement>("#map-minus")!.disabled = viewport.zoom <= 1;
+    d.querySelector<HTMLButtonElement>("#map-plus")!.disabled = viewport.zoom >= 4;
+    paintViewport();
   };
+  input.oninput = () => {
+    query = input.value; selected = ""; mapBuilding = ""; mapLocation = query;
+    suggestions = !!query.trim(); active = -1; paint();
+    d.querySelector("#map-announcement")!.textContent = matches().length ? `${matches().length}件の候補。矢印キーで選びEnterで決定します。` : "";
+  };
+  input.onkeydown = ev => {
+    if (ev.isComposing) return;
+    const found = matches();
+    if ((ev.key === "ArrowDown" || ev.key === "ArrowUp") && found.length) {
+      ev.preventDefault(); suggestions = true;
+      active = (active + (ev.key === "ArrowDown" ? 1 : -1) + found.length) % found.length; paint();
+    } else if (ev.key === "Enter" && suggestions && found.length && !ev.isComposing) {
+      ev.preventDefault(); choose(found[Math.max(0, active)].id);
+    }
+  };
+  d.addEventListener("cancel", ev => {
+    if (!list.hidden) { ev.preventDefault(); suggestions = false; active = -1; paint(); }
+  });
+  d.querySelector<HTMLButtonElement>("#map-clear")!.onclick = () => {
+    input.value = query = selected = mapBuilding = mapLocation = "";
+    suggestions = false; active = -1; paint(); input.focus();
+  };
+  d.querySelector<HTMLButtonElement>("#map-plus")!.onclick = () => { viewport.scale(viewport.zoom * 1.25); paint(); };
+  d.querySelector<HTMLButtonElement>("#map-minus")!.onclick = () => { viewport.scale(viewport.zoom / 1.25); paint(); };
+  d.querySelector<HTMLButtonElement>("#map-reset")!.onclick = () => { viewport.reset(); paint(); };
+  const pointers = new Map<number, { x: number; y: number }>();
+  canvas.onpointerdown = ev => {
+    if (ev.button && ev.pointerType === "mouse") return;
+    pointers.set(ev.pointerId, { x: ev.clientX, y: ev.clientY }); canvas.setPointerCapture(ev.pointerId);
+  };
+  canvas.onpointermove = ev => {
+    const previous = pointers.get(ev.pointerId); if (!previous) return;
+    const before = [...pointers.values()];
+    pointers.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+    const after = [...pointers.values()], rect = canvas.getBoundingClientRect(), fit = Math.min(rect.width / mw, rect.height / mh);
+    if (before.length === 2) {
+      const distance = (p: typeof before) => Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y);
+      const oldDistance = distance(before); if (oldDistance) viewport.scale(viewport.zoom * distance(after) / oldDistance);
+      viewport.pan(((after[0].x + after[1].x) - (before[0].x + before[1].x)) / 2, ((after[0].y + after[1].y) - (before[0].y + before[1].y)) / 2, mw * fit, mh * fit);
+    } else if (before.length === 1) viewport.pan(ev.clientX - previous.x, ev.clientY - previous.y, mw * fit, mh * fit);
+    paintViewport();
+  };
+  const release = (ev: PointerEvent) => { pointers.delete(ev.pointerId); if (canvas.hasPointerCapture(ev.pointerId)) canvas.releasePointerCapture(ev.pointerId); paint(); };
+  canvas.onpointerup = release; canvas.onpointercancel = release; canvas.onlostpointercapture = ev => pointers.delete(ev.pointerId);
+  canvas.onkeydown = ev => {
+    if (["+", "=", "-", "ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home"].includes(ev.key)) {
+      ev.preventDefault();
+      if (ev.key === "Home") viewport.reset();
+      else if (["+", "=", "-"].includes(ev.key)) viewport.scale(viewport.zoom * (ev.key === "-" ? 0.8 : 1.25));
+      else { const r = canvas.getBoundingClientRect(), fit = Math.min(r.width / mw, r.height / mh); viewport.pan(ev.key === "ArrowLeft" ? 40 : ev.key === "ArrowRight" ? -40 : 0, ev.key === "ArrowUp" ? 40 : ev.key === "ArrowDown" ? -40 : 0, mw * fit, mh * fit); }
+      paint();
+    }
+  };
+  d.addEventListener("close", () => { if (route() === "home") render(); });
+  paint();
+  // Keep the keyboard closed when opening the map on touch devices.
+  canvas.focus({ preventScroll: true });
 }
+
 function editFacilities() {
   const d = modal(
     "施設の営業時間",

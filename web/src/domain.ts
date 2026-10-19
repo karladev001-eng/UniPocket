@@ -53,6 +53,10 @@ export interface Link {
   url: string;
   favorite: boolean;
 }
+export interface EventMemo {
+  text: string;
+  modified: string;
+}
 export interface Data {
   schema: 1;
   imports: Plan[];
@@ -72,6 +76,7 @@ export interface Data {
   endHour: number;
   articleDraft: Record<string, string>;
   eventDraft?: { event: CampusEvent; values: Record<string, string> };
+  eventMemos?: Record<string, EventMemo>;
 }
 export const uid = () => crypto.randomUUID();
 export function emptyData(): Data {
@@ -365,6 +370,13 @@ export function validateData(v: unknown): asserts v is Data {
       e.start >= e.end
     )
       throw Error("予定の保存データが破損しています。");
+  if (d.eventMemos !== undefined) {
+    if (!d.eventMemos || typeof d.eventMemos !== "object" || Array.isArray(d.eventMemos))
+      throw Error("予定メモの保存データが破損しています。");
+    for (const memo of Object.values(d.eventMemos))
+      if (!memo || typeof memo.text !== "string" || memo.text.length > 5000 || typeof memo.modified !== "string" || !Number.isFinite(Date.parse(memo.modified)))
+        throw Error("予定メモの保存データが破損しています。");
+  }
   for (const n of d.notes) {
     if (
       typeof n.text !== "string" ||
