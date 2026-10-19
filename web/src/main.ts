@@ -4,6 +4,7 @@ import { submitNewArticle } from "./article-submit";
 import "./style.css";
 import { periods, weekPresentation, courseColor, updatePresentation } from "./schedule-presentation";
 import { type CalendarMode, minutePixels, lectureEvents, initialCalendarMode, shiftCalendarDay, calendarDays, daySegments, overlapGroups, nextEvent, eventKind, initialScrollMinute } from "./calendar-presentation";
+import { refreshCurrentTime } from "./calendar-now-line";
 import { enhanceControls, dismissPicker } from "./ui-controls";
 import { icon, backgrounds, visibleBackground, namedAuthor, noteHasContent } from "./ui-assets";
 import {
@@ -343,7 +344,7 @@ function renderCalendar() {
     const estimatedWidth = Math.max(84, ((page.clientWidth || window.innerWidth - 24) - 46) / days.length);
     const columnWidth = mode === "week" ? Math.max(120, estimatedWidth) : estimatedWidth;
     const maxColumns = Math.max(1, Math.floor(columnWidth / 48));
-    content = `<div class="timeline-scroll" tabindex="0" aria-label="00時から24時の予定表。縦に時間、横に日付。"><div class="timeline ${mode === "week" ? "full-week" : ""}" style="--day-count:${days.length}"><div class="timeline-top"><div class="timeline-head"><span class="time-corner">時刻</span>${days.map(day => `<div class="timeline-date ${day === dayKey() ? "today" : ""}"><b>${Number(day.slice(5, 7))}/${Number(day.slice(-2))}</b><span>${"月火水木金土日"[weekDay(day) - 1]}</span></div>`).join("")}</div><div class="all-day-row"><span class="all-day-label">終日</span>${days.map(day => `<div>${all.filter(e => e.allDay && onDay(e, day)).map(e => { const a = "event-" + e.id; action(a, () => showEvent(e)); return `<button class="all-day-event ${colorFor(e)}" data-action="${esc(a)}">${esc(eventKind(e))} · ${esc(e.title)}</button>`; }).join("") || '<span aria-label="終日予定なし">—</span>'}</div>`).join("")}</div></div><div class="timeline-body"><div class="time-axis">${Array.from({ length: 49 }, (_, i) => `<span style="top:${i * 30 * minutePixels}px">${String(Math.floor(i / 2)).padStart(2, "0")}:${i % 2 ? "30" : "00"}</span>`).join("")}</div>${days.map(day => {
+    content = `<div class="timeline-scroll" tabindex="0" aria-label="00時から24時の予定表。縦に時間、横に日付。"><div class="timeline ${mode === "week" ? "full-week" : ""}" style="--day-count:${days.length}"><div class="timeline-top"><div class="timeline-head"><span class="time-corner">時刻</span>${days.map(day => `<div class="timeline-date ${day === dayKey() ? "today" : ""}" data-day="${day}"><b>${Number(day.slice(5, 7))}/${Number(day.slice(-2))}</b><span>${"月火水木金土日"[weekDay(day) - 1]}</span></div>`).join("")}</div><div class="all-day-row"><span class="all-day-label">終日</span>${days.map(day => `<div>${all.filter(e => e.allDay && onDay(e, day)).map(e => { const a = "event-" + e.id; action(a, () => showEvent(e)); return `<button class="all-day-event ${colorFor(e)}" data-action="${esc(a)}">${esc(eventKind(e))} · ${esc(e.title)}</button>`; }).join("") || '<span aria-label="終日予定なし">—</span>'}</div>`).join("")}</div></div><div class="timeline-body"><div class="time-axis">${Array.from({ length: 49 }, (_, i) => `<span style="top:${i * 30 * minutePixels}px">${String(Math.floor(i / 2)).padStart(2, "0")}:${i % 2 ? "30" : "00"}</span>`).join("")}</div>${days.map(day => {
       const groups = overlapGroups(daySegments(all, day));
       return `<div class="timeline-day" data-day="${day}">${Array.from({ length: 48 }, (_, i) => {
         const a = `slot-${day}-${i}`, time = String(Math.floor(i / 2)).padStart(2, "0") + (i % 2 ? ":30" : ":00");
@@ -1471,11 +1472,7 @@ window.addEventListener("resize", () => {
   }, 100);
 });
 setInterval(() => {
-  const now = Date.now(), today = dayKey(new Date(now));
-  page.querySelectorAll<HTMLElement>(".now-line").forEach(line => {
-    line.hidden = line.parentElement?.dataset.day !== today;
-    line.style.top = ((now - Date.parse(tokyo(today))) / 60000) * minutePixels + "px";
-  });
+  refreshCurrentTime(page, Date.now());
   if (route() === "home" && !dialog?.open) render();
 }, 60000);
 window.addEventListener("beforeunload", (e) => {

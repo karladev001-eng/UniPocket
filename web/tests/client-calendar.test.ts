@@ -114,3 +114,60 @@ describe('initial timeline position', () => {
     expect(initialScrollMinute([], calendarDays('2026-10-20', 'three'), now, 8)).toBe(480);
   });
 });
+
+
+import { refreshCurrentTime } from '../src/calendar-now-line';
+describe('current-time marker across Tokyo midnight without rerendering', () => {
+  // Minimal DOM adapter, deliberately without innerHTML/replacement support.
+  // This test exercises the real DOM update helper over multiple clock ticks.
+  class Marker {
+    className = ''; hidden = false; style = { top: '' };
+    parentElement: Column | null = null;
+    setAttribute() {}
+    remove() { if (this.parentElement) this.parentElement.marker = undefined; this.parentElement = null; }
+  }
+  class Column {
+    marker?: Marker;
+    constructor(readonly dataset: { day: string }) {}
+    append(marker: Marker) { marker.remove(); this.marker = marker; marker.parentElement = this; }
+  }
+  function fixture(days: string[]) {
+    const columns = days.map(day => new Column({ day }));
+    const headings = days.map(day => ({ dataset: { day }, today: false, classList: { toggle(_name: string, active: boolean) { headings.find(h => h.dataset.day === day)!.today = active; } } }));
+    return { columns, headings, scrollTop: 1370, scrollLeft: 120, editor: { value: '未保存の入力', selectionStart: 4 },
+      ownerDocument: { createElement: () => new Marker() },
+      querySelector: () => columns.flatMap(c => c.marker ? [c.marker] : [])[0] ?? null,
+      querySelectorAll: (selector: string) => selector === '.timeline-day' ? columns : headings,
+    };
+  }
+  it('moves an existing marker into the next visible day at 00:00 and keeps editor and scroll state', () => {
+    const root = fixture(['2026-12-31', '2027-01-01', '2027-01-02']);
+    const dom = root as unknown as HTMLElement;
+    refreshCurrentTime(dom, Date.parse(tokyo('2026-12-31', '23:59')));
+    const marker = root.columns[0].marker!;
+    expect(marker.style.top).toBe(1439 * minutePixels + 'px');
+    expect(root.headings.map(h => h.today)).toEqual([true, false, false]);
+    refreshCurrentTime(dom, Date.parse(tokyo('2027-01-01')));
+    expect(root.columns.map(c => !!c.marker)).toEqual([false, true, false]);
+    expect(root.columns[1].marker).toBe(marker);
+    expect(marker.style.top).toBe('0px');
+    expect(marker.hidden).toBe(false);
+    expect(root.headings.map(h => h.today)).toEqual([false, true, false]);
+    refreshCurrentTime(dom, Date.parse(tokyo('2027-01-01', '00:01')));
+    expect(root.columns[1].marker?.style.top).toBe(minutePixels + 'px');
+    expect(root.scrollTop).toBe(1370);
+    expect(root.scrollLeft).toBe(120);
+    expect(root.editor).toEqual({ value: '未保存の入力', selectionStart: 4 });
+  });
+  it('removes a marker when today leaves the visible range and creates one when today enters it', () => {
+    const root = fixture(['2026-10-19']);
+    const dom = root as unknown as HTMLElement;
+    refreshCurrentTime(dom, Date.parse(tokyo('2026-10-18', '23:59')));
+    expect(root.columns[0].marker).toBeUndefined();
+    refreshCurrentTime(dom, Date.parse(tokyo('2026-10-19')));
+    expect(root.columns[0].marker?.style.top).toBe('0px');
+    refreshCurrentTime(dom, Date.parse(tokyo('2026-10-20')));
+    expect(root.columns[0].marker).toBeUndefined();
+    expect(root.headings[0].today).toBe(false);
+  });
+});
