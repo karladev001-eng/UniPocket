@@ -2,7 +2,7 @@
 
 - 計画ID: 017-schedule-first-ui
 - 仕様版: 2
-- 状態: planned
+- 状態: deployed（実機iPhoneの今版確認は未取得）
 - 承認対象範囲: 週間コマ表示・予定優先の密度・設定の簡素化・背景画像プレビュー・更新表示の集約（AC1–8）
 - 基点: b028823（PDF取込互換性修正配信済み）
 - 仕様HTML: [017-schedule-first-ui.plan.html](017-schedule-first-ui.plan.html)
@@ -62,7 +62,7 @@
 
 ## 承認
 
-- 状態: pending（本仕様版2/AC1–8の実装は未開始）。v1へのコメントに「実装承認は含みません」と明記。回答を承認とは扱わず、改訂した仕様/モックを再提示する。既存015/016承認は今回の表示再設計の承認へ流用しない。
+- 状態: approved。2026-10-19、v2の仕様HTML/操作モック提示後、本人が「計画017-schedule-first-uiの仕様版2、範囲…（AC1–8）の実装開始を承認します」とチャットで明示承認。v1へのコメントと本承認は区別する。必須の未解決事項なし。
 - HTMLは回答と承認文案を分け、承認表示はpendingを維持。明示的なチャット承認を本節に記録後、実装へ進む。
 
 ## 関連・表示
@@ -99,3 +99,27 @@
 - 既存スキルharness/codex-html-planの継続制作。v2の資料のみ改訂し製品コード/配信は変更しない。
 - 同じ制作担当でsrc/mockを更新、pack成功・警告0、JS構文/科目色/表示順/ユーザー名/版2/pendingの静的確認成功。親もmetadata/主張/誤記除去/次回カード順を確認。既知のブラウザ制限により実表示・操作は未検証、ファイル表示へ再提示する。
 - 記録管理schedule_preferencesが根拠unipocket-layout-revision-20261019を追加、予定優先/設定簡素化の2候補へ補足。色ルールは利用者嗜好として記録せず、v2評価unknown。CLI ok=true,pending=false,freshness=local、revision defd0facb6460eac6a87739c4b92657408add5f296f924ac5e172cbb3a152d15。
+
+## 実装開始
+
+- 現コード基点7878b24dcd3758591222743df695ef48e03b681c。承認対象は017v2/AC1–8全体。main.ts/CSSの競合を避け、一担当へUI全体を委譲する。実装→独立レビュー/実ブラウザ確認→分離統合→最終確認→配信。
+- harness全機能true,max_agents3,auto no pins。起動toolのcatalog/effortを確認し、実装Sol6.1/high（表示・例外予定・更新保存安全性）、独立レビューSol6.1/high、確定的な統合はLuna/mediumを使用する。
+- HTMLのpendingは承認文案UIの契約として保持し、承認正本は本Markdownと本人チャット。保存済みUI候補は本仕様v2へ反映済み、今回の明示承認を優先する。
+
+## 実装・独立検証
+
+- 実装担当schedule_ui_impl（Sol6.1/high）の分離worktree `/private/tmp/univ-schedule-first-ui`。製品実装d662011、リリース説明のみfff7b5c。週間表示用の純粋関数を追加し、保存形式・PDF解析・update.tsの安全待機は変更しない。
+- 独立担当schedule_ui_review（Sol6.1/high）は仕様と基点から先にリスク表を作成。最終コミットを別の一時snapshotへ展開して65テストを再実行しPASS。別fixtureでも週境界、日またぎ、重複、終日、コマ外、入力不変、色の安定性を確認。型検査/build成功。既存PDF chunk-size警告のみ。
+- レビューで背景の保存前に「保存済み」と断定する文と、更新通信失敗を保存失敗に混同する経路を修正。実際の保存flush失敗だけ既存の再試行・入力書き出しへ接続。最終d662011とmetadataのみfff7b5cは独立レビューPASS。
+- 親の実ブラウザQAはlocalhost:8791、隔離ローカルDB・テスト予定のみ。390×700で次の予定と今日の長題名3件、週間5行の下端595.98px＜ナビ636px。320×640で横幅320px、最小セル48.8×72px、3行目下端433px＜ナビ576px。時刻も12px。PC1280×800で横幅1280px、表下端583px＜ナビ723pxをDOM実測。
+- 日→月→土曜日→週の土日選択、重複2件から各詳細、コマ外予定の日時表示、記事登録入口、メモ作成保存、設定の通常キー入力保存と再読込を確認。画像は非個人の既存キャンパスマップを使用し、アップロード→サンプル→自分の画像→再読込で実サムネイルと選択を保持（natural1118×1364、complete=true）。
+- 画像記録: `/private/tmp/uni-pocket-017-week-390.png`、`uni-pocket-017-week-320.png`、`uni-pocket-017-home-390.png`、`uni-pocket-017-background.png`、`uni-pocket-017-more-390.png`。PCスクリーンショットはブラウザの捕捉領域で右側が切れたため、PCの証拠はDOM寸法とする。
+- 検証限界: 実機iPhoneでの今版確認、今回のブラウザPDF再取込、保存/画像失敗のブラウザ強制再現は未実施。PDF・保存競合/失敗・全タブ更新待機は既存自動テスト、画像失敗時の旧画像保持は代入前の変換処理とcatchを独立コードレビューで確認。ファイル選択tool1回が約479秒を要し、追加のPDFアップロード操作は繰り返さなかった。
+
+## 統合・配信
+
+- 分離統合schedule_ui_integrate（Luna/medium）は `/private/tmp/univ-017-integration` / `codex/schedule-first-integration` で基点7878b24からレビュー済みfff7b5cへfast-forward。client65・server6・runtime1・integration1テスト、型検査、build成功。runtimeのloopbackはsandbox制限後にローカル実行権限で再実行して成功。依存symlinkは除去、worktree clean。
+- 親checkoutもff-onlyで同一fff7b5cへ統合。最終独立レビューでrootと統合worktreeのwebツリー・主要5ファイルのハッシュ一致、未コミット製品差分なしを確認。未承認013資料は保持し対象外のまま。
+- 検証済み統合distを既存本人限定Workerへ配信。build `20261019042811-2f2392`、Worker version `98bc1ce7-df14-4340-bb8f-94fa038688e3`。URL https://uni-pocket-preview.kan0507kt.workers.dev/ 。D1・Access設定・毎時cron変更なし。未認証rootはHTTP302。
+- 実配信の旧ビルドタブで空のメモ編集画面を開き、別タブで新版取得を確認。編集画面を保護して待機し、「完了」で閉じると両タブが自動で新版へ移行。新画面の「その他」で最新状態と表示/配信build一致を確認。空メモは保存されず、本番データへのテスト予定や画像の登録なし。
+- 配信証拠画像 `/private/tmp/uni-pocket-017-live-more.png`。本人のiPhoneではアプリ起動/前面復帰時に取得し、編集中や取込中は終了後に反映する既存動作を維持。
