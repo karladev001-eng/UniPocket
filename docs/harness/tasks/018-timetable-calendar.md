@@ -2,7 +2,7 @@
 
 - 計画ID: 018-timetable-calendar
 - 仕様版: 2
-- 状態: blocked（実装・検証完了、配信の明示承認待ち）
+- 状態: done（実装・検証・本人限定preview配信完了）
 - 承認対象範囲: ホームの次回予定強調・時間割と予定表の分離・共通予定データ・場所から地図への導線・外部連携なし（AC1–8）
 - 仕様HTML: [018-timetable-calendar.plan.html](018-timetable-calendar.plan.html)
 - 操作モック: [018-timetable-calendar.mock.html](018-timetable-calendar.mock.html)
@@ -146,8 +146,18 @@
 
 ## 配信の停止と再開条件
 
+- 2026-10-19、直前の具体的確認「この更新を既存の本人限定URLへ配信してよいですか」にユーザー本人が「配信して」と返信し、検証済みbuildの既存preview Workerへの配信を直接承認。以下の停止理由を解消し、同じ成果物で配信を再開する。
+
 - root codex/pwa-migrationは31d8e44へff-only済み、製品差分なし。既存017/018資料および対象外013を保全。
 - 配信コマンド `wrangler deploy --env preview` は自動承認レビューに拒否された。1回目は配信先所有者とpayload承認の不足、既存014記録と読み取りCLIで所有者を照合後の2回目は「実装承認はあるが、本人限定preview Workerへの公開の直接承認が不足」と判定。回避せず停止。配信は一度も実行されていない。
 - 配信対象はintegrationの検証済みdist、build `20261019133656-e95bfa`、既存Worker `uni-pocket-preview` / `https://uni-pocket-preview.kan0507kt.workers.dev/`。追加の設定・Access・D1・認証変更は行わない。
 - 必要な次の判断: ユーザー本人から、この検証済みアプリを上記本人限定URLへ配信する直接承認を得る。取得後に同成果物を配信し、未認証Access応答と認証済みアプリのbuild、編集中の更新待機を確認する。
 - 実配信QA用に開いた空メモは閉じ、メモ未作成を画面確認。viewport overrideも解除。配信後のQAは未実施。作業中のlocalhost8792は検証用として保持。
+
+## 配信結果（2026-10-19）
+
+- 本人の「配信して」の直接承認後、同じ検証済みdistを再buildせずpreviewへ配信成功。build `20261019133656-e95bfa`、Worker version `0d6a3c21-a6c4-43b0-866f-409e8a25d20e`。
+- 配信先 `https://uni-pocket-preview.kan0507kt.workers.dev/`。未認証GETはリダイレクト追従なしでHTTP302、Accessホストへの誘導を確認。設定/Access/D1/migrations/認証/production変更なし。integrationは一時依存リンク除去後clean。
+- 認証済み実画面で旧版 `20261019042811-2f2392` から新版の取得を確認。別タブの空メモ編集中は「編集後に更新します」で待機し、「完了」で閉じると両タブが自動切替。空メモは保存されず、手動再読込・インストール操作なしで更新完了。
+- 「その他」に「最新です」、詳細情報で画面buildと配信buildがともに `20261019133656-e95bfa` と確認。証拠: `/private/tmp/uni-pocket-018-live-update.png`。本人限定環境にテスト予定・メモを追加していない。
+- 配信承認根拠 `unipocket-018v2-deploy-approval-20261019` をpreferencesへ記録。revision `4c02089c53e3959dd9c9c0f5f9b920d79dc6360b87920e3098524ccb6cf1b973`、ok=true/pending=false/freshness=local。ユーザーによる使い勝手の評価はunknownのまま。
