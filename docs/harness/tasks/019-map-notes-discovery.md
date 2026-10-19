@@ -2,7 +2,7 @@
 
 - 計画ID: 019-map-notes-discovery
 - 仕様版: 2
-- 状態: implemented（仕様版2を実装・独立レビュー・ローカル検証済み、未配信）
+- 状態: done（仕様版2を実装・配信済み。既存iPhoneのAccess再認証による更新停止は016で継続修正）
 - 承認対象範囲: 地図優先の検索・ホーム導線とアイコン・予定ごとのメモ・人気記事と一覧の密度（AC1–9）
 - 仕様HTML: [019-map-notes-discovery.plan.html](019-map-notes-discovery.plan.html)
 - 操作モック: [019-map-notes-discovery.mock.html](019-map-notes-discovery.mock.html)
@@ -130,3 +130,13 @@
 - 制約: 実iPhone、OSの文字拡大、ソフトキーボード表示、実機ピンチはこの環境では未検証。拡縮/移動の境界は自動テスト・コードレビューで検証。全ACの実機実測済みとは扱わない。
 - 証拠: [地図390px](019-evidence/map-390.png)、[記事390px](019-evidence/articles-390.png)、[メモ競合保護](019-evidence/memo-conflict.png)。
 - 制作改善記録: 根拠 `019-v2-implementation-approval` と対象4候補/試用を更新。revision `4c0ac693cbe52ebbf8e407979cc4a621a137be25e24d6fd772dca957f3e4b02c`、ok=true/pending=false/freshness=local。ユーザーの使い心地評価はunknown/null、一般指針への昇格なし。
+
+
+## 本人限定preview配信（2026-10-20）
+
+- ユーザー本人の「配信してください」で、既存本人限定URLへの019v2配信を承認。後続「進めてください」「進めて」を受領。
+- 検証済みbuild `20261019210944-88130b` を `uni-pocket-preview` へ配信。Version `e6e8a6fe-ad6c-4a12-8669-a3b436f0062d`、100%。UIとWorkerの変更を含む。Access/設定/D1スキーマ/データは変更せず、未認証version.jsonがAccessの302へ誘導されることを確認。
+- 公開先の既存IABで更新失敗を再現。原因調査は[016の継続修正](016-in-app-auto-update.md)へ記録。旧SWが認証callback navigationへキャッシュ画面を返すため、新版取得が止まる経路を確認。配信成功を、既存iPhoneへの適用成功とは扱わない。
+- 記録管理: 根拠 `019-v2-deployment-approval-20261020`、revision `2efbbc48b68a6f0988aff49bd914c18c0f5bf231198c1bdd14d30de7f5373ac9`、ok=true/pending=false/freshness=local。使用感の評価unknown/null、一般指針昇格なし。
+
+- 続く016の更新不具合修正も配信済み。最新build `20261019215009-8ec8a6`、Version `c6490bba-38bd-4e45-9c70-bc82aa7bffd9`。019機能を含み、Cloudflare認証用URLへキャッシュ画面を返さない修正を追加。既存iPhoneへの適用完了は未確認。

@@ -1,6 +1,6 @@
 # 016 — アプリ内の自動更新とPDF取込の継続修正
 
-- 状態: done（自動更新とPDF診断を配信済み。iPhone固有エラーの解消は未確認、015で継続）
+- 状態: reviewing（Access再認証修正版を配信済み。既存iPhoneの更新停止は端末復旧・実適用の確認待ち）
 - 仕様版: 1
 - 基点: 1741ed43bd9510157f1bc4da62174e3bce364a32
 - 範囲: 起動時の自動取得・安全な自動適用、編集中/PDF取込中の待機、PDF継続エラーの調査修正。
@@ -58,3 +58,24 @@
 - 証拠: /private/tmp/uni-pocket-original-pdf-preview.png、/private/tmp/uni-pocket-auto-update-wait.png、/private/tmp/uni-pocket-auto-update-complete.png。
 - 引継ぎ: ホーム画面のアプリ内で初回のみ「その他」→「更新を確認」→「保存して更新」。画面build末尾64687dを確認してPDF再試行。再発時は短い[PDF:...]コードを受領して015を継続。再インストール/データ削除は不要。
 - 計測: condition=harness、task016、日付2026-10-19 JST、開始/所要時間/利用量=null（未取得）。実装/レビューgpt-6.1-sol/high、統合gpt-6-luna/medium。比較ベンチマークなし。
+
+
+## Access再認証を妨げる更新不具合の継続修正（2026-10-20）
+
+- ユーザーがiPhoneの `sw.js load failed` 画像を提供し、019の配信と「進めてください」「進めて」を明示。019v2の初回配信は成功（build `20261019210944-88130b`、Worker Version `e6e8a6fe-ad6c-4a12-8669-a3b436f0062d` 100%）。ただし、認証切れ状態の既存PWAの更新は別問題として再現した。
+- 原因: 同origin GET navigationへ常にcacheの `/` を返す旧SWが `/cdn-cgi/access/authorized` も処理し、Cloudflareのアプリ側認証cookie確立用callbackへネットワーク到達しない可能性がある。親ブラウザでcallbackパスのまま古いアプリを表示し、sw.jsがredirectで拒否されることを確認。token/cookieの値は収集しない。
+- 仕様・範囲: 016v1 AC1/4/7の承認済み更新機構に対する通常の不具合修正。親が修正の目的と範囲をチャットで提示済み。UI変更なしのため追加モック非該当。Cloudflare予約パス `/cdn-cgi/` はSWのキャッシュ応答を行わずブラウザの通常通信へ渡す。API/sw/version等の既存除外、アプリ画面のoffline、全タブ保存handshakeを保持する。認証・Accessルール・データ・設定は変更しない。
+- 追加受入: (1) authorizedのquery付き・login/logout・予約namespaceのGETでrespondWithを呼ばない。(2) ルート/アプリnavigationのcacheと既存除外が維持。(3) 既存更新テストと型/build/独立レビューPASS後、本人限定previewへ配信。(4) 既にcallbackを妨害する旧SWを持つ端末は、この配信だけで復旧したと扱わない。IDBを消すsite data削除/PWA再インストールは案内しない。
+- 基点ad3128b、既存clean calendar-integration worktreeを再利用。認証回帰修正/レビューはSol6.1/high、決定的な統合と配信はLuna/medium。ユーザーの状況に応じたモデル選択依頼と、active/auto/no pins・host spawn catalogを照合。親モデルを自動で切り替えたとは扱わない。
+- 既存端末の復旧には、その端末の旧workerだけを無効化して次の認証navigationをnetworkへ通す操作が必要な場合がある。iPhoneをMacへ接続可能か非同期質問中。Mac native UIはlockedのため操作不可。修正配信・独立検証は先に進める。
+- 参考: [Cloudflareのapplication/global session cookie](https://developers.cloudflare.com/cloudflare-one/access-controls/applications/http-apps/authorization-cookie/)、[W3Cのunregister](https://www.w3.org/TR/service-workers/#navigator-service-worker-unregister)。Safariとホーム画面アプリが同じ認証状態とは仮定しない。
+
+
+### 再認証修正版の完了範囲と残作業
+
+- 実装commit `623222b5c611ec121be94e6d084aec1b4636b38a`。変更はsw-template、更新関連回帰テスト、リリース文言の3ファイル。生成SWでも認証namespaceを横取りせず、queryを読まず記録しないことを確認。
+- 実装担当/独立担当ともclient101件成功、更新テスト33件成功、型/build/diffcheck成功。独立した旧版対照VMで、旧版はcallbackにcache shell、修正版はcache操作/respondWithとも0回。通常のoffline、/cdn-cgi-other等の境界、既存除外、全タブhandshakeを保持。コードレビューPASS。
+- 統合rootは623222bへfast-forward。検証済みbuild `20261019215009-8ec8a6` を既存previewへ配信し、Worker Version `c6490bba-38bd-4e45-9c70-bc82aa7bffd9` 成功。D1/ASSETS binding、cron、本人限定Accessの設定を維持。migrationやデータ変更は行わない。
+- 配信手順の制約: node_modules不在のnpxが無出力待機したため停止し、既存Wrangler JSの絶対pathへ切り替えて配信。rootのGitロック書込は許可付き操作でfast-forward。待機/失敗を成功と扱わない。
+- 親の既存IABでは旧SWがcallbackを妨害する状態を維持しており、新版取得は未確認。新規Chromeは通常の本人ログイン画面まで確認し、資格情報を入力せず一時タブを閉じた。認証用callbackやcookieの値を抽出しない。
+- 既存iPhoneの復旧は未完了。本人へMac接続可否を非同期質問し回答待ち。Macはロック中でnative操作不可。旧登録のみの復旧と、同じホーム画面アプリの保存データ保持・認証・新版適用を、接続後に確認する必要がある。PWA削除・site data削除・Access解除で回避しない。
