@@ -1,6 +1,6 @@
 # 015 — iPhoneのPDF取込互換性修正
 
-- 状態: done（R-TEXTのStream互換性不具合を再現・修正・配信済み。利用者iPhoneでの再試行確認は未実施）
+- 状態: done（R-TEXTのStream互換性不具合を再現・修正・配信済み。利用者もiPhoneで取込成功を報告）
 - 仕様版: 1
 - 基点: 0f7deb202d9db307df3dde315fb3aa0d79e03a80
 - 目的: iPhone PWAでPDF解析が `undefined is not a function` で中断する不具合を修正する。
@@ -77,3 +77,4 @@
 - 公開URLの既存64687dで更新確認後、自動reloadし画面/配信build693212一致・最新表示を確認。公開新版で原本2PDFを選択し6講義86予定86差分のプレビュー成功、保存せず閉じ、登録講義0を維持。証拠 /private/tmp/uni-pocket-pdf-stream-fixed.png。
 - 受入1–4完了。iPhoneそのものの実行は未確認。今回の再現は非同期反復APIの欠落を模したNode実行と公開ブラウザWorkerであり、iOS機種エミュレーションではない。利用者へPDF画面を閉じて自動更新を待ち、「その他」の画面build693212確認後再試行するよう案内する。
 - 計測: condition=harness、task015継続、日付2026-10-19 JST、開始/終了/所要時間/利用量=null（未取得）。実装/レビューSol6.1high、統合Lunamedium、レビュー修正0巡、比較ベンチマークなし。
+- 利用者確認: 2026-10-19「取り込めました」と報告し、iPhone上の講義/予定表示画像を提示。PDF修正の実機成功を本人の報告として確認。続く表示改善は017で扱う。
