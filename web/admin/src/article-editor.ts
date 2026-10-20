@@ -23,6 +23,13 @@ export function articleErrors(input: ArticleDraft): Partial<ArticleDraft> {
     return errors;
 }
 export function articlePayload(input: ArticleDraft): ArticleDraft { return { ...Object.fromEntries(articleFields.map(k => [k, input[k].trim()])) as ArticleDraft, publicUrl: notionURL(input.publicUrl), embedUrl: embedSource(input.embedUrl) }; }
+export interface ArticleConfirmation {
+    input: ArticleDraft;
+    recovery: boolean;
+    pendingKey?: string;
+    itemId?: string;
+    revision?: number;
+}
 /** Stable confirmed request survives network loss and reauthentication; input is never overwritten by recovery. */
 export class ArticleEditor {
     input: ArticleDraft;
@@ -56,7 +63,22 @@ export class ArticleEditor {
         this.pending = undefined;
         this.recoverySource = undefined;
     }
-    async submit(send: Sender) {
+    confirmation(): ArticleConfirmation {
+        return {
+            input: structuredClone(this.pending?.input || this.input),
+            recovery: !!this.pending,
+            pendingKey: this.pending?.key,
+            itemId: this.item?.id,
+            revision: this.item?.revision,
+        };
+    }
+    async submitConfirmed(confirmation: ArticleConfirmation, send: Sender): Promise<Article | undefined> {
+        const current = this.confirmation();
+        if (JSON.stringify(confirmation) !== JSON.stringify(current))
+            throw new AdminError('確認した送信対象が変わりました。プレビューを開き直してください。入力は保持しています。', 409, 'confirmation_changed');
+        return this.submit(send, confirmation.recovery);
+    }
+    async submit(send: Sender, recoveryOnly = false) {
         if (this.latest)
             throw new AdminError('最新版と比較してから再確認してください。', 409);
         if (!this.pending) {
@@ -80,10 +102,10 @@ export class ArticleEditor {
             throw error;
         }
         this.item = saved;
-        if (JSON.stringify(this.input) !== JSON.stringify(pending.input) || saved.revision !== (Number(pending.body.revision || 0) + 1)) {
+        if (recoveryOnly || JSON.stringify(this.input) !== JSON.stringify(pending.input) || saved.revision !== (Number(pending.body.revision || 0) + 1)) {
             this.recoverySource = pending.input;
             this.latest = saved;
-            throw new AdminError('送信した内容は保存されました。保持した入力と最新版を比較してください。', 409);
+            throw new AdminError('前回の送信結果を確認しました。保存結果と保持した現在の入力を比較してください。変更の反映には別のプレビュー確認が必要です。', 409, 'article_recovered');
         }
         this.input = articleDraft(saved);
         this.baseline = structuredClone(this.input);

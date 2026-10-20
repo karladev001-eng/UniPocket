@@ -1,4 +1,5 @@
 import "./style.css";
+import { articlePreviewControl } from './article-confirmation';
 import { ArticleEditor, articleErrors, articleFields, type ArticleDraft } from './article-editor';
 import { adminBadgeNode, ADMIN_NAME } from '../../src/author-badge';
 import { articlePreviewSource } from '../../src/article-preview';
@@ -250,8 +251,6 @@ function renderArticleEditor(): void {
     form.append(el('div', { id: 'form-error', class: 'notice error', role: 'alert', tabindex: -1, hidden: true }), el('p', {}, '投稿者：', ADMIN_NAME, adminBadgeNode('admin')), el('p', { class: 'muted' }, 'Notion本文はNotionで作成・編集してください。ここで登録した記事は一般公開されます。'));
     if (state.item)
         form.append(el('p', {}, `改訂 ${state.item.revision} · ${articleStatus(state.item)}。登録情報の変更では公開状態を変えません。`));
-    if (state.pending)
-        form.append(el('p', { class: 'notice' }, '前回の送信結果が未確認です。再送では同じ内容を確認します。その後の入力もこの画面に保持します。'));
     if (state.latest) {
         const latest = state.latest;
         form.append(el('section', { class: 'notice' }, el('h2', {}, '最新版と現在の入力を比較'), el('p', {}, `最新版：改訂 ${latest.revision} · ${articleStatus(latest)}`), el('p', { class: 'bodycopy' }, JSON.stringify({ title: latest.title, publicUrl: latest.publicUrl, summary: latest.summary, category: latest.category, courseId: latest.courseId, embedUrl: latest.embedUrl }, null, 2)), button('変更した項目を保持して最新版を適用', () => { state.rebase(); renderArticleEditor(); notify('入力を保持しました。プレビューと反映内容をもう一度確認してください。'); })));
@@ -277,8 +276,9 @@ function renderArticleEditor(): void {
     form.append(optional);
     form.append(el('p', { class: 'muted' }, '公開URLは notion.site / notion.so のHTTPSに対応。埋め込みはNotionの「このページを埋め込む」から取得してください。HTML自体は実行しません。'));
     const check = el('input', { type: 'checkbox' });
-    const preview = button(state.item ? '変更をプレビュー' : '公開プレビューへ', () => {
-        const problems = articleErrors(state.input);
+    const preview = articlePreviewControl(state, confirmation => {
+        const target = confirmation.input;
+        const problems = articleErrors(target);
         for (const [name, box] of errors) {
             const problem = problems[name as keyof ArticleDraft];
             box.hidden = !problem;
@@ -294,8 +294,8 @@ function renderArticleEditor(): void {
             return;
         }
         check.checked = false;
-        const target = structuredClone(state.input), body = el('div', {}, articlePreview(target), el('label', { class: 'check' }, check, '元ページ・プレビューがログイン不要で読めることを確認しました'), el('p', { class: 'muted' }, state.item ? '登録情報の変更が一般の表示に反映されます。非表示の記事は非表示のままです。' : 'この内容を一般公開します。'));
-        openDialog(state.item ? '変更を反映しますか？' : '運営記事を公開しますか？', body, [taskButton(state.item ? '変更を反映する' : '公開する', async () => {
+        const body = el('div', {}, confirmation.recovery ? el('p', {class:'notice'}, '以下は前回送信した内容です。再送で保存結果を確認します。未保存だった場合は、この前回の内容で公開・変更を完了します。現在入力している変更は送信しません。結果の確認後に保存内容と比較し、変更は別のプレビューで反映してください。') : null, articlePreview(target), el('label', { class: 'check' }, check, '元ページ・プレビューがログイン不要で読めることを確認しました'), el('p', { class: 'muted' }, confirmation.recovery ? '前回の送信内容だけを同じ送信キーで再確認します。' : state.item ? '登録情報の変更が一般の表示に反映されます。非表示の記事は非表示のままです。' : 'この内容を一般公開します。'));
+        openDialog(confirmation.recovery ? '前回の送信内容と結果を確認' : state.item ? '変更を反映しますか？' : '運営記事を公開しますか？', body, [taskButton(confirmation.recovery ? '前回の内容で送信結果を確認' : state.item ? '変更を反映する' : '公開する', async () => {
                 if (!check.checked) {
                     check.setCustomValidity('公開表示を確認してチェックしてください。');
                     check.reportValidity();
@@ -305,7 +305,7 @@ function renderArticleEditor(): void {
                 }
                 const editing = !!state.item;
                 try {
-                    await state.submit(client.send);
+                    await preview.submit(confirmation, client.send);
                 }
                 catch (error) {
                     if (error instanceof Error && 'articleId' in error && typeof error.articleId === 'string') {
@@ -314,10 +314,8 @@ function renderArticleEditor(): void {
                         (box as HTMLElement).hidden = false;
                         return;
                     }
-                    if (state.latest) {
-                        dialog.close();
-                        renderArticleEditor();
-                    }
+                    dialog.close();
+                    if (state.latest) renderArticleEditor();
                     throw error;
                 }
                 articleEditor = undefined;
@@ -326,8 +324,8 @@ function renderArticleEditor(): void {
                 notify(editing ? '運営記事を保存しました。' : '運営記事を公開しました。');
             }, 'action')]);
     });
-    preview.disabled = !!state.latest;
-    form.append(el('div', { class: 'editorfooter' }, preview, state.item ? taskButton('最新版と比較', async () => { await state.refresh(client.send); renderArticleEditor(); }) : null));
+    form.append(preview.notice);
+    form.append(el('div', { class: 'editorfooter' }, preview.button, state.item ? taskButton('最新版と比較', async () => { await state.refresh(client.send); renderArticleEditor(); }) : null));
     main.append(form);
 }
 function reportReason(reason: string): string { return ({ inappropriate: "不適切", incorrect: "誤情報", broken_link: "リンク不備", other: "その他" } as Record<string, string>)[reason] || reason; }
