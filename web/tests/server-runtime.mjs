@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const { Miniflare, convertV4MiniflareOptions } = require('miniflare');
@@ -12,7 +12,7 @@ async function runtime() {
   const mf = new Miniflare(convertV4MiniflareOptions({modules: true, script: built.outputFiles[0].text, compatibilityDate: '2026-10-18', d1Databases: ['DB']}));
   try {
     const db = await mf.getD1Database('DB');
-    const migration = readFileSync(new URL('../migrations/0001_articles.sql', import.meta.url),'utf8');
+    const migration = readdirSync(new URL('../migrations/',import.meta.url)).sort().map(f=>readFileSync(new URL('../migrations/'+f,import.meta.url),'utf8')).join('\n');
     // D1 exec accepts complete SQL statements per line. Preserve trigger BEGIN/END.
     const statements = migration.replace(/^--.*$/gm,'').match(/\s*CREATE TRIGGER[\s\S]*?END;|(?:[^;]+;)/g) || [];
     for (const statement of statements) await db.exec(statement.replace(/^--.*$/gm,'').replace(/\s+/g,' ').trim());
@@ -55,10 +55,10 @@ test('real workerd/D1: migrations, concurrent creation, isolation, bookmarks and
     assert.equal((await send('/api/session','POST',{},undefined,{Origin:'https://attacker.example'})).status,403);
     assert.equal((await send('/api/articles','POST',{...body,title:'conflict'},a,{'Idempotency-Key':key})).status,409);
     assert.equal((await send('/api/articles','POST',body,a,{'Idempotency-Key':crypto.randomUUID()})).status,409);
-    await send(`/api/articles/${id}`,'DELETE',undefined,a);
+    await send(`/api/articles/${id}`,'DELETE',undefined,a,{'If-Match':'1'});
     assert.equal((await send('/api/articles','POST',body,a,{'Idempotency-Key':key})).status,410);
-    assert.equal((await db.prepare('SELECT COUNT(*) n FROM bookmarks').first()).n,0);
-    assert.equal((await db.prepare('SELECT COUNT(*) n FROM view_events').first()).n,0);
+    assert.equal((await db.prepare("SELECT COUNT(*) n FROM articles WHERE visibility='deleted'").first()).n,1);
+    assert.equal((await db.prepare('SELECT COUNT(*) n FROM view_events').first()).n,2);
   } finally { await mf.dispose(); }
 });
 

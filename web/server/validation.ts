@@ -45,16 +45,16 @@ export function articleInput(body: Record<string, unknown>, partial = false): Pa
   }
   return result;
 }
-export async function jsonBody(request: Request): Promise<Record<string, unknown>> {
+export async function jsonBody(request: Request, maxBytes = 16384): Promise<Record<string, unknown>> {
   if (!/^application\/json(?:\s*;|$)/i.test(request.headers.get('Content-Type') || '')) throw new ApiError(415, 'JSONで送信してください。');
-  if (Number(request.headers.get('Content-Length')) > 16384) throw new ApiError(413, '送信内容が大きすぎます。');
+  if (Number(request.headers.get('Content-Length')) > maxBytes) throw new ApiError(413, '送信内容が大きすぎます。');
   // Bound streamed bodies too; Content-Length alone is not trusted.
   const reader = request.body?.getReader();
   const chunks: Uint8Array[] = []; let size = 0;
   if (reader) while (true) {
     const next = await reader.read(); if (next.done) break;
     size += next.value.byteLength;
-    if (size > 16384) { await reader.cancel(); throw new ApiError(413, '送信内容が大きすぎます。'); }
+    if (size > maxBytes) { await reader.cancel(); throw new ApiError(413, '送信内容が大きすぎます。'); }
     chunks.push(next.value);
   }
   const bytes = new Uint8Array(size); let offset = 0;

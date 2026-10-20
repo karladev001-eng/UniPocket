@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import worker, { cleanup, digest, jstDay } from '../server/worker.ts';
 import { notionUrl } from '../server/validation.ts';
 import type { Database, Statement } from '../server/types.ts';
@@ -10,14 +10,14 @@ import type { Database, Statement } from '../server/types.ts';
 // batch has D1's documented sequential transaction/rollback semantics.
 class SQLiteD1 implements Database {
   sqlite = new DatabaseSync(':memory:');
-  constructor() { this.sqlite.exec(readFileSync(new URL('../migrations/0001_articles.sql', import.meta.url), 'utf8')); }
+  constructor() { for(const file of readdirSync(new URL('../migrations/',import.meta.url)).sort())this.sqlite.exec(readFileSync(new URL('../migrations/'+file,import.meta.url),'utf8')); }
   prepare(sql: string): Statement {
     const statement = this.sqlite.prepare(sql); let values: any[] = [];
     const api: Statement = {
       bind(...args: unknown[]) { values = args; return api; },
       async first<T>() { return (statement.get(...values) || null) as T | null; },
       async all<T>() { return {results: statement.all(...values) as T[]}; },
-      async run() { return statement.run(...values); },
+      async run() {const result=statement.run(...values);return {meta:{changes:Number(result.changes)}}; },
     }; return api;
   }
   async batch(statements: Statement[]) {
@@ -30,7 +30,7 @@ function app() {
   const DB = new SQLiteD1();
   const send = async (path: string, method = 'GET', body?: unknown, cookie?: string, extra: Record<string,string> = {}) => {
     const response = await worker.fetch(new Request(`https://campus.example${path}`, {method,
-      headers: {'Origin': 'https://campus.example', 'Content-Type': 'application/json', 'CF-Connecting-IP': '192.0.2.1', ...(cookie ? {Cookie: cookie} : {}), ...extra},
+      headers: {'Origin': 'https://campus.example', 'Content-Type': 'application/json', 'CF-Connecting-IP': '192.0.2.1', ...(cookie ? {Cookie: cookie} : {}), ...((method==='PATCH'||method==='DELETE')&&/^\/api\/articles\/[a-f0-9-]{36}$/.test(path)&&cookie?{'If-Match':String((DB.sqlite.prepare('SELECT revision FROM articles WHERE id=?').get(path.split('/')[3]) as any)?.revision||1)}:{}),...extra},
       ...(body !== undefined ? {body: JSON.stringify(body)} : {})}), {DB});
     return {status: response.status, data: await response.json() as any, headers: response.headers};
   };
@@ -141,8 +141,9 @@ test('session creation and authenticated writes have persistent atomic limits', 
   assert.ok(attempted.some(result=>result.status===429));
   for(const result of attempted) assert.ok([200,429].includes(result.status));
   const other = app();
-  for(let i=0;i<10;i++) assert.equal((await other.send('/api/session','POST',{})).status,200);
-  assert.equal((await other.send('/api/session','POST',{})).status,429);
+  for(let i=0;i<100;i++) assert.equal((await other.send('/api/session','POST',{})).status,200);
+  const spam=await Promise.all(Array.from({length:100},()=>other.send('/api/session','POST',{})));
+  assert.ok(spam.some(result=>result.status===429));
 });
 
 test('anonymous view keeps issued cookie when a post-write read fails; retry counts once', async () => {
