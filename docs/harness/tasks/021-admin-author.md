@@ -1,6 +1,6 @@
 # 021 · 運営からの記事だと、ひと目でわかる。
 
-後続提案: [022 記事ヘッダーの操作配置・ライト/ダーク切替](022-article-header-color-mode.plan.html)（[仕様正本](022-article-header-color-mode.md)）。新しい範囲のため実装承認待ち。021の投稿権限・管理者バッジを維持する。
+後続提案: [022 記事の操作配置と本文優先表示・ライト/ダーク切替](022-article-header-color-mode.plan.html)（[仕様正本](022-article-header-color-mode.md)）。仕様版2・新しい範囲のため実装承認待ち。021の投稿権限・管理者バッジを維持する。
 
 - 計画ID: `021-admin-author`
 - 仕様版: **1**
