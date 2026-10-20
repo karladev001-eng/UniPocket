@@ -41,8 +41,12 @@ test('Static Assets + Worker + persisted D1 keep anonymous ownership across rest
     assert.equal(home.status, 200);
     assert.match(home.headers.get('content-security-policy'), /frame-src https:\/\/notion.so/);
     assert.equal(home.headers.get('x-content-type-options'), 'nosniff');
+    assert.equal(home.headers.get('x-robots-tag'), 'noindex,nofollow');
     const html = await home.text();
     assert.match(html, /<script[^>]+src="\/assets\//);
+    assert.match(html, /<meta name="robots" content="noindex,nofollow"/);
+    assert.match(await readFile(new URL('../dist/_headers', import.meta.url), 'utf8'), /^\/\*\n  X-Robots-Tag: noindex,nofollow/m);
+    for (const path of ['/install.html', '/manifest.webmanifest', html.match(/<script[^>]+src="([^"]+)"/)[1]]) assert.equal((await fetch(base + path)).headers.get('x-robots-tag'), 'noindex,nofollow', path);
     // Cache the canonical shell: /index.html redirects under Static Assets and
     // its redirected Response is rejected by real browser navigation fetches.
     const sw = await (await fetch(base + '/sw.js')).text();

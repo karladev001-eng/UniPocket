@@ -443,7 +443,7 @@ function modal(
   }
   dialog = document.createElement("dialog");
   dialog.className = "modal " + (options.className ?? "");
-  dialog.innerHTML = `<form><div class="modal-heading"><h2>${esc(title)}</h2><button type="button" data-close aria-label="${options.className === "map-modal" ? "地図を閉じる" : "閉じる"}">×</button></div>${content}<div role="alert" class="modal-error error notice" hidden></div>${options.singleClose ? "" : `<div class="footer"><button type="button" data-close>閉じる</button>${submit ? `<button class="primary" type="submit">${esc(submitText)}</button>` : ""}</div>`}</form>`;
+  dialog.innerHTML = `<form><div class="modal-heading"><h2>${esc(title)}</h2><button type="button" data-close aria-label="${options.className === "map-modal" ? "地図を閉じる" : "閉じる"}">×</button></div>${content}<div role="alert" class="modal-error error notice" hidden></div>${options.singleClose && !submit ? "" : `<div class="footer">${options.singleClose ? "" : '<button type="button" data-close>閉じる</button>'}${submit ? `<button class="primary" type="submit">${esc(submitText)}</button>` : ""}</div>`}</form>`;
   document.body.append(dialog);
   dialog
     .querySelectorAll("[data-close]")
@@ -1244,6 +1244,7 @@ function articleForm(article?: Article) {
       }
     },
     article ? "変更を保存" : "登録",
+    { singleClose: true, className: "article-compose" },
   );
   d.dataset.draft = "true";
   bindArticleRecovery(d, { draft, article, send: api, confirm: message => confirm(message), persist: async () => {
@@ -1285,7 +1286,7 @@ function reportArticle(article: Article) {
     dirty = false; d.close();
     const done = modal("通報を受け付けました", "<p>同じ記事への未確認の通報は重複して作成しません。</p>", undefined, "", { singleClose: true });
     done.focus();
-  }, "通報を送信");
+  }, "通報を送信", { singleClose: true, className: "article-report" });
   d.addEventListener("input", () => { dirty = true; });
   const guard = (event: Event) => { if (submitting || (dirty && !confirm("通報の入力を破棄して閉じますか？"))) event.preventDefault(); };
   d.addEventListener("requestclose", guard); d.addEventListener("cancel", guard);
