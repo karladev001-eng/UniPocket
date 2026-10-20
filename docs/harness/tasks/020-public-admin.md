@@ -2,7 +2,7 @@
 
 - 計画ID: 020-public-admin
 - 仕様版: 2
-- 状態: planned（仕様・モックの準備。実装・公開設定変更は未承認）
+- 状態: implementing（仕様版2・AC1–12の実装開始を本人承認済み。一般公開切替は検証後の最終確認待ち）
 - 承認対象範囲: URL配布の一般公開・管理者認証・記事管理・アプリ内お知らせとアンケート・記事と回答の集計（AC1–12）
 - 仕様HTML: [020-public-admin.plan.html](020-public-admin.plan.html)
 - 操作モック: [020-public-admin.mock.html](020-public-admin.mock.html)
@@ -87,9 +87,9 @@ PWAのインストール検知は環境によって利用可否が異なり、Ch
 
 ## 実装承認
 
-- 状態: pending
+- 状態: approved
 - 対象: 020-public-admin 仕様版2、URL配布の一般公開・管理者認証・記事管理・アプリ内お知らせとアンケート・記事と回答の集計（AC1–12）
-- 根拠: 仕様提示後の本人明示承認は未受領。今回の機能相談、質問への回答、019の配信承認を020の実装/公開承認へ流用しない。
+- 根拠: 仕様版2と対応モックの提示後、本人がチャットで「計画 020-public-admin の仕様版 2、範囲『URL配布の一般公開・管理者認証・記事管理・アプリ内お知らせとアンケート・記事と回答の集計（AC1–12）』の実装開始を承認します」と明示（2026-10-20）。この版・範囲の実装、ローカル/保護preview検証に適用する。一般アプリのAccess解除はAC12の具体的な検証・公開対象提示後に別途最終確認する。
 
 ## 参照・検証記録
 
@@ -130,3 +130,20 @@ PWAのインストール検知は環境によって利用可否が異なり、Ch
 - モックのJS構文・VM検証成功: 13画面、集計の通常/読込/0件/失敗/オフライン/認証期限切れ/競合、追加送信/協力スイッチ/開封値の除去、通信API呼出しなし、端末既読の切替、期間変更でも現在のブックマーク78を保持。期間別の記事閲覧は日別fixtureから件数・線・日付・代替テキストを同時に生成し、任意範囲の適用でも更新する（値は架空）。静的/VMの成功を実ブラウザ確認の成功とは扱わない。
 - 制作改善記録: 根拠 `unipocket-020-metrics-feedback-20261020`、候補 `up-content-only-admin-metrics`、試用 `up-content-only-admin-metrics-020v2`。記録担当のrevision `cad64004bd5792890d237b0b9558634eaab2ea6c126fc9085e069090d32f4152`、ok=true/pending=false/freshness=local、評価unknown/null・実装承認pending、一般指針への昇格なし。以前の可読性評価もunknownのまま。
 - 独立レビューPASS。11項目群のVM確認で期間別の日次グラフ・合計・日付・代替テキストの一致、任意範囲の適用と90日上限、現在ブックマーク値の不変、設定削除、端末内既読、取得中/0件/失敗/オフライン/認証切れを検証。初回に見つかったグラフの期間不一致を修正して再確認した。親も4成果物のメタデータ、可読性CSSの保持、source/packed CSS一致、pack lintと差分検査を確認。制作・記録はhost catalogのSol6.1/medium、独立レビューはSol6.1/highをauto/no pinsで選択した。実装や一般公開の承認は未受領のまま。
+
+## 実装開始と担当間契約（2026-10-20）
+
+- 本人の上記承認によりready条件を充足し、implementingへ進む。提示済みHTMLとモックのdata-approvalは文案生成用pendingを維持し、承認の正本はこの欄とする。未回答の実装必須判断なし。仕様・モックは80930d7で保存済み。既存018の未コミット文書と013の未追跡文書を保持する。
+- 実装は個別worktreeで、サーバー/DB/認証、一般利用者UI、管理者UIの3担当へ分ける。独立レビュー後、別の統合worktreeで結合検証する。各担当はこの020v2/AC1–12と承認発言を読み、次の契約を共有する。製品の意味を変える判断は親へ返し、未承認の一般公開や実配信を先行しない。
+
+### HTTP・データの共通契約
+
+- 公開APIは既存`/api`、管理は別originの`/api/admin`。JSON、camelCase、エラーは既存`{error,code}`、日時はUTC ISO8601（画面入出力はJST）、日次キーは`YYYY-MM-DD`のJST。全API no-store、書込Origin検証。管理者認証に匿名cookieやクライアントのroleを使わない。
+- Articleは既存フィールドへ`revision:number`を追加。自分の記事一覧のみ`visibility:'published'|'hidden'`、`hiddenReason`を返す。削除はdeletedを保持し再公開不可。公開一覧/詳細/view/bookmarkはpublished限定。作者PATCH/DELETEは`If-Match`にrevisionを指定し、競合409時入力保持。作者変更で管理非表示を解除しない。`GET /api/my/articles`→`{articles}`（自分の非表示も含む）。`POST /api/articles/:id/report`→`{ok:true}`、入力`{reason:'inappropriate'|'incorrect'|'broken_link'|'other',details:string}`、同一匿名ID/記事の未処理通報を重複しない。
+- Announcement=`{id,title,body,link,startAt,endAt,status:'draft'|'published'|'ended',revision,createdAt,updatedAt}`。未来のpublishedは画面で予約と表現。`GET /api/announcements`→`{announcements}`、`GET /api/announcements/:id`→`{announcement}`はサーバー時刻で現在公開中のみ。既読は端末内のid+revisionだけ。開封/usage送信は設けない。
+- Survey=`{id,title,intro,startAt,endAt,status,revision,questions,createdAt,updatedAt}`。Question=`{id,title,type:'single'|'multiple'|'text',required:boolean,options:{id,label}[]}`。公開前の設問id/選択肢idはUUID、サーバーで検証。`GET /api/surveys`→`{surveys}`、一覧要素は設問を省略可能、`answered:boolean`を含む。`GET /api/surveys/:id`→`{survey,answered}`、`POST /api/surveys/:id/responses`入力`{answers:{questionId,value:string|string[]}[]}`（選択はoption.id、自由記述は文字列）→`{ok:true,responseId}`。回答書込は匿名セッション必須、Idempotency-Keyと1匿名ID/アンケート制約で二重計上を防ぐ。公開後の設問/選択肢変更は拒否、題名/紹介/締切だけ確認後変更可。
+- 管理`GET /api/admin/me`→`{admin:{email}}`。`GET /api/admin/overview`→`{publishedArticles,pendingReports,activeAnnouncements,activeSurveys}`。`GET /api/admin/articles?q=&visibility=`→`{articles}`、`GET /api/admin/reports?status=`→`{reports}`。`POST /api/admin/articles/:id/visibility`入力`{revision,visibility:'hidden'|'published',reason}`→`{article}`。`PATCH /api/admin/reports/:id`入力`{revision,status:'pending'|'reviewed'}`→`{report}`。管理記事は著者/集計/状態/revision/理由を含み、管理者による本文改変は設けない。
+- 管理のお知らせ/アンケートは`GET/POST /api/admin/announcements|surveys`→`{announcements|surveys}`/`{announcement|survey}`、`GET/PATCH /:id`→単体。PATCH本文にrevision、POST作成/状態操作にIdempotency-Key。`POST /:id/publish`と`/:id/end`は`{revision}`→単体。終了取消はpublishで再開（有効期限の検証が必要）。全更新はrevisionを増加し、409は入力を残す。UIで下書き→プレビュー→確認→公開を分ける。設問の複製は新しいidを付けて新規draftをPOSTする。
+- `GET /api/admin/surveys/:id/results`→`{survey,responseCount,questions:{questionId,counts:{optionId,count}[]}[],freeText:{questionId,value,submittedAt}[]}`（自由記述も管理者専用）。`GET /api/admin/metrics?start=YYYY-MM-DD&end=YYYY-MM-DD`→`{start,end,collectedSince,asOf,daily:{day,articleViews,surveyResponses}[],articleViews,currentBookmarks,surveyResponses,articles:{id,title,views,bookmarks}[]}`。期間1–90日、未収集日はnull等で0と区別、currentBookmarksは現在値で期間非依存。CSVは`GET /api/admin/metrics.csv?start=&end=`と`GET /api/admin/surveys/:id/responses.csv`、機密/匿名IDを含めず式を無害化し監査する。回答詳細のCSVは集計と別操作。
+- 管理Workerの全URLはJWT署名・issuer・aud・期限・所有者許可をサーバーで検証してからASSETS/APIへ進む。`/api/admin/*`を一般Workerで処理しない。設定が欠けると拒否。管理にはSW/Cache Storageを作らない。Cloudflare側Accessも全パスで保護する。JWT公開鍵の取得とキャッシュは許可したteam originだけ、tokenや本文をログへ出さない。
+- D1 migrationは追記のみ。公開状態/回答/集計/監査を同じbatch/transactionで整合させ、visibility変更と競合した作者更新/view/bookmarkもSQL条件で防ぐ。日次集計を明細削除前に確定、再実行で二重計上しない。保持期限・クリーンアップ失敗の可観測性、学校共有IPから100新規セッションの許容と連投対策を検証する。日次集計に利用者識別子を入れず、新しいusageイベントを作らない。
