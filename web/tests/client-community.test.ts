@@ -298,3 +298,20 @@ describe('review regressions at the actual transport and form handlers', () => {
     } finally { vi.unstubAllGlobals(); }
   });
 });
+
+it('rechecks a recovered article ID discovered after the new-article preview handler was bound', async () => {
+  vi.stubGlobal('navigator', { onLine: true });
+  vi.stubGlobal('FormData', class { get(name: string) { return name === 'publicUrl' ? 'https://example.notion.site/public' : 'https://example.notion.site/embed'; } });
+  const button = { onclick: undefined as (() => Promise<void>) | undefined }, preview = { innerHTML: '' }, errorBox = { hidden: true, textContent: '' };
+  const dialog = { open: true, isConnected: true, querySelector: (selector: string) => selector === '#preview-article' ? button : selector === '#article-preview' ? preview : selector === '.modal-error' ? errorBox : {} };
+  const draft: Record<string, string> = {};
+  const paths: string[] = [];
+  const send = async <T>(path: string): Promise<T> => { paths.push(path); throw new ApiError('記事は公開されていません。', 404); };
+  try {
+    bindArticlePreview(dialog as unknown as HTMLDialogElement, () => draft.recoveredId ? { id: draft.recoveredId } : undefined, send);
+    draft.recoveredId = 'recovered-after-binding';
+    await button.onclick!();
+    expect(paths).toEqual(['/articles/recovered-after-binding']);
+    expect(preview.innerHTML).toBe(''); expect(errorBox.textContent).toContain('公開されていません');
+  } finally { vi.unstubAllGlobals(); }
+});

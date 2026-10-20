@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import { build } from 'esbuild';
 import { runtime } from './helpers/server-admin-fixture.mjs';
 
-const module = await build({ stdin: { contents: "export * from './src/article-submit.ts';export {ApiError} from './src/api.ts';export * from './admin/src/model.ts';", resolveDir: new URL('..', import.meta.url).pathname }, bundle: true, write: false, platform: 'node', format: 'esm', target: 'es2023' });
-const { submitNewArticle, bindArticleRecovery, ApiError, EditorState, AdminError } = await import('data:text/javascript;base64,' + Buffer.from(module.outputFiles[0].text).toString('base64'));
+const module = await build({ stdin: { contents: "export * from './src/article-submit.ts';export * from './src/article-preview.ts';export {ApiError} from './src/api.ts';export * from './admin/src/model.ts';", resolveDir: new URL('..', import.meta.url).pathname }, bundle: true, write: false, platform: 'node', format: 'esm', target: 'es2023' });
+const { submitNewArticle, bindArticleRecovery, bindArticlePreview, ApiError, EditorState, AdminError } = await import('data:text/javascript;base64,' + Buffer.from(module.outputFiles[0].text).toString('base64'));
 
 test('lost article creation + real intervening D1 edit requires bound user rebase and preserves the other tab summary', async () => {
   const r = await runtime();
@@ -72,4 +72,37 @@ test('lost admin creation + real intervening D1 edit keeps inputs until explicit
     const clean = new EditorState('announcements', original); lost = true;
     await assert.rejects(clean.save(send), /lost/); await clean.save(send); assert.equal(clean.item.revision, 1);
   } finally { await r.mf.dispose(); }
+});
+
+test('a preview bound before lost creation recovery checks actual D1 hidden state using the newly recovered ID', async () => {
+  const r = await runtime();
+  const oldNavigator = Object.getOwnPropertyDescriptor(globalThis, 'navigator'), oldFormData = globalThis.FormData;
+  try {
+    Object.defineProperty(globalThis, 'navigator', { configurable: true, value: { onLine: true } });
+    globalThis.FormData = class { get(name) { return name === 'publicUrl' ? 'https://demo.notion.site/public' : 'https://demo.notion.site/embed'; } };
+    const user = await r.session(), body = { title: 'lost article', publicUrl: 'https://demo.notion.site/' + crypto.randomUUID(), embedUrl: 'https://demo.notion.site/embed', summary: '', category: '', courseId: '' }, draft = { key: crypto.randomUUID() };
+    const button = {}, preview = { innerHTML: '' }, errorBox = { hidden: true, textContent: '' };
+    const dialog = { open: true, isConnected: true, querySelector: selector => selector === '#preview-article' ? button : selector === '#article-preview' ? preview : selector === '.modal-error' ? errorBox : {} };
+    let lost = true, id, statusRequests = 0;
+    const send = async (path, method = 'GET', input, headers) => {
+      if (method === 'GET' && path.startsWith('/articles/')) statusRequests++;
+      const result = await r.send('/api' + path, method, input, user.cookie, headers);
+      if (result.status >= 400) throw new ApiError(result.data.error, result.status, result.data.code);
+      if (method === 'POST' && lost) { lost = false; id = result.data.article.id; throw Error('lost after commit'); }
+      return result.data;
+    };
+    bindArticlePreview(dialog, () => draft.recoveredId ? { id: draft.recoveredId } : undefined, send);
+    await assert.rejects(submitNewArticle(draft, body, send, async () => {}), /lost/);
+    const hide = await r.adm(`/articles/${id}/visibility`, 'POST', { revision: 1, visibility: 'hidden', reason: '検証中' }, { 'Idempotency-Key': crypto.randomUUID() }); assert.equal(hide.status, 200);
+    await assert.rejects(submitNewArticle(draft, body, send, async () => {}), /別の更新/);
+    assert.equal(draft.recoveredId, id);
+    await button.onclick();
+    assert.equal(statusRequests, 1); assert.equal(preview.innerHTML, ''); assert.equal(errorBox.hidden, false); assert.match(errorBox.textContent, /見つかりません/);
+    // It may open again only after fresh public revalidation succeeds.
+    const reveal = await r.adm(`/articles/${id}/visibility`, 'POST', { revision: hide.data.article.revision, visibility: 'published', reason: '' }, { 'Idempotency-Key': crypto.randomUUID() }); assert.equal(reveal.status, 200);
+    await button.onclick(); assert.equal(statusRequests, 2); assert.match(preview.innerHTML, /<iframe/);
+  } finally {
+    if (oldNavigator) Object.defineProperty(globalThis, 'navigator', oldNavigator); else delete globalThis.navigator;
+    globalThis.FormData = oldFormData; await r.mf.dispose();
+  }
 });

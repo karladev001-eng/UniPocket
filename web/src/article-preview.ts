@@ -3,13 +3,14 @@ import { escapeHTML } from './community';
 
 // The online/public checks belong to the actual click handler, including the
 // boundary after its asynchronous public-status request and before DOM insertion.
-export function bindArticlePreview(dialog: HTMLDialogElement, article?: Article, send = api) {
+export function bindArticlePreview(dialog: HTMLDialogElement, article?: Pick<Article, "id" | "visibility"> | (() => Pick<Article, "id" | "visibility"> | undefined), send = api) {
   dialog.querySelector<HTMLButtonElement>('#preview-article')!.onclick = async () => {
     try {
       if (!navigator.onLine) throw Error('オフラインでは新しいNotionプレビューを開けません。');
-      if (article) {
-        if (article.visibility === 'hidden') throw Error('非表示の記事はプレビューを開けません。登録情報の編集・削除はできます。');
-        await send('/articles/' + encodeURIComponent(article.id));
+      const target = typeof article === 'function' ? article() : article;
+      if (target) {
+        if (target.visibility === 'hidden') throw Error('非表示の記事はプレビューを開けません。登録情報の編集・削除はできます。');
+        await send('/articles/' + encodeURIComponent(target.id));
       }
       if (!dialog.open || !dialog.isConnected) return;
       const form = new FormData(dialog.querySelector('form')!);

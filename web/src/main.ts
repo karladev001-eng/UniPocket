@@ -1267,7 +1267,7 @@ function articleForm(article?: Article) {
       changed();
     });
   });
-  bindArticlePreview(d, article);
+  bindArticlePreview(d, () => article || (draft.recoveredId ? { id: draft.recoveredId } : undefined));
 }
 async function deleteOwnArticle(article: Article) {
   if (!confirm("登録した記事情報を削除しますか？Notion本文は削除されません。")) return;

@@ -101,11 +101,11 @@ export class AdminClient {
     email = "";
     authorized = false;
     onExpired: () => void = () => { };
-    constructor(private transport: typeof fetch = fetch) { }
+    constructor(private transport: typeof fetch = (...args) => globalThis.fetch(...args)) { }
     private async request(path: string, method = "GET", body?: unknown, headers: Record<string, string> = {}): Promise<Response> {
         let response: Response;
         try {
-            response = await this.transport("/api/admin" + path, { method, credentials: "same-origin", cache: "no-store", redirect: "error", signal: AbortSignal.timeout(20000), headers: { ...(body === undefined ? {} : { "Content-Type": "application/json" }), ...headers }, body: body === undefined ? undefined : JSON.stringify(body) });
+            response = await this.transport.call(globalThis, "/api/admin" + path, { method, credentials: "same-origin", cache: "no-store", redirect: "error", signal: AbortSignal.timeout(20000), headers: { ...(body === undefined ? {} : { "Content-Type": "application/json" }), ...headers }, body: body === undefined ? undefined : JSON.stringify(body) });
         }
         catch {
             this.authorized = false;

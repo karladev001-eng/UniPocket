@@ -206,3 +206,17 @@ it('locks a survey published during lost-create recovery and retains local immut
     expect((state.retainedInput as Survey).questions[0].title).toBe('local question');
     expect(state.item.title).toBe('local title'); expect(payload(state.item)).not.toHaveProperty('questions'); expect(state.hasInputToLose).toBe(true);
 });
+
+it('invokes native-like fetch with the browser global receiver for startup authentication and API requests', async () => {
+    const nativeLike = function(this: unknown, url: RequestInfo | URL) {
+        if (this !== globalThis) throw new TypeError('Illegal invocation');
+        return Promise.resolve(String(url).endsWith('/me') ? json({ admin: { email: 'owner@example.test' } }) : json({ publishedArticles: 3 }));
+    };
+    vi.stubGlobal('fetch', nativeLike);
+    try {
+        const defaultClient = new AdminClient(); await defaultClient.authenticate();
+        expect(await defaultClient.send('/overview')).toEqual({ publishedArticles: 3 });
+        const injectedClient = new AdminClient(nativeLike as typeof fetch); await injectedClient.authenticate();
+        expect(injectedClient.authorized).toBe(true);
+    } finally { vi.unstubAllGlobals(); }
+});
