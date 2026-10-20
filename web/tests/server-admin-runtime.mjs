@@ -75,10 +75,10 @@ test('real D1 moderation: all public paths, author rights, reports, CAS and audi
         const deleted = (await r.adm('/articles?visibility=deleted')).data.articles[0];
         assert.equal(deleted.visibility, 'deleted');
         assert.equal(deleted.summary, '');
-        assert.equal(deleted.bookmarkCount,0);
-        const currentMetrics=await r.adm('/metrics?start='+day(0)+'&end='+day(0));
-        assert.equal(currentMetrics.data.currentBookmarks,0);
-        assert.equal((await r.db.prepare('SELECT COUNT(*) n FROM bookmarks WHERE article_id=?').bind(id).first()).n,1);
+        assert.equal(deleted.bookmarkCount, 0);
+        const currentMetrics = await r.adm('/metrics?start=' + day(0) + '&end=' + day(0));
+        assert.equal(currentMetrics.data.currentBookmarks, 0);
+        assert.equal((await r.db.prepare('SELECT COUNT(*) n FROM bookmarks WHERE article_id=?').bind(id).first()).n, 1);
         assert.equal((await r.adm(`/articles/${id}/visibility`, 'POST', { revision: deleted.revision, visibility: 'published', reason: '' }, { 'Idempotency-Key': crypto.randomUUID() })).status, 409);
     }
     finally {
@@ -260,6 +260,76 @@ test('real D1 admin paging: more than 500 articles/reports remain searchable and
         const byAuthor = await r.adm('/articles?q=' + encodeURIComponent('匿名ユーザー') + '&visibility=published');
         assert.equal(byAuthor.data.articles.length, 50);
         assert.ok(byAuthor.data.nextCursor);
+    }
+    finally {
+        await r.mf.dispose();
+    }
+});
+test('real D1 expired survey history remains incomplete after reopening, with consistent retained-window totals', async () => {
+    const r = await runtime();
+    try {
+        const first = await r.session();
+        const draft = await r.content('surveys');
+        let survey = (await r.publish('surveys', draft)).data.survey;
+        const question = survey.questions[0], option = question.options[0];
+        const answers = { answers: [{ questionId: question.id, value: option.id }] };
+        let result = await r.adm('/surveys/' + survey.id + '/results');
+        assert.equal(result.data.resultsComplete, true);
+        assert.equal(result.data.resultsSince, survey.createdAt);
+        assert.equal(result.data.responseCount, 0);
+        assert.equal((await r.send('/api/surveys/' + survey.id + '/responses', 'POST', answers, first.cookie, { 'Idempotency-Key': crypto.randomUUID() })).status, 200);
+        result = await r.adm('/surveys/' + survey.id + '/results');
+        assert.equal(result.data.responseCount, 1);
+        assert.equal(result.data.questions[0].counts[0].count, 1);
+        await r.db.prepare("UPDATE surveys SET status='ended',ended_at=?,end_at=? WHERE id=?").bind(instant(-366), instant(-366), survey.id).run();
+        await r.db.exec("CREATE TRIGGER fail_choice_expiry BEFORE DELETE ON survey_option_counts BEGIN SELECT RAISE(ABORT,'test_failure'); END;");
+        assert.equal((await r.cleanup()).status,500);
+        const rolledBack=await r.db.prepare('SELECT results_complete,response_count FROM surveys WHERE id=?').bind(survey.id).first();
+        assert.equal(rolledBack.results_complete,1);
+        assert.equal(rolledBack.response_count,1);
+        assert.equal((await r.db.prepare('SELECT count FROM survey_option_counts WHERE survey_id=?').bind(survey.id).first()).count,1);
+        await r.db.exec('DROP TRIGGER fail_choice_expiry');
+        assert.equal((await r.cleanup()).status, 200);
+        result = await r.adm('/surveys/' + survey.id + '/results');
+        assert.equal(result.status, 200);
+        assert.equal(result.data.resultsComplete, false);
+        assert.equal(result.data.responseCount, 0);
+        assert.equal(result.data.questions[0].counts[0].count, 0);
+        const retainedSince = result.data.resultsSince;
+        assert.ok(Number.isFinite(Date.parse(retainedSince)));
+        assert.ok(Date.parse(retainedSince) >= Date.parse(survey.createdAt));
+        assert.equal((await r.db.prepare('SELECT COUNT(*) AS n FROM survey_option_counts WHERE survey_id=?').bind(survey.id).first()).n, 0);
+        assert.equal((await r.db.prepare('SELECT COUNT(*) AS n FROM survey_responses WHERE survey_id=?').bind(survey.id).first()).n, 0);
+        assert.equal((await r.cleanup()).status, 200);
+        assert.equal((await r.adm('/surveys/' + survey.id + '/results')).data.resultsSince, retainedSince);
+        const updated = await r.adm('/surveys/' + survey.id, 'PATCH', { revision: survey.revision, endAt: instant(1) });
+        assert.equal(updated.status, 200, JSON.stringify(updated.data));
+        const reopened = await r.publish('surveys', updated.data.survey);
+        assert.equal(reopened.status, 200, JSON.stringify(reopened.data));
+        result = await r.adm('/surveys/' + survey.id + '/results');
+        assert.equal(result.data.resultsComplete, false);
+        assert.equal(result.data.resultsSince, retainedSince);
+        assert.equal(result.data.responseCount, 0);
+        assert.equal(result.data.questions[0].counts[0].count, 0);
+        const second = await r.session();
+        assert.equal((await r.send('/api/surveys/' + survey.id + '/responses', 'POST', answers, second.cookie, { 'Idempotency-Key': crypto.randomUUID() })).status, 200);
+        result = await r.adm('/surveys/' + survey.id + '/results');
+        assert.equal(result.data.resultsComplete, false);
+        assert.equal(result.data.resultsSince, retainedSince);
+        assert.equal(result.data.responseCount, 1);
+        assert.equal(result.data.questions[0].counts[0].count, 1);
+        assert.equal((await r.db.prepare('SELECT response_count FROM surveys WHERE id=?').bind(survey.id).first()).response_count, 1);
+        const exported = await r.adm('/surveys/' + survey.id + '/responses.csv');
+        assert.equal(exported.status, 200);
+        assert.match(exported.data, /"resultsComplete","false"/);
+        assert.ok(exported.data.includes(retainedSince));
+        assert.ok(!exported.data.includes(first.id));
+        // A retained receipt still blocks the first anonymous identity, but is
+        // never counted as an answer in the retained analytics window.
+        assert.equal((await r.send('/api/surveys/' + survey.id + '/responses', 'POST', answers, first.cookie, { 'Idempotency-Key': crypto.randomUUID() })).status, 200);
+        result = await r.adm('/surveys/' + survey.id + '/results');
+        assert.equal(result.data.responseCount, 1);
+        assert.equal(result.data.questions[0].counts[0].count, 1);
     }
     finally {
         await r.mf.dispose();

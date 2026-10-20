@@ -17,7 +17,7 @@ class SQLiteD1 implements Database {
       bind(...args: unknown[]) { values = args; return api; },
       async first<T>() { return (statement.get(...values) || null) as T | null; },
       async all<T>() { return {results: statement.all(...values) as T[]}; },
-      async run() {const result=statement.run(...values);return {meta:{changes:Number(result.changes)}}; },
+      async run() {if(statement.columns().length)return {results:statement.all(...values)};const result=statement.run(...values);return {meta:{changes:Number(result.changes)}}; },
     }; return api;
   }
   async batch(statements: Statement[]) {

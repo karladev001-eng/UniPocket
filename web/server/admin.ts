@@ -3,7 +3,7 @@ import { ApiError, jsonBody, textField } from './validation.ts';
 import { authenticate } from './access.ts';
 import { cols, contentInput, getContent, unpack, type Content } from './content.ts';
 import { audit, conflict, csv, digest, key, originCheck, response, revision } from './shared.ts';
-import { metrics, surveyResults } from './metrics.ts';
+import { metrics, surveyResultSnapshot } from './metrics.ts';
 const articleCols = `a.id,a.author_id AS authorId,p.display_name AS authorName,a.title,a.public_url AS publicUrl,a.embed_url AS embedUrl,a.summary,a.category,a.course_id AS courseId,a.created_at AS createdAt,a.updated_at AS updatedAt,a.view_count AS viewCount,a.visibility,a.revision,a.hidden_reason AS hiddenReason,CASE WHEN a.visibility='deleted' THEN 0 ELSE (SELECT COUNT(*) FROM bookmarks b WHERE b.article_id=a.id) END AS bookmarkCount`;
 async function adminArticle(db: Database, id: string) {
     const a = await db.prepare(`SELECT ${articleCols} FROM articles a JOIN profiles p ON p.id=a.author_id WHERE a.id=?`).bind(id).first<Article>();
@@ -168,14 +168,10 @@ async function route(request: Request, env: Env, email: string): Promise<Respons
     }
     const resultMatch = /^\/api\/admin\/surveys\/([a-f0-9-]{36})\/(results|responses.csv)$/.exec(path);
     if (resultMatch && method === 'GET') {
-        const data = await surveyResults(db, resultMatch[1]);
+        const { result: data, responseRows } = await surveyResultSnapshot(db, resultMatch[1]);
         if (resultMatch[2] === 'results')
             return response(data);
-        const raw = await db.prepare('SELECT answers,submitted_at FROM survey_responses WHERE survey_id=? ORDER BY submitted_at,id').bind(resultMatch[1]).all<{
-            answers: string;
-            submitted_at: string;
-        }>();
-        const rows = raw.results.flatMap(r => (JSON.parse(r.answers) as {
+        const rows = responseRows.flatMap(r => (JSON.parse(r.answers) as {
             questionId: string;
             value: string | string[];
         }[]).map(a => {
@@ -183,7 +179,7 @@ async function route(request: Request, env: Env, email: string): Promise<Respons
             return [r.submitted_at, a.questionId, q?.title, q?.type === 'text' ? a.value : (Array.isArray(a.value) ? a.value : [a.value]).map(v => q?.options.find(o => o.id === v)?.label || '').join(' / ')];
         }));
         await audit(db, email, resultMatch[1], 'survey.responses.csv').run();
-        return csv([['submittedAt', 'questionId', 'question', 'answer'], ...rows]);
+        return csv([['resultsComplete', data.resultsComplete], ['resultsSince', data.resultsSince], ['individualResponseRetention', '90 days after survey end'], [], ['submittedAt', 'questionId', 'question', 'answer'], ...rows]);
     }
     const match = /^\/api\/admin\/(announcements|surveys)(?:\/([a-f0-9-]{36})(?:\/(publish|end))?)?$/.exec(path);
     if (!match)

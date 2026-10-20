@@ -1,4 +1,4 @@
-export {digest,jstDay} from './shared.ts';
+export { digest, jstDay } from './shared.ts';
 import type { Article, Database, Env, User } from './types.ts';
 import { publicContent } from './content.ts';
 import { ifMatch, conflict, digest, jstDay, rate, originCheck, response } from './shared.ts';
@@ -17,7 +17,6 @@ const SELECT = `SELECT ${ARTICLE_COLUMNS}${ARTICLE_FROM}`;
 function article(row: Article): Article {
     return { ...row, bookmarked: !!row.bookmarked, canEdit: !!row.canEdit };
 }
-
 interface PopularCursor {
     sort: 'popular';
     version: 1;
@@ -70,7 +69,6 @@ function readCursor(value: string | null, sort: 'popular' | 'newest'): PopularCu
         throw invalid();
     return cursor;
 }
-
 async function currentUser(request: Request, db: Database): Promise<User | null> {
     const cookies = (request.headers.get('Cookie') || '').split(';').map(v => v.trim());
     const values = cookies.filter(v => v.startsWith(`${COOKIE}=`));
@@ -87,7 +85,6 @@ function requireUser(user: User | null): User {
         throw new ApiError(401, '匿名セッションを準備してから再試行してください。', 'session_required');
     return user;
 }
-
 async function createSession(request: Request, env: Env): Promise<{
     user: User;
     cookie: string;
@@ -108,8 +105,6 @@ async function getArticle(db: Database, id: string, user: User | null, own = fal
         throw new ApiError(404, '記事が見つかりません。', 'not_found');
     return article(row);
 }
-
-
 async function route(request: Request, env: Env, issued: {
     cookie?: string;
 }): Promise<Response> {
@@ -347,6 +342,14 @@ export async function cleanup(db: Database): Promise<void> {
             // the minimal one-response receipt survives reopening.
             db.prepare("UPDATE survey_response_receipts SET request_hash='' WHERE response_id IN (SELECT r.id FROM survey_responses r JOIN surveys s ON s.id=r.survey_id WHERE s.end_at<? OR (s.status='ended' AND s.ended_at<?) ORDER BY r.id LIMIT 500)").bind(new Date(Date.now() - 90 * 86400000).toISOString(), new Date(Date.now() - 90 * 86400000).toISOString()),
             db.prepare("DELETE FROM survey_responses WHERE id IN (SELECT r.id FROM survey_responses r JOIN surveys s ON s.id=r.survey_id WHERE s.end_at<? OR (s.status='ended' AND s.ended_at<?) ORDER BY r.id LIMIT 500)").bind(new Date(Date.now() - 90 * 86400000).toISOString(), new Date(Date.now() - 90 * 86400000).toISOString()),
+            // Mark the result history before removing any choice aggregates.
+            // The retained-window count must reset with the choices; otherwise
+            // reopening would combine an old lifetime total with missing zeros.
+            // Do not advance results_since repeatedly for an unchanged empty
+            // expired survey, and never restore completeness on reopening.
+            db.prepare(`UPDATE surveys SET results_complete=0,results_since=?,response_count=0
+ WHERE (end_at<? OR (status='ended' AND ended_at<?))
+ AND (results_complete=1 OR response_count>0 OR EXISTS(SELECT 1 FROM survey_option_counts c WHERE c.survey_id=surveys.id))`).bind(stamp, new Date(Date.now() - 365 * 86400000).toISOString(), new Date(Date.now() - 365 * 86400000).toISOString()),
             db.prepare('DELETE FROM daily_content_metrics WHERE day<?').bind(jstDay(Date.now() - 365 * 86400000)),
             db.prepare("DELETE FROM survey_option_counts WHERE survey_id IN (SELECT id FROM surveys WHERE end_at<? OR (status='ended' AND ended_at<?))").bind(new Date(Date.now() - 365 * 86400000).toISOString(), new Date(Date.now() - 365 * 86400000).toISOString()),
             db.prepare('DELETE FROM admin_audit WHERE created_at<?').bind(new Date(Date.now() - 365 * 86400000).toISOString()),

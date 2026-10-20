@@ -47,29 +47,50 @@ export async function metrics(db: Database, url: URL) {
             a.views = null;
     return { start, end, collectedSince, asOf, daily, articleViews: incomplete ? null : daily.reduce((s, r) => s + (r.articleViews ?? 0), 0), currentBookmarks: articles.results.reduce((s, a) => s + a.bookmarks, 0), surveyResponses: incomplete ? null : daily.reduce((s, r) => s + (r.surveyResponses ?? 0), 0), articles: articles.results };
 }
-export async function surveyResults(db: Database, id: string) {
-    const raw = await db.prepare(`SELECT ${cols.surveys} FROM surveys WHERE id=?`).bind(id).first<Content>();
+interface SurveyRetention {
+    results_complete: number;
+    results_since: string;
+    response_count: number;
+    created_at: string;
+}
+interface ResponseRow {
+    answers: string;
+    submitted_at: string;
+}
+interface ChoiceCount {
+    question_id: string;
+    option_id: string;
+    count: number;
+}
+/** One D1 transaction prevents cleanup or new answers from splitting the count,
+ * choice and completeness reads across two different retained-data windows. */
+export async function surveyResultSnapshot(db: Database, id: string) {
+    const [surveyRows, retentionRows, responses, counts] = await db.batch([
+        db.prepare(`SELECT ${cols.surveys} FROM surveys WHERE id=?`).bind(id),
+        db.prepare('SELECT results_complete,results_since,response_count,created_at FROM surveys WHERE id=?').bind(id),
+        db.prepare("SELECT r.answers,r.submitted_at FROM survey_responses r JOIN surveys s ON s.id=r.survey_id WHERE r.survey_id=? AND (s.results_since='' OR r.submitted_at>=s.results_since) ORDER BY r.submitted_at,r.id").bind(id),
+        db.prepare('SELECT question_id,option_id,count FROM survey_option_counts WHERE survey_id=?').bind(id),
+    ]) as [
+        {
+            results: Content[];
+        },
+        {
+            results: SurveyRetention[];
+        },
+        {
+            results: ResponseRow[];
+        },
+        {
+            results: ChoiceCount[];
+        }
+    ];
+    const raw = surveyRows.results[0];
     if (!raw)
         throw new ApiError(404, '見つかりません。', 'not_found');
-    const retention = await db.prepare("SELECT status,end_at,ended_at FROM surveys WHERE id=?").bind(id).first<{
-        status: string;
-        end_at: string;
-        ended_at: string | null;
-    }>();
-    const retentionEnd = retention?.status === 'ended' && retention.ended_at ? retention.ended_at : retention?.end_at;
-    if (retentionEnd && Date.parse(retentionEnd) < Date.now() - 365 * 86400000) {
-        throw new ApiError(410, 'このアンケートの結果は保持期限を過ぎています。', 'results_expired');
-    }
+    const retention = retentionRows.results[0];
+    if (!retention)
+        throw new Error('survey results retention state missing');
     const survey = unpack(raw);
-    const responses = await db.prepare('SELECT answers,submitted_at FROM survey_responses WHERE survey_id=? ORDER BY submitted_at,id').bind(id).all<{
-        answers: string;
-        submitted_at: string;
-    }>();
-    const counts = await db.prepare('SELECT question_id,option_id,count FROM survey_option_counts WHERE survey_id=?').bind(id).all<{
-        question_id: string;
-        option_id: string;
-        count: number;
-    }>();
     const questions = survey.questions!.filter(q => q.type !== 'text').map(q => ({ questionId: q.id, counts: q.options.map(o => ({ optionId: o.id, count: counts.results.find(c => c.question_id === q.id && c.option_id === o.id)?.count ?? 0 })) }));
     const freeText: {
         questionId: string;
@@ -87,8 +108,18 @@ export async function surveyResults(db: Database, id: string) {
                     freeText.push({ questionId: q.id, value: answer.value, submittedAt: r.submitted_at });
             }
         }
-    const count = await db.prepare("SELECT response_count AS n FROM surveys WHERE id=?").bind(id).first<{
-        n: number;
-    }>();
-    return { survey, responseCount: count?.n ?? 0, questions, freeText };
+    return {
+        responseRows: responses.results,
+        result: {
+            survey,
+            responseCount: retention.response_count,
+            resultsComplete: !!retention.results_complete,
+            resultsSince: retention.results_since || retention.created_at,
+            questions,
+            freeText,
+        },
+    };
+}
+export async function surveyResults(db: Database, id: string) {
+    return (await surveyResultSnapshot(db, id)).result;
 }
