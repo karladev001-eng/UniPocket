@@ -3,6 +3,15 @@ import { createServer } from 'node:http';
 import { pathToFileURL, fileURLToPath } from 'node:url';
 import { runtime } from './server-admin-fixture.mjs';
 
+// Loopback cookies are shared across ports. Never forward a real localhost
+// __Host- cookie alongside the synthetic QA identity as a duplicate credential.
+export function qaCookieHeader(raw, native = true) {
+  const values = (raw || '').split(';').map(value => value.trim()).filter(value => value.startsWith('qa_public_campus_session='));
+  if (values.length !== 1) return '';
+  const token = values[0].slice('qa_public_campus_session='.length);
+  return /^[a-f0-9]{64}$/.test(token) ? `${native ? '__Host-campus_session' : 'qa_public_campus_session'}=${token}` : '';
+}
+
 export async function seedQa(r) {
   const owner = await r.session();
   for (const [title, summary, category] of [
@@ -43,7 +52,8 @@ export async function startQa({ publicPort = 8890, adminPort = 8891, seed = true
           if (url.pathname.startsWith('/__test')) { res.writeHead(404); res.end('Not found'); return; }
           const headers = new Headers();
           for (const [name, value] of Object.entries(req.headers)) if (value !== undefined && !['host', 'connection', 'content-length', 'cf-access-jwt-assertion'].includes(name)) headers.set(name, Array.isArray(value) ? value.join(', ') : value);
-          if (headers.has('cookie')) headers.set('cookie', headers.get('cookie').replace(/(?:^|;\s*)qa_public_campus_session=/g, '; __Host-campus_session=').replace(/^; /, ''));
+          const cookie = qaCookieHeader(headers.get('cookie')); headers.delete('cookie');
+          if (cookie) headers.set('cookie', cookie);
           if (headers.get('origin') === local) headers.set('Origin', upstream);
           headers.set('CF-Connecting-IP', '192.0.2.50');
           if (kind === 'admin') headers.set('Cf-Access-Jwt-Assertion', await r.token());
@@ -69,9 +79,34 @@ export async function startQa({ publicPort = 8890, adminPort = 8891, seed = true
   } catch (error) { await Promise.all(servers.map(server => new Promise(resolve => server.close(resolve)))); await r.mf.dispose(); throw error; }
 }
 
+// Upgrade a running QA fixture without losing its ephemeral D1 or browser inputs.
+// This additional loopback front door only normalizes QA cookies and same-origin
+// metadata; the existing Workers still enforce authentication and CSRF.
+export async function startCookieRelay({ port = 8892, target = 'http://127.0.0.1:8890' } = {}) {
+  const upstream = new URL(target);
+  if (upstream.protocol !== 'http:' || upstream.hostname !== '127.0.0.1' || upstream.username || upstream.password || upstream.pathname !== '/' || upstream.search || upstream.hash) throw Error('Loopback QA target required');
+  const server = createServer(async (req, res) => {
+    try {
+      const local = `http://127.0.0.1:${server.address().port}`;
+      if (req.headers.host !== new URL(local).host) { res.writeHead(400); res.end('Loopback host required'); return; }
+      const url = new URL(req.url, local), headers = new Headers();
+      for (const [name, value] of Object.entries(req.headers)) if (value !== undefined && !['host', 'connection', 'content-length', 'cookie', 'cf-access-jwt-assertion'].includes(name)) headers.set(name, Array.isArray(value) ? value.join(', ') : value);
+      const cookie = qaCookieHeader(req.headers.cookie, false); if (cookie) headers.set('cookie', cookie);
+      if (headers.get('origin') === local) headers.set('origin', upstream.origin);
+      const chunks = []; for await (const chunk of req) chunks.push(chunk); const body = Buffer.concat(chunks);
+      const response = await fetch(upstream.origin + url.pathname + url.search, { method: req.method, headers, redirect: 'manual', ...(body.length ? { body } : {}) });
+      const outgoing = {}; response.headers.forEach((value, name) => { if (!['set-cookie', 'content-length', 'transfer-encoding', 'content-encoding', 'connection'].includes(name)) outgoing[name] = value; });
+      const cookies = response.headers.getSetCookie(); if (cookies.length) outgoing['set-cookie'] = cookies;
+      res.writeHead(response.status, outgoing); res.end(Buffer.from(await response.arrayBuffer()));
+    } catch (error) { console.error('Local QA cookie relay failed:', error.message); res.writeHead(502); res.end('Local QA cookie relay failed'); }
+  });
+  await new Promise((resolve, reject) => { server.once('error', reject); server.listen(port, '127.0.0.1', resolve); });
+  return { publicUrl: `http://127.0.0.1:${server.address().port}`, close: () => new Promise(resolve => server.close(resolve)) };
+}
+
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  const qa = await startQa();
-  console.log(JSON.stringify({ publicUrl: qa.publicUrl, adminUrl: qa.adminUrl, fixtures: qa.fixtures, data: 'Synthetic ephemeral local D1 only; Ctrl+C discards it.' }, null, 2));
+  const qa = process.argv.includes('--relay') ? await startCookieRelay() : await startQa();
+  console.log(JSON.stringify({ publicUrl: qa.publicUrl, adminUrl: qa.adminUrl, fixtures: qa.fixtures, data: 'Synthetic ephemeral local D1 only; Ctrl+C stops this test helper.' }, null, 2));
   const stop = async () => { await qa.close(); process.exit(0); };
   process.once('SIGINT', stop); process.once('SIGTERM', stop);
 }

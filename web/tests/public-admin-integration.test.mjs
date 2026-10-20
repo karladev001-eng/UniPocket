@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile, readdir } from 'node:fs/promises';
-import { startQa } from './helpers/public-admin-qa.mjs';
+import { startQa, startCookieRelay } from './helpers/public-admin-qa.mjs';
 
 // Runs built product HTML/JS through both actual Workers and the same ephemeral D1.
 test('built public/admin applications share content while retaining HTTP and auth boundaries', { timeout: 60000 }, async () => {
@@ -33,6 +33,14 @@ test('built public/admin applications share content while retaining HTTP and aut
     assert.equal(session.status, 200); const cookie = session.headers.get('set-cookie').split(';')[0];
     assert.match(cookie, /^qa_public_campus_session=/); assert.ok(!session.headers.get('set-cookie').includes('Secure'));
     assert.equal((await send(qa.publicUrl, '/api/session', 'GET', undefined, cookie)).data.user.id, session.data.user.id);
+    const mixed = '__Host-campus_session=' + 'f'.repeat(64) + '; unrelated=ignored; ' + cookie;
+    assert.equal((await send(qa.publicUrl, '/api/session', 'GET', undefined, mixed)).data.user.id, session.data.user.id);
+    assert.equal((await send(qa.publicUrl, '/api/session', 'GET', undefined, cookie.replace('qa_public_campus_session', '__Host-campus_session'))).data.user, null);
+    const relay = await startCookieRelay({ port: 0, target: qa.publicUrl });
+    try {
+      assert.equal((await send(relay.publicUrl, '/api/session', 'GET', undefined, mixed)).data.user.id, session.data.user.id);
+      assert.equal((await send(relay.publicUrl, '/api/session', 'POST', {}, mixed, { Origin: qa.adminUrl })).status, 403);
+    } finally { await relay.close(); }
     const notice = await send(qa.publicUrl, '/api/announcements/' + qa.fixtures.noticeId);
     assert.equal(notice.status, 200); assert.equal(notice.data.announcement.revision, 2);
     const detail = await send(qa.publicUrl, '/api/surveys/' + qa.fixtures.surveyId, 'GET', undefined, cookie);
