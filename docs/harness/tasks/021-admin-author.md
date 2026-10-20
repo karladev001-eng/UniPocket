@@ -2,7 +2,7 @@
 
 - 計画ID: `021-admin-author`
 - 仕様版: **1**
-- 状態: done（承認済み実装・ローカル検証・独立レビュー・作業ブランチへの統合を完了。配信・実記事登録は対象外）
+- 状態: done（実装・検証・独立レビュー・統合と、別途承認された既存Workerへの配信を完了。実記事登録・Notion公開は未実施）
 - 承認対象範囲: **管理画面からの運営記事投稿・編集と管理者バッジ（AC1–8）**
 - 基点: `c8c8493` / `codex/pwa-migration`
 - 仕様・モック: [021-admin-author.plan.html](021-admin-author.plan.html)
@@ -63,6 +63,32 @@ Notionの本文作成・Web公開はこれまでどおりNotion側で行う。�
 - 根拠: ユーザーがこの会話で「計画 021-admin-author の仕様版 1、範囲『管理画面からの運営記事投稿・編集と管理者バッジ（AC1–8）』の実装開始を承認します。」と明示。
 - 提示: 直前の回答で仕様とHTMLモックへのリンクを提示済み。今回の直接のチャット承認を根拠とし、020の承認を流用しない。HTMLの承認文案欄は仕様どおりpendingのまま維持する。
 - 承認範囲: 実装・ローカル検証・独立レビュー。Cloudflare配信・実記事登録・Notion公開は含まない。
+
+### 配信承認（2026-10-20）
+
+- ユーザーが実装・検証完了と未配信の報告後に「配信してください」と直接承認。
+- 対象: レビュー済み `a2d70a6` 相当の製品コード（記録込みHEAD `c52647f`）を既存の一般Worker `uni-pocket-preview` と本人限定管理Worker `uni-pocket-admin` へ配信し、既存D1へ追記migration0004を適用する。
+- 同じ一般origin・D1・管理Access/JWT/所有者を維持。配信に必要なビルド、DBバックアップ・整合確認・公開/管理経路の確認を含む。実記事投稿・Notion公開・権限拡大・別環境作成は含まない。
+- 配信完了。以下に公開環境での検証を記録し、先行する実装完了記録と区別する。
+
+### 配信前確認
+
+- 開始: 2026-10-20 08:48:18 UTC（17:48:18 JST）。担当 `admin_author_deploy`、Sol6.1/high。既存DB・所有者認証を保つ配布判断のためcomplex役割、現在のcollaborationモデルカタログ・auto/no pins。
+- 配信元のwebソースはレビュー済み574e81bと等価。親の018変更・未追跡013文書は配信やコミットに含めない。
+- 親の実管理画面の現時点: 記事1件「Uni Pocket 動作確認用の記事」、投稿者表示名「管理者」、**非表示**、閲覧3/ブックマーク1。以前の020の公開時記録を現在状態と見なさず、この状態を保持してDBでも確認する。表示名だけでバッジを付けないことの確認対象になる。
+- 配信担当は現在のアカウント・Worker・D1・secretの設定を安全に確認し、privateなDBバックアップ→migration0004→一般/管理配信→保護と集計の照合を実施する。管理の既定設定workers_dev:falseをそのまま使って既存の管理URLを停止させないよう、privateな配信設定で現在のtrueと保護を維持する。権限/Access設定の変更はしない。
+
+### 配信結果とライブ検証（2026-10-20）
+
+- 一般URL: https://uni-pocket-preview.kan0507kt.workers.dev/ 。build **20261020084928-3841bc**、Worker Version **cf1ccd76-6ad8-4221-9f8e-75a876550147**、100%配信。
+- 管理URL: https://uni-pocket-admin.kan0507kt.workers.dev/ 。Worker Version **70cbce21-741b-400d-896c-a163facc99e5**、100%配信。管理画面の「記事 → ＋ 運営記事」から固定運営名・管理者バッジの投稿フォームを実ブラウザで確認した。新記事の登録は行っていない。
+- 現行D1へ **0004_admin_authors.sqlのみ** を適用。未適用migrationなし。既存記事1件のID・authorID・通常投稿種別user・非表示・revision2・閲覧3・ブックマーク1を保持。プロフィール2→3（予約運営プロフィール1件のみ追加）、セッション2のまま。記事・回答・監査の追加なし。外部キー検査PASS。
+- 移行前DBバックアップ: `/private/tmp/uni-pocket-021-release.ZHbn5B/uni-pocket-preview-before-0004.sql`（600、親ディレクトリ700）。SQLiteメモリへの復元とintegrity_check成功。SQL本文・export URL・秘密値は記録へ転載しない。配信検証の機械記録は同ディレクトリの`release-verification.json`（600）。
+- 配信前後で両Workerの同一D1結合、管理JWT secret名・team値、workers_dev=true/preview_urls=falseを照合して一致。リポジトリの安全な既定管理configは変更なし。一時の配信config・生設定snapshot・ログは削除済み。OAuthの新権限・Access設定の変更なし。
+- 匿名HTTP: 一般root/manifest/version/sw/記事API200（公開0件）、一般`/api/admin`・`/api/admin/me`404。管理root/API/新JSはすべてAccessログインへ302。PWAコア12資産をGETしてローカルと完全バイト一致（2,085,517 bytes）、SW precache210資産をHEAD確認して全200。全typecheck/両build成功、製品ソース/設定はレビュー済みa2d70a6と等価。
+- AccessアプリAPIは既存OAuth scopeで403だったため、権限を広げず親のCloudflare管理UIで補完。アプリはUni Pocket Adminの1件、ポリシーは既存owner-only。ポリシー画面で所有者メール1件の許可のみを読み取り確認し、保存・変更せず退出した。
+- 親の認証済み実管理UIで概要/記事一覧を取得し、旧投稿者名「管理者」が文字だけで運営バッジなし、既存非表示・3/1が維持されていることを確認。新しい「＋ 運営記事」→空の投稿フォームで「Uni Pocket運営＋管理者」バッジを確認。公開/保存操作は行っていない。証拠画像 `/private/tmp/uni-pocket-021-live-admin.png`。
+- 同じ一般ブラウザの旧020画面から「その他 → 更新を確認」を実行。データ削除・再インストールなしで最新021へ切替。「この画面のビルド」と「配信中のビルド」がともに20261020084928-3841bcで一致し、「最新です」、ユーザー名「管理者」も維持。物理iPhoneの確認とは区別する。
 
 ## 資料の開き方・検証
 
