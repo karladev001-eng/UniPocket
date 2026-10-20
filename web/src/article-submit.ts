@@ -27,6 +27,6 @@ export async function submitNewArticle(
     throw e;
   }
   if (JSON.stringify(body) !== draft.pendingBody)
-    result = await send("/articles/" + encodeURIComponent(result.article.id), "PATCH", body);
+    result = await send("/articles/" + encodeURIComponent(result.article.id), "PATCH", body, { "If-Match": String(result.article.revision) });
   return result;
 }

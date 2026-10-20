@@ -1,3 +1,4 @@
+import { Community } from "./community";
 import { MapViewport } from "./map-viewport";
 import { setEventMemo, eventMemoText } from "./event-memos";
 import { ViewEpoch, updateBookmark, appendUnique, BookmarkRequests } from "./article-request";
@@ -34,6 +35,7 @@ import {
 import { LocalStore, SaveQueue } from "./storage";
 import {
   api,
+  ApiError,
   session,
   notionURL,
   embedSource,
@@ -141,7 +143,7 @@ async function flushOrThrow() {
     throw Error(
       "保存データを読み込めないため更新できません。原本を保護しています。",
     );
-  if (busy || submitting || composing)
+  if (busy || submitting || composing || community.dirty)
     throw Error(
       "文字変換・画像処理・PDF取込・送信を終えてから更新してください。",
     );
@@ -205,6 +207,12 @@ function render() {
   else if (r === "calendar") renderCalendar();
   else if (r === "notes") renderNotes();
   else if (r === "articles") renderArticles();
+  else if (r === "announcements") {
+    const id = location.hash.split("/")[1];
+    if (id) void community.renderAnnouncement(decodeURIComponent(id)); else void community.renderFeed();
+  }
+  else if (r === "surveys") void community.renderSurvey(decodeURIComponent(location.hash.split("/")[1] ?? ""));
+  else if (r === "my-articles") void community.renderOwnArticles();
   else if (r === "more") renderMore();
   else renderHome();
   if (previousRoute === r) for (const id of openDetails) {
@@ -268,10 +276,11 @@ function renderHome() {
   action("event-new", () => { selectedDay = today; editEvent(); });
   action("home-timetable", () => { selectedDay = today; weekend = weekDay(today) > 5; navigate("timetable"); });
   if (next) action("event-" + next.id, () => showEvent(next));
-  page.innerHTML = heading("ホーム", "", btn("＋ 予定", "event-new", "timetable-entry")) +
+  page.innerHTML = heading("ホーム", "", `<span id="home-notice-bell">${community.homeBell()}</span>` + btn("＋ 予定", "event-new", "timetable-entry")) +
     `<div class="date-line"><strong>${esc(new Intl.DateTimeFormat("ja-JP", { month: "long", day: "numeric", weekday: "long", timeZone: "Asia/Tokyo" }).format(now))}</strong>${btn(icon('clock') + ' 時間割を見る', "home-timetable", "timetable-entry")}</div>` +
     (next ? `<section class="next-preview"><button class="next-main" data-action="${esc("event-" + next.id)}"><span class="next-caption">${Date.parse(next.start) <= now.getTime() ? "いまの予定" : "次の予定"} · ${esc(dayKey(new Date(next.start)) === today ? "今日" : dayKey(new Date(next.start)))}</span><span class="next-time">${esc(timeLabel(next.start))}<small>–${esc(timeLabel(next.end))}</small></span><strong>${esc(next.title)}</strong></button>${locationControl(next.location, "next-" + next.id)}</section>` : `<p class="next-preview no-next">次の予定はありません。</p>`) +
     `<section class="today-schedule"><div class="sectiontitle"><h2>今日の予定 <span class="tag">${todayEvents.length}件</span></h2></div><div class="home-events">${todayEvents.map(compactEvent).join("") || empty("今日の予定はありません。")}</div>${!all.length ? `<p class="import-hint">${btn("時間割PDFを取り込む", "home-import")}</p>` : ""}</section>
+    <div id="home-community-line">${community.homeLine()}</div>
     <details id="home-facilities" class="home-extra"><summary>キャンパスの営業時間</summary><p class="muted">通常期の目安です。臨時変更は公式情報で確認してください。</p>${data.facilities.slice(0, 4).map(f => `<p><b>${esc(f.title)}</b> · ${esc(facilityHours(f, today) || "休業")}</p>`).join("")}<a href="#more">施設を設定 →</a></details>
     <section class="section"><h2>固定したメモ</h2><div class="cards">${data.notes.filter(n => data.pinned.includes(n.id)).map(noteCard).join("") || empty("メモを固定するとここに表示されます。")}</div></section>
     ${homeMap()}
@@ -924,7 +933,6 @@ let priorFilters: typeof articleFilters | undefined,
   articleError = "",
   articleRequest = 0,
   articleFetched = "",
-  lastFilterKey = "",
   searchTimer: ReturnType<typeof setTimeout> | undefined;
 function articleKey() {
   return JSON.stringify({ ...articleFilters, sort: articleFilters.bookmarked ? "newest" : articleSort });
@@ -937,8 +945,7 @@ async function loadArticles(more = false) {
   const current = () => request === articleRequest && key === articleKey() && isCurrent() && route() === "articles" && !location.hash.split("/")[1];
   articleLoading = true; articleError = "";
   if (!more) nextCursor = null;
-  if (!more && key !== lastFilterKey) { articles = []; articleFetched = ""; }
-  lastFilterKey = key;
+  if (!more) { articles = []; articleFetched = ""; }
   updateArticleList();
   try {
     if (filter.bookmarked) user = await session();
@@ -1032,7 +1039,7 @@ function renderArticles() {
     priorFilters = undefined; render();
   });
   const tab = articleFilters.bookmarked ? "bookmarks" : articleSort, count = filterCount();
-  page.innerHTML = heading("記事", "", btn("＋ 登録", "article-new", "text-action")) +
+  page.innerHTML = heading("記事", "", `<a class="text-action" href="#my-articles">自分の投稿</a>` + btn("＋ 登録", "article-new", "text-action")) +
     `<div class="article-search-row"><input id="article-query" type="search" placeholder="タイトル・紹介文で検索" value="${esc(articleFilters.q)}" aria-label="記事検索"><button type="button" class="article-filter-button" data-action="article-filters" aria-label="記事を絞り込む、${count}件適用">${icon("sliders")}<span>${count || ""}</span></button></div><div class="article-tabs" role="group" aria-label="記事の並びと対象">${[["popular", "人気"], ["newest", "新着"], ["bookmarks", "ブックマーク"]].map(([value, label]) => `<button type="button" data-action="articles-${value}" aria-pressed="${tab === value}" class="${tab === value ? "selected" : ""}">${label}</button>`).join("")}</div>${count ? `<div class="article-filter-state">${count}件の条件を適用 ${btn("解除", "article-clear-filters", "text-action")}${articleFilters.authorId && priorFilters ? btn("元の検索へ", "author-back", "text-action") : ""}</div>` : ""}<div id="article-list"></div>`;
   for (const value of ["popular", "newest", "bookmarks"] as const) action("articles-" + value, () => {
     articleFilters.bookmarked = value === "bookmarks" ? "1" : "";
@@ -1050,23 +1057,32 @@ function renderArticles() {
   updateArticleList(); void loadArticles();
 }
 
+let detailRequest = 0;
 async function renderArticleDetail(id: string) {
-  const isCurrent = pageEpoch.scope("#articles/" + id, () => location.hash);
+  const request = ++detailRequest;
+  const scope = pageEpoch.scope("#articles/" + id, () => location.hash);
+  const isCurrent = () => request === detailRequest && scope();
   page.innerHTML =
     heading("記事を開いています") + '<p role="status">読み込み中…</p>';
   let a: Article;
   try {
     user = await session();
+    if (!navigator.onLine) throw Error("オフラインです。記事の公開状態を確認してから開いてください。");
     a = (await api<{ article: Article }>("/articles/" + encodeURIComponent(id)))
       .article;
   } catch (e) {
     if (!isCurrent()) return;
     page.innerHTML =
       heading("記事を表示できません") +
-      `<div class="notice error" role="alert">${esc(e instanceof Error ? e.message : e)}<p>記事が削除されたか、通信できない可能性があります。</p></div><a href="#articles">記事一覧へ戻る</a>`;
+      `<div class="notice error" role="alert">${esc(e instanceof Error ? e.message : e)}<p>記事は非表示・削除されたか、通信できない可能性があります。</p></div><a href="#articles">記事一覧へ戻る</a>`;
     return;
   }
   if (!isCurrent()) return;
+  const syncStats = () => {
+    if (!isCurrent()) return;
+    const stats = page.querySelector(".article-stats");
+    if (stats) stats.outerHTML = articleStats(a, "detail-bookmark");
+  };
   const draw = () => {
     if (!isCurrent()) return;
     action("detail-bookmark", async () => {
@@ -1087,7 +1103,7 @@ async function renderArticleDetail(id: string) {
             );
           },
           isCurrent,
-          draw,
+          syncStats,
         );
       } catch (e) {
         if (isCurrent()) {
@@ -1111,7 +1127,7 @@ async function renderArticleDetail(id: string) {
         return;
       busy++;
       try {
-        await api("/articles/" + encodeURIComponent(id), "DELETE");
+        await api("/articles/" + encodeURIComponent(id), "DELETE", undefined, { "If-Match": String(a.revision) });
         location.hash = "articles";
       } catch (e) {
         error(e);
@@ -1120,21 +1136,19 @@ async function renderArticleDetail(id: string) {
         updates?.activity();
       }
     });
-    action("frame-retry", () => {
-      const frame = page.querySelector<HTMLIFrameElement>("iframe");
-      if (frame) frame.src = frame.src;
-    });
+    action("frame-retry", () => renderArticleDetail(id));
+    action("detail-report", () => reportArticle(a));
     let publicURL = "",
       embedURL = "";
     try {
       publicURL = notionURL(a.publicUrl);
-      embedURL = a.embedUrl ? notionURL(a.embedUrl) : "";
+      embedURL = navigator.onLine && a.embedUrl ? notionURL(a.embedUrl) : "";
     } catch {
       error(Error("保存されたNotion URLを安全に表示できません。"));
     }
     page.innerHTML =
       heading(a.title, "NOTION ARTICLE") +
-      `<div class="row"><a href="#articles">‹ 元の一覧・検索へ</a><span class="tag">${esc(a.category || "未分類")}</span></div><section class="card section"><p>${esc(a.summary)}</p><div class="row between">${namedAuthor(a.authorName) ? `<button class="author" data-action="detail-author">${esc(a.authorName)}</button>` : '<span class="muted">匿名ユーザー</span>'}</div>${articleStats(a, "detail-bookmark")}<p class="muted">閲覧はこのアプリ内で開いた記録（日本時間1日1回）。保存は匿名ブラウザID単位の件数です。</p>${a.canEdit ? `<hr><div class="row">${btn("登録情報を編集", "detail-edit")}${btn("登録を削除", "detail-delete", "danger")}</div>` : ""}</section><div class="notice"><p>${navigator.onLine ? "Notionの読込には通信が必要です。公開・表示できるかをここで確認してください。" : "オフラインです。通信が戻ってから再読み込みしてください。"}</p><div class="row">${embedURL ? btn("再読み込み", "frame-retry") : ""}${publicURL ? `<a href="${esc(publicURL)}" target="_blank" rel="noopener noreferrer">Notionで開く ↗</a>` : ""}</div><p class="muted">非公開化・削除・表示制限で読めない場合は元ページを開いてください。読込完了イベントから公開状態は判定しません。</p></div>${embedURL ? `<iframe class="article-frame" title="${esc(a.title)} — Notion本文" src="${esc(embedURL)}" sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox" referrerpolicy="strict-origin-when-cross-origin" allow="fullscreen"></iframe>` : empty("公式埋め込みURLが未登録です。「Notionで開く」から本文を読めます。")}`;
+      `<div class="row"><a href="#articles">‹ 元の一覧・検索へ</a><span class="tag">${esc(a.category || "未分類")}</span></div><section class="card section"><p>${esc(a.summary)}</p><div class="row between">${namedAuthor(a.authorName) ? `<button class="author" data-action="detail-author">${esc(a.authorName)}</button>` : '<span class="muted">匿名ユーザー</span>'}</div>${articleStats(a, "detail-bookmark")}<p class="muted">閲覧はこのアプリ内で開いた記録（日本時間1日1回）。保存は匿名ブラウザID単位の件数です。</p><details class="article-auxiliary"><summary>記事のメニュー</summary>${btn("記事を通報", "detail-report")}</details>${a.canEdit ? `<hr><div class="row">${btn("登録情報を編集", "detail-edit")}${btn("登録を削除", "detail-delete", "danger")}</div>` : ""}</section><div class="notice"><p>${navigator.onLine ? "Notionの読込には通信が必要です。公開・表示できるかをここで確認してください。" : "オフラインです。通信が戻ってから再読み込みしてください。"}</p><div class="row">${embedURL ? btn("再読み込み", "frame-retry") : ""}${publicURL ? `<a href="${esc(publicURL)}" target="_blank" rel="noopener noreferrer">Notionで開く ↗</a>` : ""}</div><p class="muted">非公開化・削除・表示制限で読めない場合は元ページを開いてください。読込完了イベントから公開状態は判定しません。</p></div>${embedURL ? `<iframe class="article-frame" title="${esc(a.title)} — Notion本文" src="${esc(embedURL)}" sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox" referrerpolicy="strict-origin-when-cross-origin" allow="fullscreen"></iframe>` : empty("公式埋め込みURLが未登録です。「Notionで開く」から本文を読めます。")}`;
   };
   draw();
   try {
@@ -1144,7 +1158,7 @@ async function renderArticleDetail(id: string) {
       {},
     );
     a.viewCount = value.viewCount;
-    draw();
+    syncStats();
   } catch (e) {
     if (!isCurrent()) return;
     error(
@@ -1175,13 +1189,15 @@ function articleForm(article?: Article) {
       category: article?.category ?? "",
       courseId: article?.courseId ?? "",
       key: uid(),
+      ...(article ? { revision: String(article.revision) } : {}),
     };
     changed();
   }
   const draft = data.articleDraft;
+  if (article && !draft.revision) { draft.revision = String(article.revision); changed(); }
   const d = modal(
     article ? "記事の登録情報を編集" : "Notion記事を登録",
-    `<p class="muted">${anonymousNotice}</p>${field("title", "タイトル", draft.title, "text", 'required maxlength="120"')}${field("publicUrl", "Notionの公開URL", draft.publicUrl, "url", "required")}<p class="muted">HTTPSの notion.site / notion.so とそのサブドメインが対象です。独自ドメインは未対応です。</p>${textfield("summary", "紹介文（280字まで）", draft.summary, 280)}${field("category", "カテゴリ", draft.category, "text", 'maxlength="40"')}${choice("courseId", "関連する講義", [["", "指定なし"], ...data.imports.flatMap((p) => p.courses).map((c) => [c.id, c.title] as [string, string])], draft.courseId)}<section class="card"><h3>公式の埋め込みURL・コード（任意）</h3><p class="muted">Notionの公開ページで「このページを埋め込む」から取得したiframeコード、またはそのsrcを入力してください。HTML自体は実行しません。通常URLからの変換は行いません。</p>${textfield("embedUrl", "埋め込みコードまたはURL", draft.embedUrl, 4000)}</section><button type="button" id="preview-article">プレビューを確認</button><div id="article-preview"></div><label class="check"><input name="confirmed" type="checkbox" required>元ページ・プレビューがログイン不要で読めることを確認しました</label>`,
+    `<p class="muted">${anonymousNotice}</p>${field("title", "タイトル", draft.title, "text", 'required maxlength="120"')}${field("publicUrl", "Notionの公開URL", draft.publicUrl, "url", "required")}<p class="muted">HTTPSの notion.site / notion.so とそのサブドメインが対象です。独自ドメインは未対応です。</p>${textfield("summary", "紹介文（280字まで）", draft.summary, 280)}${field("category", "カテゴリ", draft.category, "text", 'maxlength="40"')}${choice("courseId", "関連する講義", [["", "指定なし"], ...data.imports.flatMap((p) => p.courses).map((c) => [c.id, c.title] as [string, string])], draft.courseId)}<section class="card"><h3>公式の埋め込みURL・コード（任意）</h3><p class="muted">Notionの公開ページで「このページを埋め込む」から取得したiframeコード、またはそのsrcを入力してください。HTML自体は実行しません。通常URLからの変換は行いません。</p>${textfield("embedUrl", "埋め込みコードまたはURL", draft.embedUrl, 4000)}</section><button type="button" id="preview-article">プレビューを確認</button>${article ? '<button type="button" id="refresh-article-revision" class="smallbtn">最新の状態を確認</button><div id="article-current-state" role="status"></div>' : ""}<div id="article-preview"></div><label class="check"><input name="confirmed" type="checkbox" required>元ページ・プレビューがログイン不要で読めることを確認しました</label>`,
     async (form) => {
       if (composing) throw Error("文字変換を確定してください。");
       const title = val(form, "title").trim();
@@ -1201,7 +1217,10 @@ function articleForm(article?: Article) {
       try {
         user = await session();
         const result = article
-          ? await api<{ article: Article }>("/articles/" + encodeURIComponent(article.id), "PATCH", body)
+          ? await api<{ article: Article }>("/articles/" + encodeURIComponent(article.id), "PATCH", body, { "If-Match": draft.revision }).catch(e => {
+              if (e instanceof ApiError && e.status === 409) throw Error("記事の状態が変わりました。入力を保持しています。「最新の状態を確認」で変更先の版を確認してください。");
+              throw e;
+            })
           : await submitNewArticle(draft, body, api, async () => {
               changed();
               if (!(await save())) throw Error("送信前の下書き保存に失敗しました。入力を保持して再試行してください。");
@@ -1210,7 +1229,8 @@ function articleForm(article?: Article) {
         changed();
         await save();
         d.close();
-        location.hash = "articles/" + result.article.id;
+        if (article?.visibility === "hidden") navigate("my-articles");
+        else navigate("articles/" + result.article.id);
       } finally {
         busy--;
         updates?.activity();
@@ -1219,6 +1239,32 @@ function articleForm(article?: Article) {
     article ? "変更を保存" : "登録",
   );
   d.dataset.draft = "true";
+  const refreshRevision = d.querySelector<HTMLButtonElement>("#refresh-article-revision");
+  if (refreshRevision && article) refreshRevision.onclick = async () => {
+    refreshRevision.disabled = true;
+    try {
+      const latest = (await api<{ articles: Article[] }>("/my/articles")).articles.find(a => a.id === article.id);
+      if (!d.open || !d.isConnected) return;
+      if (!latest) throw Error("記事は削除されたか、取得できません。現在の入力は保持しています。");
+      const box = d.querySelector<HTMLElement>("#article-current-state")!;
+      box.textContent = `最新版：${latest.title} / ${latest.summary} / ${latest.category}（${latest.visibility === "hidden" ? "非表示：" + (latest.hiddenReason || "") : "公開中"}）`;
+      if (confirm("最新版を表示しました。現在の入力は保持しています。この版への変更として保存できるようにしますか？")) {
+        draft.revision = String(latest.revision);
+        article.visibility = latest.visibility;
+        changed();
+      }
+    } catch (e) {
+      const box = d.querySelector<HTMLElement>(".modal-error");
+      if (box) { box.hidden = false; box.textContent = e instanceof Error ? e.message : String(e); }
+    } finally { refreshRevision.disabled = false; }
+  };
+  let articleDirty = false;
+  d.addEventListener("input", () => { articleDirty = true; });
+  const guardArticle = (event: Event) => {
+    if (submitting || (articleDirty && !confirm("記事の入力は下書きに保持します。編集を閉じますか？"))) event.preventDefault();
+  };
+  d.addEventListener("requestclose", guardArticle);
+  d.addEventListener("cancel", guardArticle);
   d.querySelectorAll<
     HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
   >("[name]").forEach((input) => {
@@ -1230,9 +1276,15 @@ function articleForm(article?: Article) {
       changed();
     });
   });
-  d.querySelector<HTMLButtonElement>("#preview-article")!.onclick = () => {
+  d.querySelector<HTMLButtonElement>("#preview-article")!.onclick = async () => {
     const f = d.querySelector("form")!;
     try {
+      if (!navigator.onLine) throw Error("オフラインでは新しいNotionプレビューを開けません。");
+      if (article) {
+        if (article.visibility === "hidden") throw Error("非表示の記事はプレビューを開けません。登録情報の編集・削除はできます。");
+        await api("/articles/" + encodeURIComponent(article.id));
+        if (!d.open || !d.isConnected) return;
+      }
       const publicURL = notionURL(val(f, "publicUrl")),
         embed = embedSource(val(f, "embedUrl"));
       d.querySelector("#article-preview")!.innerHTML =
@@ -1244,6 +1296,33 @@ function articleForm(article?: Article) {
     }
   };
 }
+async function deleteOwnArticle(article: Article) {
+  if (!confirm("登録した記事情報を削除しますか？Notion本文は削除されません。")) return;
+  busy++;
+  try { await api("/articles/" + encodeURIComponent(article.id), "DELETE", undefined, { "If-Match": String(article.revision) }); }
+  finally { busy--; updates?.activity(); }
+}
+function reportArticle(article: Article) {
+  let dirty = false;
+  const d = modal("記事を通報", choice("reason", "理由", [["inappropriate", "不適切"], ["incorrect", "誤情報"], ["broken_link", "リンク不備"], ["other", "その他"]], "inappropriate") + textfield("details", "補足（任意・500字以内）", "", 500), async form => {
+    const details = val(form, "details");
+    if (Array.from(details).length > 500) throw Error("補足は500字以内です。");
+    await session();
+    await api("/articles/" + encodeURIComponent(article.id) + "/report", "POST", { reason: val(form, "reason"), details });
+    dirty = false; d.close();
+    const done = modal("通報を受け付けました", "<p>同じ記事への未確認の通報は重複して作成しません。</p>", undefined, "", { singleClose: true });
+    done.focus();
+  }, "通報を送信");
+  d.addEventListener("input", () => { dirty = true; });
+  const guard = (event: Event) => { if (submitting || (dirty && !confirm("通報の入力を破棄して閉じますか？"))) event.preventDefault(); };
+  d.addEventListener("requestclose", guard); d.addEventListener("cancel", guard);
+}
+const community = new Community({
+  page: () => page,
+  current: () => pageEpoch.scope(location.hash || "#home", () => location.hash || "#home"),
+  action, heading, send: api, session, activity: () => updates?.activity(),
+  editArticle: articleForm, deleteArticle: deleteOwnArticle,
+});
 let updateState = { message: "更新を確認しています…", ready: false };
 function renderUpdateState() {
   const box = page.querySelector<HTMLElement>("#more-update-state");
@@ -1261,6 +1340,11 @@ function renderMore() {
   action("links", editLinks);
   action("export-data", exportData);
   action("check-update", () => updates.check());
+  action("share-url", async () => {
+    const url = location.origin + location.pathname;
+    try { await navigator.clipboard.writeText(url); const state = page.querySelector("#share-state"); if (state) state.textContent = "URLをコピーしました。"; }
+    catch { const d = modal("アプリのURL", field("share", "コピーして共有", url), undefined, "", { singleClose: true }); d.querySelector<HTMLInputElement>("input")?.select(); }
+  });
   action("clear-bg", () => { data.backgroundMode = "none"; changed(); render(); });
   action("custom-bg", () => { data.backgroundMode = "custom"; changed(); render(); });
   action("profile", async () => {
@@ -1276,13 +1360,13 @@ function renderMore() {
   const backgroundName = backgrounds.find(b => b.id === data.backgroundMode)?.name || (data.backgroundMode !== "none" && data.background ? "自分の画像" : "背景なし");
   const activeCustom = data.backgroundMode === "custom" || (!data.backgroundMode && !!data.background);
   page.innerHTML = heading("その他", "") +
-    `<section class="settings-update"><h2>アプリの更新</h2><div id="more-update-state"></div></section><div class="settings-list">
+    `<div class="settings-list"><a class="community-item" href="#announcements"><strong>お知らせ・アンケート ›</strong></a></div><section class="settings-update"><h2>アプリの更新</h2><div id="more-update-state"></div></section><div class="settings-list">
     <details id="appearance-settings" class="setting"><summary><span>背景・テーマ<small>${esc(backgroundName)}</small></span><span aria-hidden="true">›</span></summary><div class="setting-content">${choice("theme", "テーマ", [["green", "グリーン"], ["blue", "ブルー"], ["rose", "ローズ"], ["mono", "モノトーン"]], data.theme)}<h3>背景</h3><div class="background-samples">${backgrounds.map(b => `<button type="button" data-background="${b.id}" aria-pressed="${data.backgroundMode === b.id}"><span class="background-thumb"><img src="${esc(b.image)}" alt=""><span class="selection-check" aria-hidden="true">✓</span></span><span>${b.name}</span></button>`).join("")}${data.background ? `<button type="button" data-action="custom-bg" aria-pressed="${activeCustom}"><span class="background-thumb"><img src="${esc(data.background)}" alt="自分の背景画像"><span class="selection-check" aria-hidden="true">✓</span></span><span>自分の画像</span></button>` : ""}</div><p id="background-state" class="muted" role="status">${data.background ? "自分の画像を選択できます。" : "自分の画像はまだありません。"}</p><div class="row"><button type="button" id="change-background">${data.background ? "画像を変更" : "画像を選ぶ"}</button>${btn("背景なし", "clear-bg")}</div><input id="background" type="file" data-toolbar="true" class="file-native" tabindex="-1" accept="image/png,image/jpeg,image/webp,image/heic,.heic" aria-label="自分の背景画像を変更"><p class="muted">画像はこのブラウザに保存します。</p></div></details>
     <details id="display-settings" class="setting"><summary><span>時間割の表示<small>${data.startHour}:00–${data.endHour}:00</small></span><span aria-hidden="true">›</span></summary><div class="setting-content stack">${field("startHour", "日表示の開始時刻", String(data.startHour), "number", 'min="0" max="23"')}${field("endHour", "日表示の終了時刻", String(data.endHour), "number", 'min="1" max="24"')}<label class="check"><input name="bands" type="checkbox" ${data.showBands ? "checked" : ""}>施設の営業時間を表示</label><p class="muted">週間は1〜5コマ表示。終日・コマ外の予定も一覧で確認できます。</p></div></details>
     <details id="campus-settings" class="setting"><summary><span>施設・リンク<small>営業時間・地図・お気に入り</small></span><span aria-hidden="true">›</span></summary><div class="setting-content"><div class="row">${btn("施設の営業時間", "facilities")}${btn("キャンパスマップ", "map")}</div><p class="muted">営業時間は通常期の目安です。臨時変更は公式情報で確認してください。</p><div class="stack">${data.links.map(l => `<a href="${esc(l.url)}" target="_blank" rel="noopener noreferrer">${l.favorite ? "★ " : ""}${esc(l.title)} ↗</a>`).join("")}</div><p>${btn("リンクを編集", "links")}</p></div></details>
     <div class="setting"><button class="setting-profile" data-action="profile"><span>ユーザー名<small id="profile-name">${esc(namedAuthor(user?.displayName) ? user!.displayName : "未設定")}</small></span><span aria-hidden="true">›</span></button></div>
     <details id="data-settings" class="setting"><summary><span>データ<small>書き出し・保存について</small></span><span aria-hidden="true">›</span></summary><div class="setting-content">${btn("入力データを書き出す", "export-data")}<p class="muted">保存に失敗したときや別タブと競合したときは、現在の入力を書き出してから再読み込みできます。メモ・画像も含まれます。</p><p class="muted">${anonymousNotice}</p></div></details></div>
-    <details id="install-information" class="settings-information"><summary>ホーム画面に追加</summary><p class="muted">iPhone: Safariの共有から「ホーム画面に追加」。Android/PC: ブラウザのメニューから「アプリをインストール」を選びます。HTTPSの公開URLで利用できます。</p></details>
+    <details id="install-information" class="settings-information"><summary>ホーム画面に追加・URLを共有</summary><p>${btn("URLをコピー", "share-url")}<span id="share-state" role="status"></span></p><p class="muted">iPhone: Safariの共有から「ホーム画面に追加」。Android/PC: ブラウザのメニューから「アプリをインストール」を選びます。HTTPSの公開URLで利用できます。</p></details>
     <details id="diagnostic-information" class="settings-information"><summary>詳細情報</summary><p class="muted">この画面のビルド ${esc(__APP_BUILD_ID__)}</p><div id="version" class="muted">配信情報を読み込み中…</div></details>`;
   renderUpdateState();
   page.querySelectorAll<HTMLButtonElement>("[data-background]").forEach(button => button.onclick = () => { data.backgroundMode = button.dataset.background!; changed(); render(); });
@@ -1572,11 +1656,14 @@ document.addEventListener("compositionend", () => {
   updates?.activity();
 });
 document.addEventListener("focusout", () => updates?.activity());
+let renderedHash = location.hash;
 window.addEventListener("hashchange", () => {
+  if (!community.leave()) { history.replaceState(null, "", renderedHash || "#home"); return; }
   if (dialog) {
-    if (!dialog.dispatchEvent(new Event("requestclose", { cancelable: true }))) return;
+    if (!dialog.dispatchEvent(new Event("requestclose", { cancelable: true }))) { history.replaceState(null, "", renderedHash || "#home"); return; }
     dialog.close();
   }
+  renderedHash = location.hash;
   render();
 });
 let calendarResizeTimer: ReturnType<typeof setTimeout> | undefined;
@@ -1593,22 +1680,30 @@ window.addEventListener("resize", () => {
 });
 setInterval(() => {
   refreshCurrentTime(page, Date.now());
-  if (route() === "home" && !dialog?.open) render();
+  if (route() === "home" && !dialog?.open) { render(); void community.refresh(); }
+  else if (route() === "announcements" && !dialog?.open) render();
 }, 60000);
 window.addEventListener("beforeunload", (e) => {
-  if (saves.dirty || busy || submitting) {
+  if (saves.dirty || busy || submitting || community.dirty) {
     e.preventDefault();
   }
 });
 document.addEventListener("visibilitychange", () => {
   if (document.hidden && saves.dirty) void save();
+  if (!document.hidden) {
+    if (route() !== "announcements") void community.refresh();
+    if (route() === "articles") {
+      const id = location.hash.split("/")[1];
+      if (id) void renderArticleDetail(id); else void loadArticles();
+    } else if (!dialog?.open && !community.dirty && ["announcements", "my-articles"].includes(route())) render();
+  }
 });
 const connection = () => {
   root.querySelector("#connection")!.textContent = navigator.onLine
     ? "オンライン"
     : "オフライン · 個人データは利用可能";
 };
-window.addEventListener("online", connection);
+window.addEventListener("online", () => { connection(); if (route() === "announcements" && !dialog?.open) render(); else void community.refresh(); });
 window.addEventListener("offline", connection);
 connection();
 let updates: ReturnType<typeof installUpdates>;
@@ -1622,7 +1717,7 @@ async function boot() {
     statusText("保存データを保護中 · 再読み込みで再試行");
   }
   updates = installUpdates({
-    isIdle: () => !busy && !submitting && !composing && !dialog?.open &&
+    isIdle: () => !busy && !submitting && !composing && !community.dirty && !dialog?.open &&
       !document.querySelector("dialog[open]") &&
       !document.activeElement?.matches("input, textarea, select, [contenteditable]:not([contenteditable=false])"),
     prepare: async () => {
@@ -1644,6 +1739,7 @@ async function boot() {
     error: reportUpdateFailure,
   });
   render();
+  if (route() !== "announcements") void community.refresh();
   if (loadFailed) {
     page.inert = true;
   }

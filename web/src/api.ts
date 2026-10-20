@@ -4,6 +4,9 @@ export interface User {
 }
 export interface Article {
   id: string;
+  revision: number;
+  visibility?: "published" | "hidden";
+  hiddenReason?: string;
   authorId: string;
   authorName: string;
   title: string;
