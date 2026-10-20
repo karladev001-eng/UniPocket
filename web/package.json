@@ -4,16 +4,20 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "dev:admin": "vite --config vite.admin.config.ts",
+    "build:admin": "tsc --noEmit -p tsconfig.admin.json && vite build --config vite.admin.config.ts",
+    "typecheck:admin": "tsc --noEmit -p tsconfig.admin.json",
+    "test:admin": "vitest run tests/admin-client*.ts",
     "dev": "node scripts/pdf-assets.mjs && vite --host 127.0.0.1",
     "build": "tsc --noEmit && node scripts/build.mjs",
     "preview": "vite preview --host 127.0.0.1",
-    "test": "vitest run tests/client.test.ts tests/client-update.test.ts tests/client-submit.test.ts tests/client-ui.test.ts tests/client-calendar.test.ts tests/client-pdf.test.ts tests/client-discovery.test.ts",
+    "test": "vitest run tests/client*.test.ts",
     "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.server.json",
     "local": "wrangler dev --env preview --ip 127.0.0.1",
     "db:local": "wrangler d1 migrations apply DB --local --env preview",
     "test:server": "node --experimental-strip-types --test tests/server.test.ts",
-    "test:runtime": "node --test tests/server-runtime.mjs",
-    "test:all": "npm test && npm run test:server && npm run test:runtime",
+    "test:runtime": "node --test tests/server*-runtime.mjs",
+    "test:all": "npm test && npm run test:admin && npm run test:server && npm run test:runtime",
     "test:integration": "npm run build && node --test tests/integration.test.mjs"
   },
   "dependencies": {

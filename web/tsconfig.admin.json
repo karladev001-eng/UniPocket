@@ -1,0 +1,1 @@
+{"extends":"./tsconfig.json","include":["admin/src","tests/admin-client*.ts","vite.admin.config.ts"]}
