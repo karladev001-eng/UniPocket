@@ -1,6 +1,7 @@
 import "./style.css";
 import { AdminClient, EditorState, dateRange, duplicateSurvey, errorMessage, jstInput, newContent, question, safeLink, statusLabel, utcInput, validateContent, validateRange, type Article, type Content, type Editable, type Metrics, type Report, type Results, type Survey } from "./model";
 import { el, button, field, table, type Child } from "./dom";
+import { AdminPages, VisibilityOperation, reportArticle } from "./moderation";
 type Section = "overview" | "articles" | "announcements" | "surveys" | "metrics";
 const sections: [
     Section,
@@ -24,33 +25,52 @@ app.append(el("a", { href: "#main", class: "skip" }, "本文へ"), el("div", { c
 function notify(message: string): void { toast.textContent = message; toast.hidden = false; clearTimeout(noticeTimer); noticeTimer = setTimeout(() => { toast.hidden = true; }, 7000); }
 function authBanner(): void {
     auth.hidden = false;
-    auth.replaceChildren(el("strong", {}, "管理者認証を確認してください"), el("p", {}, "入力はこの画面に保持しています。別タブでログイン後、認証を再確認してください。"), el("a", { class: "linebtn", href: "/", target: "_blank", rel: "noopener" }, "別タブでログイン"), button("認証を再確認", () => void run(async () => { await client.authenticate(); owner.textContent = client.email; auth.hidden = true; notify("認証を確認しました。操作を再試行できます。"); if (!editor)
-        await loadSection(); })));
+    auth.replaceChildren(el("strong", {}, "管理者認証を確認してください"), el("p", {}, "入力はこの画面に保持しています。別タブでログイン後、認証を再確認してください。"), el("a", { class: "linebtn", href: "/", target: "_blank", rel: "noopener" }, "別タブでログイン"), button("認証を再確認", () => void run(async () => {
+        await client.authenticate();
+        owner.textContent = client.email;
+        auth.hidden = true;
+        notify("認証を確認しました。操作を再試行できます。");
+        if (!editor)
+            await loadSection();
+    })));
     if (dialog.open && !dialog.querySelector(".dialog-auth"))
         dialog.append(el("div", { class: "notice dialog-auth" }, el("p", {}, "入力を保持しています。別タブで再認証し、この確認操作を再試行してください。"), el("a", { class: "linebtn", href: "/", target: "_blank", rel: "noopener" }, "別タブでログイン"), taskButton("認証を再確認", async () => { await client.authenticate(); owner.textContent = client.email; auth.hidden = true; dialog.querySelector(".dialog-auth")?.remove(); notify("認証を確認しました。操作を再試行できます。"); })));
 }
 client.onExpired = authBanner;
-function showError(error: unknown): void { const message = errorMessage(error); notify(message); const box = document.querySelector<HTMLElement>(dialog.open ? "#dialog-error" : "#form-error"); if (box) {
-    box.hidden = false;
-    box.textContent = message;
-    box.focus();
-} if (!client.authorized)
-    authBanner(); }
-async function run(action: () => Promise<void>, trigger?: HTMLButtonElement): Promise<void> { if (busy)
-    return; busy = true; if (trigger)
-    trigger.disabled = true; main.inert = true; main.setAttribute("aria-busy", "true"); try {
-    await action();
+function showError(error: unknown): void {
+    const message = errorMessage(error);
+    notify(message);
+    const box = document.querySelector<HTMLElement>(dialog.open ? "#dialog-error" : "#form-error");
+    if (box) {
+        box.hidden = false;
+        box.textContent = message;
+        box.focus();
+    }
+    if (!client.authorized)
+        authBanner();
 }
-catch (error) {
-    showError(error);
-}
-finally {
-    busy = false;
+async function run(action: () => Promise<void>, trigger?: HTMLButtonElement): Promise<void> {
+    if (busy)
+        return;
+    busy = true;
     if (trigger)
-        trigger.disabled = false;
-    main.inert = false;
-    main.removeAttribute("aria-busy");
-} }
+        trigger.disabled = true;
+    main.inert = true;
+    main.setAttribute("aria-busy", "true");
+    try {
+        await action();
+    }
+    catch (error) {
+        showError(error);
+    }
+    finally {
+        busy = false;
+        if (trigger)
+            trigger.disabled = false;
+        main.inert = false;
+        main.removeAttribute("aria-busy");
+    }
+}
 function taskButton(label: string, action: () => Promise<void>, className = "linebtn"): HTMLButtonElement { const b = button(label, () => void run(action, b), className); return b; }
 function heading(title: string, ...actions: Child[]): void { main.replaceChildren(el("header", { class: "top" }, el("div", {}, el("small", { class: "eyebrow" }, "UNI POCKET / 管理"), el("h1", { tabindex: -1 }, title)), el("div", { class: "row" }, ...actions))); }
 function card(label: string, value: number | null, hint?: string): HTMLElement { return el("div", { class: "stat" }, el("small", {}, label), el("b", {}, value === null ? "未収集" : value.toLocaleString("ja-JP")), hint ? el("small", {}, hint) : null); }
@@ -60,20 +80,34 @@ const empty = (text: string) => el("p", { class: "empty" }, text);
 const status = (item: Content) => el("span", { class: "tag" }, statusLabel(item));
 function openDialog(title: string, body: HTMLElement, actions: HTMLButtonElement[] = []): void { dialog.replaceChildren(el("div", { class: "top" }, el("h2", { id: "dialog-title" }, title), button("×", () => dialog.close(), "close")), body, el("div", { id: "dialog-error", class: "notice error", role: "alert", tabindex: -1, hidden: true }), el("div", { class: "dialogactions" }, ...actions)); dialog.querySelector("button")?.setAttribute("aria-label", "閉じる"); dialog.showModal(); }
 function confirmAction(title: string, body: HTMLElement, label: string, action: () => Promise<void>): void { openDialog(title, body, [taskButton(label, async () => { await action(); dialog.close(); }, "action")]); }
-async function navigate(next: Section): Promise<void> { if (busy)
-    return; if (editor?.dirty && !window.confirm("保存していない入力があります。破棄して移動しますか？"))
-    return; editor = undefined; section = next; reportTab = false; menu.open = false; await loadSection(); }
-window.addEventListener("beforeunload", event => { if (editor?.dirty) {
-    event.preventDefault();
-    event.returnValue = "";
-} });
+async function navigate(next: Section): Promise<void> {
+    if (busy)
+        return;
+    if (editor?.dirty && !window.confirm("保存していない入力があります。破棄して移動しますか？"))
+        return;
+    editor = undefined;
+    section = next;
+    reportTab = false;
+    menu.open = false;
+    await loadSection();
+}
+window.addEventListener("beforeunload", event => {
+    if (editor?.dirty) {
+        event.preventDefault();
+        event.returnValue = "";
+    }
+});
 menu.addEventListener("toggle", () => { sidebar.classList.toggle("expanded", menu.open); });
 async function loadSection(): Promise<void> {
     const token = ++generation;
-    navButtons.forEach((b, index) => { const active = sections[index][0] === section; b.classList.toggle("active", active); if (active)
-        b.setAttribute("aria-current", "page");
-    else
-        b.removeAttribute("aria-current"); });
+    navButtons.forEach((b, index) => {
+        const active = sections[index][0] === section;
+        b.classList.toggle("active", active);
+        if (active)
+            b.setAttribute("aria-current", "page");
+        else
+            b.removeAttribute("aria-current");
+    });
     heading(sections.find(([id]) => id === section)![1]);
     main.append(el("p", { role: "status" }, "読み込み中…"));
     try {
@@ -93,10 +127,14 @@ async function loadSection(): Promise<void> {
                 return;
             heading("概要", el("small", {}, new Intl.DateTimeFormat("ja-JP", { timeZone: "Asia/Tokyo", dateStyle: "full" }).format(new Date())));
             const stats = [["公開中の記事", data.publishedArticles, "articles"], ["未確認の通報", data.pendingReports, "articles"], ["公開中のお知らせ", data.activeAnnouncements, "announcements"], ["回答募集中", data.activeSurveys, "surveys"]] as const;
-            main.append(el("div", { class: "stats" }, ...stats.map(([label, value, next], i) => button("", () => { void navigate(next).then(() => { if (i === 1 && section === "articles") {
-                reportTab = true;
-                void articlePage();
-            } }); }, "statlink"))));
+            main.append(el("div", { class: "stats" }, ...stats.map(([label, value, next], i) => button("", () => {
+                void navigate(next).then(() => {
+                    if (i === 1 && section === "articles") {
+                        reportTab = true;
+                        void articlePage();
+                    }
+                });
+            }, "statlink"))));
             main.querySelectorAll(".statlink").forEach((b, i) => b.append(card(stats[i][0], stats[i][1], "一覧へ ›")));
         }
         else if (section === "articles")
@@ -118,45 +156,72 @@ async function loadSection(): Promise<void> {
     }
 }
 async function articlePage(token = generation): Promise<void> {
-    const [{ articles }, { reports }] = await Promise.all([client.send<{
-            articles: Article[];
-        }>("/articles?q=&visibility="), client.send<{
-            reports: Report[];
-        }>("/reports?status=")]);
     if (token !== generation || section !== "articles")
         return;
     heading("記事");
-    const listing = el("div"), filters = el("div", { class: "filters" });
-    const title = el("input", { type: "search", placeholder: "題名", "aria-label": "題名で絞り込み" });
-    const author = el("input", { type: "search", placeholder: "投稿者", "aria-label": "投稿者で絞り込み" });
-    const category = el("select", { "aria-label": "カテゴリ" }, el("option", { value: "" }, "すべてのカテゴリ"), ...Array.from(new Set(articles.map(a => a.category).filter(Boolean))).map(c => el("option", { value: c }, c)));
+    const articles = new AdminPages<Article>("articles", client.send);
+    const reports = new AdminPages<Report>("reports", client.send);
+    const listing = el("div"), filters = el("form", { class: "filters" });
+    const search = el("input", { type: "search", placeholder: "題名・投稿者・カテゴリ", "aria-label": "題名・投稿者・カテゴリで検索", maxlength: 200 });
     const visibility = el("select", { "aria-label": "公開状態" }, ...[["", "すべての状態"], ["published", "公開"], ["hidden", "非表示"], ["deleted", "作者削除"]].map(([value, text]) => el("option", { value }, text)));
     const reviewed = el("select", { "aria-label": "通報の確認状態" }, el("option", { value: "pending" }, "未確認"), el("option", { value: "reviewed" }, "確認済み"), el("option", { value: "" }, "すべて"));
-    const articleTab = button("記事一覧", () => { reportTab = false; renderRows(); }, "tab"), reportsTab = button("通報", () => { reportTab = true; renderRows(); }, "tab");
+    const articleTab = button("記事一覧", () => { reportTab = false; void refresh(); }, "tab"), reportsTab = button("通報", () => { reportTab = true; void refresh(); }, "tab");
+    const progress = el("p", { role: "status", class: "muted" });
+    const more = button("さらに読み込む", () => void refresh(true));
     let filtersForReports: boolean | undefined;
+    let requestEpoch = 0;
+    const current = () => token === generation && section === "articles";
+    async function refresh(append = false): Promise<void> {
+        const epoch = ++requestEpoch, viewingReports = reportTab;
+        const pages = viewingReports ? reports : articles;
+        progress.textContent = "読み込み中…";
+        more.disabled = true;
+        try {
+            const pending = append ? pages.more() : viewingReports ? reports.reset({ status: reviewed.value }) : articles.reset({ q: search.value.trim(), visibility: visibility.value });
+            if (!append)
+                renderRows();
+            const applied = await pending;
+            if (!current() || epoch !== requestEpoch || viewingReports !== reportTab || !applied)
+                return;
+            renderRows();
+            progress.textContent = `${pages.items.length}件を表示${pages.nextCursor ? "・続きがあります" : ""}`;
+        }
+        catch (error) {
+            if (!current() || epoch !== requestEpoch)
+                return;
+            progress.replaceChildren(el("span", { role: "alert" }, errorMessage(error)), button("再試行", () => void refresh(append)));
+            if (!client.authorized)
+                authBanner();
+        }
+        finally {
+            if (current() && epoch === requestEpoch) {
+                more.disabled = false;
+                more.hidden = !pages.nextCursor;
+            }
+        }
+    }
     function renderRows(): void {
         articleTab.setAttribute("aria-pressed", String(!reportTab));
         reportsTab.setAttribute("aria-pressed", String(reportTab));
         if (filtersForReports !== reportTab) {
-            filters.replaceChildren(...(reportTab ? [reviewed] : [title, author, category, visibility]));
+            filters.replaceChildren(...(reportTab ? [reviewed] : [search, visibility, el("button", { type: "submit", class: "linebtn" }, "検索")]));
             filtersForReports = reportTab;
         }
         if (reportTab) {
-            const items = reports.filter(r => !reviewed.value || r.status === reviewed.value);
-            listing.replaceChildren(items.length ? table(["記事 / 通報", "確認"], items.map(r => [el("div", {}, button(r.articleTitle || "記事", () => { const a = articles.find(a => a.id === r.articleId); if (a)
-                    articleDetail(a);
-                else
-                    notify("対象記事を取得できませんでした。"); }, "textbutton"), el("small", {}, reportReason(r.reason), " · ", formatDate(r.createdAt)), el("p", { class: "bodycopy" }, r.details)), taskButton(r.status === "pending" ? "確認済みにする" : "未確認に戻す", async () => { await client.send("/reports/" + encodeURIComponent(r.id), "PATCH", { revision: r.revision, status: r.status === "pending" ? "reviewed" : "pending" }); await articlePage(); })])) : empty("該当する通報はありません。"));
+            const items = reports.items;
+            listing.replaceChildren(items.length ? table(["記事 / 通報", "確認"], items.map(r => [el("div", {}, taskButton(r.articleTitle || "記事", async () => { const article = await reportArticle(r.articleId, client.send); if (current())
+                    articleDetail(article); }, "textbutton"), el("small", {}, reportReason(r.reason), " · ", formatDate(r.createdAt)), el("p", { class: "bodycopy" }, r.details)), taskButton(r.status === "pending" ? "確認済みにする" : "未確認に戻す", async () => { await client.send("/reports/" + encodeURIComponent(r.id), "PATCH", { revision: r.revision, status: r.status === "pending" ? "reviewed" : "pending" }); await refresh(); })])) : reports.loading ? el("div") : empty("該当する通報はありません。"));
         }
         else {
-            const items = articles.filter(a => a.title.toLocaleLowerCase().includes(title.value.trim().toLocaleLowerCase()) && a.authorName.toLocaleLowerCase().includes(author.value.trim().toLocaleLowerCase()) && (!category.value || a.category === category.value) && (!visibility.value || a.visibility === visibility.value));
-            listing.replaceChildren(items.length ? table(["題名 / 投稿者", "公開状態", "閲覧 / ブックマーク"], items.map(a => [el("div", {}, button(a.title, () => articleDetail(a), "textbutton"), el("small", {}, a.authorName, " · ", a.category || "未分類")), el("span", { class: "tag" }, articleStatus(a)), `${a.viewCount} / ${a.bookmarkCount}`])) : empty("該当する記事はありません。"));
+            const items = articles.items;
+            listing.replaceChildren(items.length ? table(["題名 / 投稿者", "公開状態", "閲覧 / ブックマーク"], items.map(a => [el("div", {}, button(a.title, () => articleDetail(a), "textbutton"), el("small", {}, a.authorName, " · ", a.category || "未分類")), el("span", { class: "tag" }, articleStatus(a)), `${a.viewCount} / ${a.bookmarkCount}`])) : articles.loading ? el("div") : empty("該当する記事はありません。"));
         }
+        more.hidden = !(reportTab ? reports.nextCursor : articles.nextCursor);
     }
-    [title, author].forEach(input => input.addEventListener("input", renderRows));
-    [category, visibility, reviewed].forEach(input => input.addEventListener("change", renderRows));
-    main.append(el("div", { class: "tabs" }, articleTab, reportsTab), filters, listing, el("details", {}, el("summary", {}, "記事管理について"), el("p", {}, "記事は登録後すぐに公開されます。本文は元のNotionページで管理されます。ここでの非表示はNotionページ自体を非公開にしません。")));
-    renderRows();
+    filters.addEventListener("submit", event => { event.preventDefault(); void refresh(); });
+    [visibility, reviewed].forEach(input => input.addEventListener("change", () => void refresh()));
+    main.append(el("div", { class: "tabs" }, articleTab, reportsTab), filters, progress, listing, more, el("details", {}, el("summary", {}, "記事管理について"), el("p", {}, "題名・投稿者・カテゴリの検索と公開状態の絞り込みは全件を対象にします。一度に50件ずつ表示します。記事は登録後すぐに公開されます。本文は元のNotionページで管理されます。ここでの非表示はNotionページ自体を非公開にしません。")));
+    await refresh();
 }
 function reportReason(reason: string): string { return ({ inappropriate: "不適切", incorrect: "誤情報", broken_link: "リンク不備", other: "その他" } as Record<string, string>)[reason] || reason; }
 function articleStatus(a: Article): string { return a.visibility === "hidden" ? "非表示" : a.visibility === "deleted" ? "作者削除" : "公開"; }
@@ -179,8 +244,16 @@ function articleDetail(a: Article): void {
                 return;
             }
             const hidden = a.visibility === "published", text = reason.value.trim();
+            let operation: VisibilityOperation;
+            try {
+                operation = new VisibilityOperation(a.id, a.revision, hidden ? "hidden" : "published", text);
+            }
+            catch (error) {
+                showError(error);
+                return;
+            }
             dialog.close();
-            confirmAction(hidden ? "この記事を非表示にしますか？" : "この記事を再公開しますか？", el("div", {}, el("h3", {}, a.title), el("p", {}, a.authorName), hidden ? el("p", { class: "bodycopy" }, text) : el("p", {}, "一般の一覧と詳細に再び表示されます。")), hidden ? "非表示にする" : "再公開する", async () => { await client.send("/articles/" + encodeURIComponent(a.id) + "/visibility", "POST", { revision: a.revision, visibility: hidden ? "hidden" : "published", reason: hidden ? text : "" }); await articlePage(); notify(hidden ? "記事を非表示にしました。" : "記事を再公開しました。"); });
+            confirmAction(hidden ? "この記事を非表示にしますか？" : "この記事を再公開しますか？", el("div", {}, el("h3", {}, a.title), el("p", {}, a.authorName), el("small", {}, `対象の改訂 ${operation.input.revision}`), hidden ? el("p", { class: "bodycopy" }, operation.input.reason) : el("p", {}, "一般の一覧と詳細に再び表示されます。")), hidden ? "非表示にする" : "再公開する", async () => { await operation.submit(client.send); await articlePage(); notify(hidden ? "記事を非表示にしました。" : "記事を再公開しました。"); });
         }, a.visibility === "published" ? "danger" : "action")]);
 }
 async function contentList(kind: "announcements" | "surveys", token: number): Promise<void> {
@@ -207,18 +280,22 @@ function renderEditor(): void {
     const title = el("input", { type: "text", maxlength: 80, required: true, value: item.title, oninput: (e: Event) => { item.title = (e.target as HTMLInputElement).value; } });
     const start = el("input", { type: "datetime-local", value: jstInput(item.startAt), required: true, disabled: "questions" in item && published });
     const end = el("input", { type: "datetime-local", value: jstInput(item.endAt), required: true });
-    start.addEventListener("input", () => { try {
-        item.startAt = utcInput(start.value);
-    }
-    catch {
-        item.startAt = "";
-    } });
-    end.addEventListener("input", () => { try {
-        item.endAt = utcInput(end.value);
-    }
-    catch {
-        item.endAt = "";
-    } });
+    start.addEventListener("input", () => {
+        try {
+            item.startAt = utcInput(start.value);
+        }
+        catch {
+            item.startAt = "";
+        }
+    });
+    end.addEventListener("input", () => {
+        try {
+            item.endAt = utcInput(end.value);
+        }
+        catch {
+            item.endAt = "";
+        }
+    });
     form.append(el("div", { id: "form-error", class: "notice error", role: "alert", tabindex: -1, hidden: true }), el("div", { class: "row" }, status(item), el("small", {}, item.id ? `改訂 ${item.revision}` : "未保存")), field("題名", title, "80文字まで"));
     if ("body" in item) {
         const body = el("textarea", { value: item.body, maxlength: 2000, rows: 9, required: true, oninput: (e: Event) => { item.body = (e.target as HTMLTextAreaElement).value; } });
@@ -234,10 +311,14 @@ function renderEditor(): void {
         function renderQuestions(): void {
             questions.replaceChildren(...survey.questions.map((q, index) => {
                 const type = el("select", { value: q.type, disabled: published, "aria-label": `設問${index + 1}の形式` }, ...[["single", "単一選択"], ["multiple", "複数選択"], ["text", "自由記述"]].map(([value, text]) => el("option", { value, selected: q.type === value }, text)));
-                type.addEventListener("change", () => { q.type = type.value as typeof q.type; if (q.type === "text")
-                    q.options = [];
-                else if (!q.options.length)
-                    q.options = question().options; renderQuestions(); });
+                type.addEventListener("change", () => {
+                    q.type = type.value as typeof q.type;
+                    if (q.type === "text")
+                        q.options = [];
+                    else if (!q.options.length)
+                        q.options = question().options;
+                    renderQuestions();
+                });
                 const required = el("input", { type: "checkbox", checked: q.required, disabled: published, onchange: (e: Event) => { q.required = (e.target as HTMLInputElement).checked; } });
                 const box = el("fieldset", { class: "question-edit", disabled: published }, el("legend", {}, `設問 ${index + 1}`), field("設問", el("input", { value: q.title, maxlength: 200, required: true, oninput: (e: Event) => { q.title = (e.target as HTMLInputElement).value; } })), el("div", { class: "row" }, type, el("label", { class: "check" }, required, "必須")));
                 if (q.type === "text")
@@ -267,37 +348,53 @@ function renderEditor(): void {
         form.append(questions);
     }
     form.append(el("div", { class: "twocol" }, field("表示開始（日本時間）", start), field("body" in item ? "表示終了（日本時間）" : "締切（日本時間）", end)));
-    const check = () => { if (!form.reportValidity())
-        return false; validateContent(item); return true; };
+    const check = () => {
+        if (!form.reportValidity())
+            return false;
+        validateContent(item);
+        return true;
+    };
     const actions = el("div", { class: "editorfooter" });
     if (!published)
-        actions.append(taskButton("下書きを保存", async () => { if (!check())
-            return; await state.save(client.send); notify("下書きを保存しました。"); renderEditor(); }));
-    actions.append(button(published ? "変更をプレビュー" : "プレビュー・公開へ", () => { try {
-        if (!check())
-            return;
-        if (!published && (state.dirty || !item.id)) {
-            notify("先に下書きを保存してください。");
-            return;
-        }
-        previewEditor(state);
-    }
-    catch (error) {
-        showError(error);
-    } }, "action"));
-    if (item.id && item.status === "published")
-        actions.append(button("公開を終了", () => { if (state.dirty) {
-            notify("変更を保存するか、一覧へ戻ってから終了してください。");
-            return;
-        } confirmAction("公開を終了しますか？", el("div", {}, el("h3", {}, item.title), el("p", {}, "利用者の一覧から外れます。期限を確認して再開できます。")), "公開を終了", async () => { await state.action("end", client.send); renderEditor(); notify("公開を終了しました。"); }); }, "danger"));
-    if (item.id && item.status === "ended")
-        actions.append(button("再開のプレビュー", () => { try {
-            if (check())
-                previewEditor(state, true);
+        actions.append(taskButton("下書きを保存", async () => {
+            if (!check())
+                return;
+            await state.save(client.send);
+            notify("下書きを保存しました。");
+            renderEditor();
+        }));
+    actions.append(button(published ? "変更をプレビュー" : "プレビュー・公開へ", () => {
+        try {
+            if (!check())
+                return;
+            if (!published && (state.dirty || !item.id)) {
+                notify("先に下書きを保存してください。");
+                return;
+            }
+            previewEditor(state);
         }
         catch (error) {
             showError(error);
-        } }));
+        }
+    }, "action"));
+    if (item.id && item.status === "published")
+        actions.append(button("公開を終了", () => {
+            if (state.dirty) {
+                notify("変更を保存するか、一覧へ戻ってから終了してください。");
+                return;
+            }
+            confirmAction("公開を終了しますか？", el("div", {}, el("h3", {}, item.title), el("p", {}, "利用者の一覧から外れます。期限を確認して再開できます。")), "公開を終了", async () => { await state.action("end", client.send); renderEditor(); notify("公開を終了しました。"); });
+        }, "danger"));
+    if (item.id && item.status === "ended")
+        actions.append(button("再開のプレビュー", () => {
+            try {
+                if (check())
+                    previewEditor(state, true);
+            }
+            catch (error) {
+                showError(error);
+            }
+        }));
     form.append(actions);
     main.append(form);
 }
@@ -375,10 +472,22 @@ function metricsChart(metrics: Metrics): HTMLElement {
     const values = metrics.daily.flatMap(d => [d.articleViews, d.surveyResponses]).filter((v): v is number => v !== null), max = Math.max(1, ...values);
     for (const [key, color] of [["articleViews", "#4b7055"], ["surveyResponses", "#a56d35"]] as const) {
         let path = "", connected = false;
-        metrics.daily.forEach((d, i) => { const value = d[key]; if (value === null) {
-            connected = false;
-            return;
-        } const x = 16 + i * 608 / Math.max(1, metrics.daily.length - 1), y = 140 - value * 120 / max; path += `${connected ? "L" : "M"}${x},${y} `; connected = true; const circle = document.createElementNS(ns, "circle"); circle.setAttribute("cx", String(x)); circle.setAttribute("cy", String(y)); circle.setAttribute("r", "2.5"); circle.setAttribute("fill", color); svg.append(circle); });
+        metrics.daily.forEach((d, i) => {
+            const value = d[key];
+            if (value === null) {
+                connected = false;
+                return;
+            }
+            const x = 16 + i * 608 / Math.max(1, metrics.daily.length - 1), y = 140 - value * 120 / max;
+            path += `${connected ? "L" : "M"}${x},${y} `;
+            connected = true;
+            const circle = document.createElementNS(ns, "circle");
+            circle.setAttribute("cx", String(x));
+            circle.setAttribute("cy", String(y));
+            circle.setAttribute("r", "2.5");
+            circle.setAttribute("fill", color);
+            svg.append(circle);
+        });
         const line = document.createElementNS(ns, "path");
         line.setAttribute("d", path);
         line.setAttribute("fill", "none");
@@ -388,14 +497,17 @@ function metricsChart(metrics: Metrics): HTMLElement {
     }
     return el("div", { class: "chart" }, el("p", { class: "muted" }, "緑: 記事閲覧　茶: アンケート回答"), svg);
 }
-void (async () => { heading("管理者認証を確認しています"); try {
-    await client.authenticate();
-    owner.textContent = client.email;
-    auth.hidden = true;
-    await loadSection();
-}
-catch (error) {
-    showError(error);
-    heading("管理者認証が必要です");
-    main.append(empty("別タブでログイン後、この画面で認証を再確認してください。"));
-} })();
+void (async () => {
+    heading("管理者認証を確認しています");
+    try {
+        await client.authenticate();
+        owner.textContent = client.email;
+        auth.hidden = true;
+        await loadSection();
+    }
+    catch (error) {
+        showError(error);
+        heading("管理者認証が必要です");
+        main.append(empty("別タブでログイン後、この画面で認証を再確認してください。"));
+    }
+})();
