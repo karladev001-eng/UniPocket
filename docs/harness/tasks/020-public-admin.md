@@ -193,3 +193,12 @@ PWAのインストール検知は環境によって利用可否が異なり、Ch
 - 開始時点の未認証HTTPは一般・管理とも302で各Accessログインへ遷移。Cloudflare Oneのアプリ一覧にZero Trustの大規模障害表示と取得エラーが発生し、一般Worker側Access設定も読込中となった。ここまで公開設定を保存・削除した事実はなく、承認受領と実際の公開完了を区別する。
 - アプリ一覧の更新、対象一般WorkerのAccess画面、既知IDによる対象アプリ個別設定の取得を試したが、一覧は再び取得エラー、Worker側は読込中、個別設定は取得不能（ページ不明表示）となった。対象の設定を取得できないまま変更せず、管理保護・既存データ・配信コードは維持。最終の未認証HTTPは一般`/`・`/sw.js`と管理`/api/admin/me`の全てがそれぞれのAccessログインへ302のまま。公開・インストール・旧iPhone復旧の完了とは報告しない。
 - 証拠画像 `/private/tmp/uni-pocket-020-cloudflare-access-error.jpg`。公式ステータスページ https://www.cloudflarestatus.com/ も確認したが、取得テキストのActive incidents欄に具体的な障害詳細は出ていなかった。アカウント管理画面の障害表示・取得エラーを観測事実とし、全体の障害原因や復旧時刻は断定しない。一般公開の同じ対象について再承認は不要。再開時は対象一般Access設定の取得が回復したことを確認し、一般アプリだけを公開して未認証HTTP/インストール/SWと管理拒否を検証する。
+
+### 再確認とAPIによる切り分け（2026-10-20 13:34 JST）
+
+- 本人の「そちらで設定を確認して、一般公開への切り替えを進めてください」により再開。公開対象・管理者保護・既存URL/D1維持は変更なし。ブラウザではAccess一覧が再び障害表示と取得エラーとなり、一般WorkerのAccess画面はZero Trust設定案内を表示。これは既存組織が未作成と確認できたことを意味しないため、新規組織の作成や初期化は行わない。
+- サーバー担当へ読み取り専用の診断を委譲。既存Wrangler OAuthは有効で、同じアカウントのuser/account GETは200。Nodeとcurlの両方で対象Accessアプリの個別GETがタイムアウト/504となり、curlでも一般・管理の既知IDの設定を取得できなかった。リストGETの200/空配列は、個別設定の取得失敗や実際の認証ゲートの応答と区別し、アプリが存在しないとは解釈しない。organization GETの403 Authentication errorは別に記録する。
+- Wrangler OAuthの明示scopeにはuser/account/Workers/D1があるがAccess read/writeはない。ただしApps一覧GETは成功しており、scope表示だけで全ての原因を権限不足と断定しない。Access設定を取得できず変更権限も確認できないため、この認証で対象不明のPUT/DELETEを試さない。追加token発行・権限拡張・再ログイン・Worker URLの付替えは行っていない。
+- 公式の個別障害情報 https://www.cloudflarestatus.com/incidents/0eqtn0khkz87 「Cloudflare Zero Trust connectivity」に、2026-10-20 03:20 UTC開始、04:22 UTC時点Investigating、Dashboard/Zero Trustへの影響を確認。ルートのWeb検索取得ではトップページのActive incidentsが空で個別ページを開けなかったため、担当が直接取得した一次資料で確認した。ダッシュボードとAPIの取得失敗はこの障害情報と整合するが、個々の403の原因まで断定しない。
+- 公開ファイル`/version.json`と管理`/api/admin/me`は未認証で各Accessログインへ302、teamの公開鍵endpointは200。一般公開は未完了で、管理画面保護とデータは維持。15分ごとの復旧確認と復旧後の承認済み公開切替を自動実行するか本人へ選択肢を提示したが、回答前にautomationを作成しない。
+- 障害一次証拠の保存先: `/private/tmp/unipocket-020-cloudflare-incident-20261020.html`と同名`.json`（0600、取得2026-10-20T04:35:35.643Z）。ページ更新04:28 UTC、最新タイムライン04:22 UTC。公開HTMLのSHA256はJSONへ記録。本文はidentity policy付きGateway trafficとDashboardへの影響を説明しており、Accessに関する全ての障害原因を断定するものではない。
