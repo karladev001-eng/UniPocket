@@ -1,5 +1,7 @@
 # 020 — URLから、みんなのUni Pocketへ。
 
+関連する追加提案: [021-admin-author / 仕様・モック](021-admin-author.plan.html)（[仕様正本](021-admin-author.md)）。運営名義の投稿と管理者バッジは別計画で未承認。020の完了・承認範囲は変更しない。
+
 - 計画ID: 020-public-admin
 - 仕様版: 2
 - 状態: done（020の実装・一般公開切替と公開境界の検証を完了。016の旧iPhone実機の復旧確認は未完了）
