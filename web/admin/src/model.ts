@@ -76,6 +76,8 @@ export interface Metrics {
 }
 export interface Results {
     survey: Survey;
+    resultsComplete: boolean;
+    resultsSince: string;
     responseCount: number;
     questions: {
         questionId: string;
@@ -234,7 +236,7 @@ export function payload(item: Editable): Record<string, unknown> {
     const { title, startAt, endAt } = item;
     return "body" in item ? { title, startAt, endAt, body: item.body, link: item.link } : { title, endAt, intro: item.intro, ...(item.status === "draft" ? { startAt, questions: item.questions } : {}) };
 }
-/** Keeps the first POST snapshot/key through ambiguous failures; edited inputs are then PATCHed. */
+/** Original POST/key and local inputs survive recovery and optimistic conflicts. */
 export class EditorState {
     item: Editable;
     baseline: string;
@@ -242,6 +244,9 @@ export class EditorState {
         key: string;
         body: Record<string, unknown>;
     };
+    private recoveryBaseline?: Record<string, unknown>;
+    latest?: Editable;
+    retainedInput?: Editable;
     private pendingAction?: {
         path: string;
         revision: number;
@@ -249,7 +254,26 @@ export class EditorState {
     };
     constructor(public kind: "announcements" | "surveys", item: Editable) { this.item = structuredClone(item); this.baseline = JSON.stringify(this.item); }
     get dirty(): boolean { return this.pendingCreate !== undefined || JSON.stringify(this.item) !== this.baseline; }
+    get hasInputToLose(): boolean { return this.dirty || !!this.retainedInput; }
+    async refreshLatest(send: Sender): Promise<void> {
+        const name = this.kind === "announcements" ? "announcement" : "survey";
+        this.latest = (await send<Record<string, Editable>>("/" + this.kind + "/" + encodeURIComponent(this.item.id)))[name];
+        // Keep edited fields, but immediately apply the server publication lock.
+        this.item.status = this.latest.status;
+    }
+    rebase(): void {
+        if (!this.latest) throw Error("先に最新版を表示してください。");
+        const original = this.recoveryBaseline ?? this.pendingCreate?.body ?? payload(JSON.parse(this.baseline) as Editable);
+        const current = structuredClone(this.item), desired = payload(current);
+        const edits = Object.fromEntries(Object.entries(desired).filter(([key, value]) => JSON.stringify(value) !== JSON.stringify(original[key])));
+        if ("questions" in current && this.latest.status !== "draft" && (JSON.stringify(current.questions) !== JSON.stringify((this.latest as Survey).questions) || current.startAt !== this.latest.startAt)) this.retainedInput = current;
+        this.item = { ...structuredClone(this.latest), ...edits } as Editable;
+        this.baseline = JSON.stringify(this.latest);
+        this.recoveryBaseline = payload(this.latest);
+        this.latest = undefined;
+    }
     async save(send: Sender): Promise<void> {
+        if (this.latest) throw new AdminError("最新版と現在の入力を比較してから適用してください。", 409);
         validateContent(this.item);
         const desired = payload(this.item), name = this.kind === "announcements" ? "announcement" : "survey";
         if (!this.item.id) {
@@ -264,19 +288,33 @@ export class EditorState {
                 throw error;
             }
             this.item.id = created.id;
-            this.item.revision = created.revision;
+            this.item.revision = 1;
             this.item.createdAt = created.createdAt;
+            this.item.status = created.status;
+            if (created.revision !== 1) {
+                this.latest = created;
+                throw new AdminError("登録済みの内容に別の更新があります。最新版と比較してください。", 409);
+            }
             const matches = JSON.stringify(desired) === JSON.stringify(this.pendingCreate.body);
-            this.pendingCreate = undefined;
             if (matches) {
+                this.pendingCreate = undefined;
                 this.item = created;
                 this.baseline = JSON.stringify(created);
                 return;
             }
         }
-        const saved = (await send<Record<string, Editable>>("/" + this.kind + "/" + encodeURIComponent(this.item.id), "PATCH", { ...desired, revision: this.item.revision }))[name];
+        const original = this.recoveryBaseline ?? this.pendingCreate?.body ?? payload(JSON.parse(this.baseline) as Editable);
+        const changes = Object.fromEntries(Object.entries(desired).filter(([key, value]) => JSON.stringify(value) !== JSON.stringify(original[key])));
+        let saved: Editable;
+        try { saved = (await send<Record<string, Editable>>("/" + this.kind + "/" + encodeURIComponent(this.item.id), "PATCH", { ...changes, revision: this.item.revision }))[name]; }
+        catch (error) {
+            if (error instanceof AdminError && error.status === 409) await this.refreshLatest(send).catch(() => {});
+            throw error;
+        }
         this.item = saved;
         this.baseline = JSON.stringify(saved);
+        this.pendingCreate = undefined;
+        this.recoveryBaseline = undefined;
     }
     async action(action: "publish" | "end", send: Sender): Promise<void> {
         if (this.dirty || !this.item.id)
@@ -291,4 +329,4 @@ export class EditorState {
         this.pendingAction = undefined;
     }
 }
-export function errorMessage(error: unknown): string { return error instanceof AdminError && error.status === 409 ? "別の更新と競合しました。入力は保持しています。元の画面を別タブで確認し、必要な入力を控えてから最新版を開き直してください。" : error instanceof Error ? error.message : "処理に失敗しました。入力は保持しています。"; }
+export function errorMessage(error: unknown): string { return error instanceof AdminError && error.status === 409 ? "別の更新と競合しました。入力は保持しています。「最新版と比較」で内容を確認し、変更した項目だけを適用してください。" : error instanceof Error ? error.message : "処理に失敗しました。入力は保持しています。"; }

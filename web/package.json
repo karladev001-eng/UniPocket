@@ -18,7 +18,7 @@
     "test:server": "node --experimental-strip-types --test tests/server.test.ts",
     "test:runtime": "node --test tests/server*-runtime.mjs",
     "test:all": "npm test && npm run test:admin && npm run test:server && npm run test:runtime",
-    "test:integration": "npm run build && node --test tests/integration.test.mjs"
+    "test:integration": "npm run build && npm run build:admin && node --test tests/*integration.test.mjs"
   },
   "dependencies": {
     "pdfjs-dist": "^6.4.299"

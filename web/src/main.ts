@@ -4,7 +4,7 @@ import { MapViewport } from "./map-viewport";
 import { setEventMemo, eventMemoText } from "./event-memos";
 import { ViewEpoch, updateBookmark, appendUnique, BookmarkRequests } from "./article-request";
 import { commitEvent } from "./event-editor";
-import { submitNewArticle } from "./article-submit";
+import { submitNewArticle, bindArticleRecovery, ArticleRecoveryConflict } from "./article-submit";
 import "./style.css";
 import { periods, weekPresentation, courseColor, updatePresentation } from "./schedule-presentation";
 import { type CalendarMode, minutePixels, lectureEvents, initialCalendarMode, shiftCalendarDay, calendarDays, daySegments, overlapGroups, nextEvent, eventKind, initialScrollMinute } from "./calendar-presentation";
@@ -1198,7 +1198,7 @@ function articleForm(article?: Article) {
   if (article && !draft.revision) { draft.revision = String(article.revision); changed(); }
   const d = modal(
     article ? "記事の登録情報を編集" : "Notion記事を登録",
-    `<p class="muted">${anonymousNotice}</p>${field("title", "タイトル", draft.title, "text", 'required maxlength="120"')}${field("publicUrl", "Notionの公開URL", draft.publicUrl, "url", "required")}<p class="muted">HTTPSの notion.site / notion.so とそのサブドメインが対象です。独自ドメインは未対応です。</p>${textfield("summary", "紹介文（280字まで）", draft.summary, 280)}${field("category", "カテゴリ", draft.category, "text", 'maxlength="40"')}${choice("courseId", "関連する講義", [["", "指定なし"], ...data.imports.flatMap((p) => p.courses).map((c) => [c.id, c.title] as [string, string])], draft.courseId)}<section class="card"><h3>公式の埋め込みURL・コード（任意）</h3><p class="muted">Notionの公開ページで「このページを埋め込む」から取得したiframeコード、またはそのsrcを入力してください。HTML自体は実行しません。通常URLからの変換は行いません。</p>${textfield("embedUrl", "埋め込みコードまたはURL", draft.embedUrl, 4000)}</section><button type="button" id="preview-article">プレビューを確認</button>${article ? '<button type="button" id="refresh-article-revision" class="smallbtn">最新の状態を確認</button><div id="article-current-state" role="status"></div>' : ""}<div id="article-preview"></div><label class="check"><input name="confirmed" type="checkbox" required>元ページ・プレビューがログイン不要で読めることを確認しました</label>`,
+    `<p class="muted">${anonymousNotice}</p>${field("title", "タイトル", draft.title, "text", 'required maxlength="120"')}${field("publicUrl", "Notionの公開URL", draft.publicUrl, "url", "required")}<p class="muted">HTTPSの notion.site / notion.so とそのサブドメインが対象です。独自ドメインは未対応です。</p>${textfield("summary", "紹介文（280字まで）", draft.summary, 280)}${field("category", "カテゴリ", draft.category, "text", 'maxlength="40"')}${choice("courseId", "関連する講義", [["", "指定なし"], ...data.imports.flatMap((p) => p.courses).map((c) => [c.id, c.title] as [string, string])], draft.courseId)}<section class="card"><h3>公式の埋め込みURL・コード（任意）</h3><p class="muted">Notionの公開ページで「このページを埋め込む」から取得したiframeコード、またはそのsrcを入力してください。HTML自体は実行しません。通常URLからの変換は行いません。</p>${textfield("embedUrl", "埋め込みコードまたはURL", draft.embedUrl, 4000)}</section><button type="button" id="preview-article">プレビューを確認</button><button type="button" id="refresh-article-revision" class="smallbtn" ${article || draft.recoveredId ? "" : "hidden"}>最新の状態を確認</button><div id="article-current-state" role="status"></div><div id="article-preview"></div><label class="check"><input name="confirmed" type="checkbox" required>元ページ・プレビューがログイン不要で読めることを確認しました</label>`,
     async (form) => {
       if (composing) throw Error("文字変換を確定してください。");
       const title = val(form, "title").trim();
@@ -1225,6 +1225,12 @@ function articleForm(article?: Article) {
           : await submitNewArticle(draft, body, api, async () => {
               changed();
               if (!(await save())) throw Error("送信前の下書き保存に失敗しました。入力を保持して再試行してください。");
+            }).catch(e => {
+              if (e instanceof ArticleRecoveryConflict) {
+                const trigger = d.querySelector<HTMLButtonElement>("#refresh-article-revision"); if (trigger) trigger.hidden = false;
+                const box = d.querySelector<HTMLElement>("#article-current-state"); if (box && e.latest) box.textContent = `最新版（改訂${e.latest.revision}）：${e.latest.title} / ${e.latest.summary} / ${e.latest.category}。入力は保持しています。`;
+              }
+              throw e;
             });
         data.articleDraft = {};
         changed();
@@ -1240,25 +1246,9 @@ function articleForm(article?: Article) {
     article ? "変更を保存" : "登録",
   );
   d.dataset.draft = "true";
-  const refreshRevision = d.querySelector<HTMLButtonElement>("#refresh-article-revision");
-  if (refreshRevision && article) refreshRevision.onclick = async () => {
-    refreshRevision.disabled = true;
-    try {
-      const latest = (await api<{ articles: Article[] }>("/my/articles")).articles.find(a => a.id === article.id);
-      if (!d.open || !d.isConnected) return;
-      if (!latest) throw Error("記事は削除されたか、取得できません。現在の入力は保持しています。");
-      const box = d.querySelector<HTMLElement>("#article-current-state")!;
-      box.textContent = `最新版：${latest.title} / ${latest.summary} / ${latest.category}（${latest.visibility === "hidden" ? "非表示：" + (latest.hiddenReason || "") : "公開中"}）`;
-      if (confirm("最新版を表示しました。現在の入力は保持しています。この版への変更として保存できるようにしますか？")) {
-        draft.revision = String(latest.revision);
-        article.visibility = latest.visibility;
-        changed();
-      }
-    } catch (e) {
-      const box = d.querySelector<HTMLElement>(".modal-error");
-      if (box) { box.hidden = false; box.textContent = e instanceof Error ? e.message : String(e); }
-    } finally { refreshRevision.disabled = false; }
-  };
+  bindArticleRecovery(d, { draft, article, send: api, confirm: message => confirm(message), persist: async () => {
+    changed(); if (!(await save())) throw Error("下書きの保存に失敗しました。入力を保持しています。");
+  } });
   let articleDirty = false;
   d.addEventListener("input", () => { articleDirty = true; });
   const guardArticle = (event: Event) => {

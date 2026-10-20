@@ -67,7 +67,7 @@ test('Static Assets + Worker + persisted D1 keep anonymous ownership across rest
     const made = await send('/api/articles', 'POST', body, cookie, { 'Idempotency-Key': crypto.randomUUID() });
     assert.equal(made.response.status, 201, JSON.stringify(made.data));
     const id = made.data.article.id;
-    assert.equal((await send('/api/articles/' + id, 'PATCH', { title: '結合検証・編集後' }, cookie)).data.article.canEdit, true);
+    assert.equal((await send('/api/articles/' + id, 'PATCH', { title: '結合検証・編集後' }, cookie, { 'If-Match': String(made.data.article.revision) })).data.article.canEdit, true);
     const mark = await send(`/api/articles/${id}/bookmark`, 'PUT', {}, cookie);
     assert.equal(mark.data.bookmarkCount, 1);
     assert.equal(mark.response.headers.get('cache-control'), 'private, no-store');

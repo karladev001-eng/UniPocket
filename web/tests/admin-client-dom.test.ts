@@ -44,3 +44,40 @@ it("keeps accessible labels, table captions, column headers and zero/null conten
     expect((rows[0].children[1] as ElementDouble).children).toEqual(["0"]);
     expect((rows[1].children[1] as ElementDouble).children).toEqual(["未収集"]);
 });
+
+it("labels expired survey results as retained-window values after reopen, including zero and new answers", async () => {
+    documentDouble();
+    const { resultsSummary } = await import('../admin/src/results');
+    const text = (node: ElementDouble | string): string => typeof node === 'string' ? node : node.children.map(text).join(' ');
+    const retained = { resultsComplete: false, resultsSince: '2026-10-19T15:05:00.000Z', responseCount: 0 };
+    const expired = text(resultsSummary(retained) as unknown as ElementDouble);
+    expect(expired).toContain('保存期間内の回答数 0');
+    expect(expired).toContain('2026/10/20 0:05');
+    expect(expired).toContain('回答数と選択数の0件は、この期間内の値');
+    expect(expired).toContain('再公開しても過去の集計は復元されません');
+    const newAnswer = text(resultsSummary({ ...retained, responseCount: 1 }) as unknown as ElementDouble);
+    expect(newAnswer).toContain('保存期間内の回答数 1');
+    expect(newAnswer).toContain('保存期限');
+    const complete = text(resultsSummary({ ...retained, resultsComplete: true, responseCount: 2 }) as unknown as ElementDouble);
+    expect(complete).toBe('回答数 2');
+});
+
+it('binds admin rebase only to the explicit apply control after rendering the compared version', async () => {
+    documentDouble();
+    const { EditorState, newContent } = await import('../admin/src/model');
+    const { editorRecoveryPanel } = await import('../admin/src/editor-recovery');
+    const state = new EditorState('announcements', { ...newContent('announcements'), title: 'original', body: 'original body', link: '' });
+    state.pendingCreate = { key: 'original-key', body: { title: 'original', body: 'original body', link: '', startAt: state.item.startAt, endAt: state.item.endAt } };
+    state.item.title = 'local title';
+    state.latest = { ...state.item, id: 'created', revision: 2, title: 'original', body: 'newer body', link: '' };
+    const applied = vi.fn();
+    const panel = editorRecoveryPanel(state, item => el('p', {}, item.title, 'body' in item ? item.body : item.intro), applied) as unknown as ElementDouble;
+    expect(state.latest).toBeDefined(); expect(applied).not.toHaveBeenCalled();
+    const preview = panel.children[2] as ElementDouble;
+    expect(preview.attrs.disabled).toBe('');
+    expect((preview.children[0] as ElementDouble).children).toEqual(['original', 'newer body']);
+    const apply = panel.children[3] as ElementDouble;
+    apply.events.get('click')!(new Event('click'));
+    expect(applied).toHaveBeenCalledOnce(); expect(state.item.title).toBe('local title');
+    expect('body' in state.item && state.item.body).toBe('newer body'); expect(state.latest).toBeUndefined();
+});

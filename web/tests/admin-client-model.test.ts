@@ -171,3 +171,38 @@ describe("editor state retains inputs across failed writes", () => {
         expect(errorMessage(new AdminError("conflict", 409))).toContain("入力は保持");
     });
 });
+
+it('requires explicit rebase after a lost create finds an intervening edit, without overwriting untouched fields', async () => {
+    const original = announcement(), state = new EditorState('announcements', original);
+    let current = { ...original, id: 'created', revision: 1 }, lost = true;
+    const calls: { method: string; body: unknown; key?: string }[] = [];
+    const send: Sender = async <T>(_path: string, method = 'GET', body?: unknown, headers?: Record<string, string>) => {
+        calls.push({ method, body, key: headers?.['Idempotency-Key'] });
+        if (lost) { lost = false; throw Error('lost response'); }
+        if (method === 'PATCH') { expect(body).toEqual({ title: 'local title', revision: 2 }); current = { ...current, ...(body as object), revision: 3 }; }
+        return { announcement: current } as T;
+    };
+    await expect(state.save(send)).rejects.toThrow('lost');
+    current = { ...current, body: 'other tab body', revision: 2 }; state.item.title = 'local title';
+    const key = state.pendingCreate!.key;
+    await expect(state.save(send)).rejects.toMatchObject({ status: 409 });
+    expect(calls.map(c => c.method)).toEqual(['POST', 'POST']); expect(state.item.title).toBe('local title');
+    expect(state.latest).toEqual(current); expect(state.pendingCreate?.key).toBe(key);
+    state.rebase(); await state.save(send);
+    expect(state.item.title).toBe('local title'); expect((state.item as Announcement).body).toBe('other tab body');
+    expect(state.pendingCreate).toBeUndefined(); expect(state.dirty).toBe(false);
+});
+
+it('locks a survey published during lost-create recovery and retains local immutable inputs during explicit rebase', async () => {
+    const original = survey(), state = new EditorState('surveys', original);
+    await expect(state.save(async () => { throw Error('lost'); })).rejects.toThrow();
+    (state.item as Survey).questions[0].title = 'local question'; state.item.title = 'local title';
+    const current = { ...original, id: 'published', revision: 2, status: 'published' as const };
+    const send: Sender = async <T>() => ({ survey: current } as T);
+    await expect(state.save(send)).rejects.toMatchObject({ status: 409 });
+    expect(state.item.status).toBe('published'); expect((state.item as Survey).questions[0].title).toBe('local question');
+    state.rebase();
+    expect((state.item as Survey).questions).toEqual(current.questions);
+    expect((state.retainedInput as Survey).questions[0].title).toBe('local question');
+    expect(state.item.title).toBe('local title'); expect(payload(state.item)).not.toHaveProperty('questions'); expect(state.hasInputToLose).toBe(true);
+});

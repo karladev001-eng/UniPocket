@@ -91,15 +91,15 @@ describe('public community inputs and anonymous submissions', () => {
     expect(html).toContain('own-edit-hidden'); expect(html).toContain('own-delete-hidden');
     expect(html).not.toContain('#articles/hidden'); expect(html).not.toContain('iframe'); expect(html).not.toContain('再公開');
   });
-  it('uses replayed revision for the corrective author PATCH after ambiguous creation', async () => {
+  it('does not use an unseen replayed revision for a corrective author PATCH', async () => {
     const original = { title: 'old', publicUrl: 'https://example.notion.site/a', embedUrl: '', category: '', courseId: '', summary: '' };
-    const draft = { pendingBody: JSON.stringify(original), key: 'key' };
-    let headers: Record<string, string> | undefined;
-    await submitNewArticle(draft, { ...original, title: 'new' }, async <T>(_path: string, method: string, body: unknown, requestHeaders?: Record<string, string>) => {
-      if (method === 'PATCH') headers = requestHeaders;
-      return { article: { id: 'a', revision: 7, ...(body as object) } } as T;
-    }, async () => {});
-    expect(headers).toEqual({ 'If-Match': '7' });
+    const draft: Record<string, string> = { pendingBody: JSON.stringify(original), key: 'key' };
+    const methods: string[] = [];
+    await expect(submitNewArticle(draft, { ...original, title: 'new' }, async <T>(_path: string, method: string, body: unknown) => {
+      methods.push(method); return { article: { id: 'a', revision: 7, ...(body as object) } } as T;
+    }, async () => {})).rejects.toThrow('別の更新');
+    expect(methods).toEqual(['POST']); expect(draft.recoveredId).toBe('a');
+    expect(draft.pendingBody).toBe(JSON.stringify(original));
   });
 });
 

@@ -2,6 +2,8 @@ import "./style.css";
 import { AdminClient, EditorState, dateRange, duplicateSurvey, errorMessage, jstInput, newContent, question, safeLink, statusLabel, utcInput, validateContent, validateRange, type Article, type Content, type Editable, type Metrics, type Report, type Results, type Survey } from "./model";
 import { el, button, field, table, type Child } from "./dom";
 import { AdminPages, VisibilityOperation, reportArticle } from "./moderation";
+import { resultsSummary } from "./results";
+import { editorRecoveryPanel } from "./editor-recovery";
 type Section = "overview" | "articles" | "announcements" | "surveys" | "metrics";
 const sections: [
     Section,
@@ -83,7 +85,7 @@ function confirmAction(title: string, body: HTMLElement, label: string, action: 
 async function navigate(next: Section): Promise<void> {
     if (busy)
         return;
-    if (editor?.dirty && !window.confirm("保存していない入力があります。破棄して移動しますか？"))
+    if (editor?.hasInputToLose && !window.confirm("保存していない入力があります。破棄して移動しますか？"))
         return;
     editor = undefined;
     section = next;
@@ -92,7 +94,7 @@ async function navigate(next: Section): Promise<void> {
     await loadSection();
 }
 window.addEventListener("beforeunload", event => {
-    if (editor?.dirty) {
+    if (editor?.hasInputToLose) {
         event.preventDefault();
         event.returnValue = "";
     }
@@ -266,7 +268,7 @@ async function contentList(kind: "announcements" | "surveys", token: number): Pr
     main.append(el("details", {}, el("summary", {}, "配信の範囲"), el("p", {}, "全員向けのアプリ内表示です。開始前は予約、期限後は利用者の一覧から外れます。公開前に表示内容と期間を確認します。")));
 }
 function openEditor(kind: "announcements" | "surveys", item: Editable): void {
-    if (editor?.dirty && !window.confirm("保存していない入力を破棄しますか？"))
+    if (editor?.hasInputToLose && !window.confirm("保存していない入力を破棄しますか？"))
         return;
     ++generation;
     editor = new EditorState(kind, item);
@@ -277,6 +279,8 @@ function renderEditor(): void {
     const item = state.item, published = item.status !== "draft";
     heading(item.id ? ("body" in item ? "お知らせを編集" : "アンケートを編集") : ("body" in item ? "お知らせを作成" : "アンケートを作成"), button("一覧へ", () => void navigate(state.kind)));
     const form = el("form", { class: "editor", onsubmit: (e: Event) => e.preventDefault() });
+    if (state.latest) form.append(editorRecoveryPanel(state, previewBody, () => { renderEditor(); notify("変更した項目を保持しました。内容を確認して保存してください。"); }));
+    if (state.retainedInput) form.append(el("details", {}, el("summary", {}, "適用できなかった設問の入力を表示"), el("p", { class: "notice" }, "別の更新で公開されたため、設問と開始日時は変更できません。入力をこの画面に保持しています。必要な内容を控えてから一覧の複製を使ってください。"), el("fieldset", { disabled: true }, previewBody(state.retainedInput))));
     const title = el("input", { type: "text", maxlength: 80, required: true, value: item.title, oninput: (e: Event) => { item.title = (e.target as HTMLInputElement).value; } });
     const start = el("input", { type: "datetime-local", value: jstInput(item.startAt), required: true, disabled: "questions" in item && published });
     const end = el("input", { type: "datetime-local", value: jstInput(item.endAt), required: true });
@@ -355,11 +359,12 @@ function renderEditor(): void {
         return true;
     };
     const actions = el("div", { class: "editorfooter" });
+    if (item.id) actions.append(taskButton("最新版と比較", async () => { await state.refreshLatest(client.send); renderEditor(); }));
     if (!published)
         actions.append(taskButton("下書きを保存", async () => {
             if (!check())
                 return;
-            await state.save(client.send);
+            try { await state.save(client.send); } catch (error) { if (state.latest) renderEditor(); throw error; }
             notify("下書きを保存しました。");
             renderEditor();
         }));
@@ -423,8 +428,9 @@ function previewEditor(state: EditorState, reopen = false): void {
             confirmAction(action + "前の確認", confirm, action, async () => {
                 if (Date.parse(item.endAt) <= Date.now() && (initial || reopen))
                     throw Error("終了・締切が過去です。日時を変更してください。");
-                if (state.dirty)
-                    await state.save(client.send);
+                if (state.dirty) {
+                    try { await state.save(client.send); } catch (error) { if (state.latest) { dialog.close(); renderEditor(); } throw error; }
+                }
                 if (initial || reopen)
                     await state.action("publish", client.send);
                 renderEditor();
@@ -437,8 +443,8 @@ async function resultsPage(id: string): Promise<void> {
     ++generation;
     editor = undefined;
     heading("回答の集計", button("アンケート一覧へ", () => void navigate("surveys")));
-    main.append(el("h2", {}, result.survey.title), el("div", { class: "stats" }, card("回答数", result.responseCount)), el("p", { class: "muted" }, "複数選択の件数は選択数です。回答者数とは異なります。"));
-    result.survey.questions.filter(q => q.type !== "text").forEach(q => { const counts = result.questions.find(r => r.questionId === q.id)?.counts || []; main.append(el("section", { class: "card" }, el("h3", {}, q.title), table(["選択肢", "選択数"], q.options.map(o => [o.label, counts.find(c => c.optionId === o.id)?.count ?? 0])))); });
+    main.append(el("h2", {}, result.survey.title), resultsSummary(result), el("p", { class: "muted" }, "複数選択の件数は選択数です。回答者数とは異なります。"));
+    result.survey.questions.filter(q => q.type !== "text").forEach(q => { const counts = result.questions.find(r => r.questionId === q.id)?.counts || []; main.append(el("section", { class: "card" }, el("h3", {}, q.title), table(["選択肢", result.resultsComplete ? "選択数" : "保存期間内の選択数"], q.options.map(o => [o.label, counts.find(c => c.optionId === o.id)?.count ?? 0])))); });
     const text = el("div", { hidden: true });
     const show = button("匿名の自由記述を表示", () => { text.hidden = !text.hidden; show.textContent = text.hidden ? "匿名の自由記述を表示" : "自由記述を閉じる"; });
     const textQuestions = result.survey.questions.filter(q => q.type === "text");
@@ -448,7 +454,7 @@ async function resultsPage(id: string): Promise<void> {
     }
     else
         main.append(taskButton("回答CSVをダウンロード", () => download("/surveys/" + encodeURIComponent(id) + "/responses.csv", "survey-responses.csv")));
-    main.append(el("details", {}, el("summary", {}, "回答の扱い"), el("p", {}, "同じ匿名ユーザーIDにつき1回答です。別ブラウザの同一人物判定は行いません。終了後90日を過ぎた個別回答は削除され、日次集計のみが残ります。")));
+    main.append(el("details", {}, el("summary", {}, "回答の扱い"), el("p", {}, "同じ匿名ユーザーIDにつき1回答です。別ブラウザの同一人物判定は行いません。終了後90日を過ぎた個別回答は削除され、日次集計は365日を上限に保持します。保存期限を過ぎた集計は再公開しても復元されません。")));
 }
 async function download(path: string, filename: string): Promise<void> { const blob = await client.csv(path), url = URL.createObjectURL(blob), a = el("a", { href: url, download: filename }); document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000); }
 async function metricsPage(token: number): Promise<void> {
