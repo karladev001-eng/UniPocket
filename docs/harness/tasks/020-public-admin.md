@@ -2,7 +2,7 @@
 
 - 計画ID: 020-public-admin
 - 仕様版: 2
-- 状態: implementing（仕様版2・AC1–12と一般公開の最終切替を本人承認済み。Cloudflare設定取得エラーにより公開操作待ち）
+- 状態: done（020の実装・一般公開切替と公開境界の検証を完了。016の旧iPhone実機の復旧確認は未完了）
 - 承認対象範囲: URL配布の一般公開・管理者認証・記事管理・アプリ内お知らせとアンケート・記事と回答の集計（AC1–12）
 - 仕様HTML: [020-public-admin.plan.html](020-public-admin.plan.html)
 - 操作モック: [020-public-admin.mock.html](020-public-admin.mock.html)
@@ -202,3 +202,13 @@ PWAのインストール検知は環境によって利用可否が異なり、Ch
 - 公式の個別障害情報 https://www.cloudflarestatus.com/incidents/0eqtn0khkz87 「Cloudflare Zero Trust connectivity」に、2026-10-20 03:20 UTC開始、04:22 UTC時点Investigating、Dashboard/Zero Trustへの影響を確認。ルートのWeb検索取得ではトップページのActive incidentsが空で個別ページを開けなかったため、担当が直接取得した一次資料で確認した。ダッシュボードとAPIの取得失敗はこの障害情報と整合するが、個々の403の原因まで断定しない。
 - 公開ファイル`/version.json`と管理`/api/admin/me`は未認証で各Accessログインへ302、teamの公開鍵endpointは200。一般公開は未完了で、管理画面保護とデータは維持。15分ごとの復旧確認と復旧後の承認済み公開切替を自動実行するか本人へ選択肢を提示したが、回答前にautomationを作成しない。
 - 障害一次証拠の保存先: `/private/tmp/unipocket-020-cloudflare-incident-20261020.html`と同名`.json`（0600、取得2026-10-20T04:35:35.643Z）。ページ更新04:28 UTC、最新タイムライン04:22 UTC。公開HTMLのSHA256はJSONへ記録。本文はidentity policy付きGateway trafficとDashboardへの影響を説明しており、Accessに関する全ての障害原因を断定するものではない。
+
+## 一般公開完了（2026-10-20・公開後確認07:26 UTC）
+
+- 本人は自動再確認を希望しないと回答。automationは作成していない。その後の「確認してください」で手動再開し、同じ公式障害ページの公開HTMLを直接再取得。06:14 UTCにAccess API復旧、06:32 UTCにResolved、ページ更新06:38 UTCを確認した。保存先は`/private/tmp/unipocket-020-cloudflare-incident-latest.html`。
+- Cloudflare UIのAccessアプリ一覧に一般用と管理用の2件が戻ったこと、一般WorkerのAll trafficが既存所有者だけを許可していることを取得してから操作。一般`uni-pocket-preview`の「アクセスを管理」→「Worker固有のAccessを削除」の対象説明と確認ボタンで、承認済みの一般用Accessアプリ`b27f1c81-de99-474b-9460-113078e420e4`だけを解除した。管理用Accessアプリ`c884358e-0318-4bc9-922a-88fda11e1812`と共通の所有者限定policyは変更していない。公開後の一覧にも管理用1件と同policyの関連が残ることを確認。
+- 一般Worker画面は「このWorkerはAccessによって保護されていません」となった。証拠画像`/private/tmp/uni-pocket-020-access-public.jpg`。同じ一般origin/D1/配信buildを継続し、コード再配信・データ初期化・記事/回答/通報のテスト作成を行っていない。
+- rootと独立レビュー担当がCookieなしHTTPで公開境界を検証。一般root・manifest・version・SWは200、versionは`20261020024911-9b7aa5`。記事GETは200で承認済み記事1件だけ、匿名の編集権限なし。一般`/api/admin`と`/api/admin/me`は404。管理root・実在JS・管理API・CSV入口は所有者限定Accessログインへ302を維持し、no-store。CSV本文や認証tokenは取得していない。独立レビューはPASS。
+- 独立担当はSWの210対象資産が全て200でローカル配信物とバイト一致し、noindexが付くことも確認。APIと認証callbackはキャッシュ対象外。`/install.html`は独立したインストール案内ではなくSPA fallbackなので、配布・インストール用として正規root URL `https://uni-pocket-preview.kan0507kt.workers.dev/`を案内する。OSごとの追加手順とURL共有はアプリ「その他」にある。
+- 実ブラウザの古い画面は、認証解除後にストレージ削除や再インストールをせず最新020へ切り替わった。「その他」に最新表示があり、この画面と配信中のbuildがともに`20261020024911-9b7aa5`と一致。公開記事一覧の既存ブックマークも登録済みとして表示。管理画面は所有者認証で概要を取得し、記事1・通報0・お知らせ0・アンケート0を確認した。
+- これは一般公開とブラウザ内更新の確認結果。旧iPhone実機のデータ保持・更新適用はまだ本人確認を得ていないため、016の未確認事項として残す。初回のiPhone/AndroidのインストールはOS操作であり、無操作の完了や全実機での検証完了を約束しない。UIへのユーザー評価や一般嗜好は本公開承認から推定しない。
