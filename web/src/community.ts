@@ -58,7 +58,9 @@ export class SurveySubmission {
     this.sending = true; this.changed();
     try {
       await this.ensureSession();
-      await this.send(`/surveys/${encodeURIComponent(this.survey.id)}/responses`, 'POST', { answers: this.pending.answers }, { 'Idempotency-Key': this.pending.key });
+      const result = await this.send<{ ok: boolean; responseId: string }>(`/surveys/${encodeURIComponent(this.survey.id)}/responses`, 'POST', { answers: this.pending.answers }, { 'Idempotency-Key': this.pending.key });
+      if (!result || result.ok !== true || typeof result.responseId !== 'string' || !result.responseId.trim())
+        throw new ApiError('回答の受付を確認できません。通信・認証状態を確認して再試行してください。', 200, 'invalid_response');
       this.completed = true; this.dirty = false;
     } catch (error) {
       if (error instanceof ApiError && [400, 413, 415, 422].includes(error.status)) this.pending = undefined;

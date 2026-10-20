@@ -216,3 +216,85 @@ it('refuses the real all-tab update prepare while a survey is dirty/sending or f
     await receive('ABORT_UPDATE');
   } finally { vi.clearAllTimers(); vi.useRealTimers(); vi.unstubAllGlobals(); }
 });
+
+import { api } from '../src/api';
+import { bindArticlePreview } from '../src/article-preview';
+describe('review regressions at the actual transport and form handlers', () => {
+  it.each([
+    ['HTML login response', '<html>Sign in</html>'],
+    ['null JSON', 'null'],
+    ['array JSON', '[]'],
+    ['error envelope with HTTP 200', '{"error":"login required"}'],
+    ['missing acceptance', '{}'],
+    ['missing response ID', '{"ok":true}'],
+    ['false acceptance', '{"ok":false,"responseId":"not-accepted"}'],
+    ['empty response ID', '{"ok":true,"responseId":" "}'],
+  ])('retains survey input and original retry key after %s', async (_label, body) => {
+    const requests: RequestInit[] = [];
+    vi.stubGlobal('fetch', async (_path: string, init: RequestInit) => {
+      requests.push(init);
+      return requests.length === 1 ? new Response(body, { status: 200 }) : Response.json({ ok: true, responseId: 'accepted-once' });
+    });
+    try {
+      const draft = new SurveySubmission(survey, api, async () => {});
+      Object.entries(filled).forEach(([id, value]) => draft.change(id, value));
+      await expect(draft.submit()).rejects.toMatchObject({ code: 'invalid_response' });
+      expect(draft.completed).toBe(false); expect(draft.dirty).toBe(true); expect(draft.sending).toBe(false);
+      expect(draft.values).toEqual(filled); expect(draft.pendingRetry).toBe(true);
+      draft.change('text', 'changed during authentication retry');
+      await draft.submit();
+      expect(requests[1].body).toBe(requests[0].body);
+      expect((requests[1].headers as Record<string, string>)['Idempotency-Key']).toBe((requests[0].headers as Record<string, string>)['Idempotency-Key']);
+      expect(draft.completed).toBe(true); expect(draft.dirty).toBe(false);
+    } finally { vi.unstubAllGlobals(); }
+  });
+  it('the rendered survey submit handler keeps its form after HTTP 200 login HTML and clears it only after valid acceptance', async () => {
+    vi.stubGlobal('window', {}); vi.stubGlobal('navigator', { onLine: true });
+    let values = { ...filled };
+    vi.stubGlobal('FormData', class {
+      get(name: keyof typeof filled) { return values[name]; }
+      getAll(name: keyof typeof filled) { const value = values[name]; return Array.isArray(value) ? value : value ? [value] : []; }
+    });
+    const state = { textContent: '', isConnected: true }, errorBox = { hidden: true, textContent: '' };
+    const form = { inert: false, oninput: undefined as (() => void) | undefined, onsubmit: undefined as ((event: Event) => Promise<void>) | undefined };
+    const content = { innerHTML: '', querySelector: (selector: string) => selector === 'form' ? form : selector === '#survey-state' ? state : errorBox };
+    const page = { innerHTML: '', querySelector: () => content };
+    const posted: RequestInit[] = [];
+    vi.stubGlobal('fetch', async (_path: string, init: RequestInit) => {
+      if (init.method === 'GET') return Response.json({ survey, answered: false });
+      posted.push(init);
+      return posted.length === 1 ? new Response('<html>Cloudflare login</html>') : Response.json({ ok: true, responseId: 'accepted' });
+    });
+    const community = new Community({ page: () => page as unknown as HTMLElement, current: () => () => true, action: () => {}, heading: () => '', send: api, session: async () => {}, activity: () => {}, editArticle: () => {}, deleteArticle: async () => {} });
+    try {
+      await community.renderSurvey(survey.id);
+      form.oninput!(); await form.onsubmit!(new Event('submit'));
+      expect(content.innerHTML).toContain('<form'); expect(content.innerHTML).not.toContain('回答を受け付けました');
+      expect(errorBox.textContent).toContain('認証状態を確認'); expect(errorBox.textContent).toContain('入力を保持');
+      expect(errorBox.hidden).toBe(false); expect(form.inert).toBe(false); expect(community.dirty).toBe(true);
+      values = { ...filled, text: 'edited after failed login' };
+      form.oninput!(); await form.onsubmit!(new Event('submit'));
+      expect(posted[1].body).toBe(posted[0].body);
+      expect(content.innerHTML).toContain('回答を受け付けました'); expect(community.dirty).toBe(false);
+    } finally { vi.unstubAllGlobals(); }
+  });
+  it('the bound author-preview click handler refuses iframe insertion when connectivity drops during the public GET', async () => {
+    const connection = { onLine: true };
+    vi.stubGlobal('navigator', connection);
+    vi.stubGlobal('FormData', class { get(name: string) { return name === 'publicUrl' ? 'https://example.notion.site/public' : 'https://example.notion.site/embed'; } });
+    const button = { onclick: undefined as (() => Promise<void>) | undefined }, preview = { innerHTML: '' }, errorBox = { hidden: true, textContent: '' };
+    const dialog = { open: true, isConnected: true, querySelector: (selector: string) => selector === '#preview-article' ? button : selector === '#article-preview' ? preview : selector === '.modal-error' ? errorBox : {} };
+    let finish!: (response: Response) => void;
+    vi.stubGlobal('fetch', () => new Promise<Response>(resolve => { finish = resolve; }));
+    try {
+      bindArticlePreview(dialog as unknown as HTMLDialogElement, { id: 'article', visibility: 'published' } as Article);
+      const running = button.onclick!();
+      connection.onLine = false; finish(Response.json({ article: { id: 'article', revision: 2 } })); await running;
+      expect(preview.innerHTML).toBe(''); expect(errorBox.hidden).toBe(false); expect(errorBox.textContent).toContain('オフライン');
+      // The same bound handler is usable after connectivity returns and status is freshly verified.
+      connection.onLine = true;
+      const retry = button.onclick!(); finish(Response.json({ article: { id: 'article', revision: 2 } })); await retry;
+      expect(preview.innerHTML).toContain('<iframe');
+    } finally { vi.unstubAllGlobals(); }
+  });
+});

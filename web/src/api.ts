@@ -44,11 +44,20 @@ export async function api<T>(
     },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
-  const value = await response
-    .json()
-    .catch(() => ({ error: "応答を読み取れません。" }));
+  const invalidResponse = () => new ApiError(
+    "応答を確認できません。通信・認証状態を確認して再試行してください。", response.status, "invalid_response",
+  );
+  let value: Record<string, unknown>;
+  try {
+    const parsed: unknown = await response.json();
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw invalidResponse();
+    value = parsed as Record<string, unknown>;
+  } catch {
+    throw invalidResponse();
+  }
   if (!response.ok)
-    throw new ApiError(value.error ?? `通信に失敗しました (${response.status})`, response.status, value.code);
+    throw new ApiError(typeof value.error === "string" ? value.error : `通信に失敗しました (${response.status})`, response.status, typeof value.code === "string" ? value.code : undefined);
+  if ("error" in value) throw invalidResponse();
   return value as T;
 }
 let sessionPending: Promise<User> | undefined;

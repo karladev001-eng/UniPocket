@@ -1,3 +1,4 @@
+import { bindArticlePreview } from "./article-preview";
 import { Community } from "./community";
 import { MapViewport } from "./map-viewport";
 import { setEventMemo, eventMemoText } from "./event-memos";
@@ -1276,25 +1277,7 @@ function articleForm(article?: Article) {
       changed();
     });
   });
-  d.querySelector<HTMLButtonElement>("#preview-article")!.onclick = async () => {
-    const f = d.querySelector("form")!;
-    try {
-      if (!navigator.onLine) throw Error("オフラインでは新しいNotionプレビューを開けません。");
-      if (article) {
-        if (article.visibility === "hidden") throw Error("非表示の記事はプレビューを開けません。登録情報の編集・削除はできます。");
-        await api("/articles/" + encodeURIComponent(article.id));
-        if (!d.open || !d.isConnected) return;
-      }
-      const publicURL = notionURL(val(f, "publicUrl")),
-        embed = embedSource(val(f, "embedUrl"));
-      d.querySelector("#article-preview")!.innerHTML =
-        `<div class="notice"><p>実際の公開状態はご本人が確認してください。</p><a href="${esc(publicURL)}" target="_blank" rel="noopener noreferrer">元ページを開いて確認 ↗</a></div>${embed ? `<iframe title="Notion記事の投稿前プレビュー" class="article-frame" src="${esc(embed)}" sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"></iframe>` : empty("埋め込みURLが未入力です。元ページを開いて確認できます。")}`;
-    } catch (e) {
-      const box = d.querySelector<HTMLElement>(".modal-error")!;
-      box.hidden = false;
-      box.textContent = e instanceof Error ? e.message : String(e);
-    }
-  };
+  bindArticlePreview(d, article);
 }
 async function deleteOwnArticle(article: Article) {
   if (!confirm("登録した記事情報を削除しますか？Notion本文は削除されません。")) return;
