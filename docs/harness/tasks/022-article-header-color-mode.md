@@ -2,7 +2,7 @@
 
 - 計画ID: `022-article-header-color-mode`
 - 仕様版: **2**
-- 状態: planned
+- 状態: ready
 - 承認対象範囲: **記事の操作配置と本文優先表示・ライト/ダーク切替（AC1–10）**
 - 基点: `8c58a34` / `codex/pwa-migration`
 - [仕様・モック](022-article-header-color-mode.plan.html) / [編集用HTML](022-article-header-color-mode.src.html)
@@ -65,15 +65,23 @@
 
 ## 未解決事項
 
-実装必須の未解決事項なし。右側への横並び、明暗2択、初期ライトはこの版の提案で、まだ合意済みとはしない。別の配置希望はコメントとして受け付ける。
+実装必須の未解決事項なし。右側への横並び、明暗2択、初期ライトを含む仕様版2のAC1–10への直接承認を受領。
 
 ## 実装承認（正本）
 
-- 状態: **pending**
+- 状態: **approved**（2026-10-20、仕様・モック提示後）
 - 対象: 022-article-header-color-mode / 仕様版2 / 記事の操作配置と本文優先表示・ライト/ダーク切替（AC1–10）
-- 根拠: 未受領。今回の依頼を仕様・モック準備の根拠とし、021の承認は流用しない。
-- 提示: この会話で仕様とHTMLモックを提示後、この版・範囲への直接の実装承認を受ける。
-- 本実装・配信・DB更新・公開記事変更は実施していない。
+- 根拠: ユーザーがこの会話で「計画 022-article-header-color-mode の仕様版 2、範囲『記事の操作配置と本文優先表示・ライト/ダーク切替（AC1–10）』の実装開始を承認します。」と直接明示。021や旧版の承認を流用しない。
+- 提示: 直前の回答で仕様版2のHTMLモックへのリンクと変更内容を提示済み。実ブラウザでのモック描画は未検証との制約も提示済み。HTMLの回答/承認文案はpendingのまま保持する。
+- 承認範囲: 本実装・ローカル検証・独立レビューと統合。配信・DB更新・実記事変更は含まない。
+
+## 承認後の実装引継ぎ（2026-10-20）
+
+- 事前準備と承認の両方を確認しreadyへ移行。実装基点は準備済み`36fa7db`。親の018変更・未追跡013文書は対象外。
+- 実効設定: active/delegation/review/persistence/measurement/improvement_loop=true、max_agents=3、auto/no pins。起動面はcollaboration.spawn_agentカタログ。実装はSol6.1/high（配色設計・保存復旧・初期適用の判断）、独立レビューもSol6.1/high。明確な統合はLuna/mediumを予定。対応effortをホスト一覧で確認し、後継を推測しない。メインのモデルはこの手順では変更しない。
+- 制作候補`up-article-header-modes`v2を今回のAC1–10だけへ暫定適用。preferences read: ok=true、pending=false、freshness=local、revision=f211d6252e31e6c7eda8d2dea8f3c0ebbbb6ccf2940a27f361187dcfabff2ab4。実装承認を使い勝手の評価へ換算せずunknown/nullを維持。
+- 旧タスクの添付worktreeは別の成果のため再利用せず、`/Users/kan/.codex/worktrees/article-appearance/univ`で実装し、独立レビュー後に別worktreeで統合する。配信・API・D1・管理画面・実記事は変更しない。
+- 開始: 2026-10-20 09:25:27 UTC（18:25:27 JST）。終了/利用枠/費用は未取得/null。取得できた検証結果だけ追記する。
 
 ## 仕様版2への追加反映
 
