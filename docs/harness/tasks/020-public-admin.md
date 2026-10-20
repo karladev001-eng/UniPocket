@@ -106,3 +106,11 @@
 - 制作改善記録: 根拠 `unipocket-public-admin-direction-20261020`、候補 `up-public-admin-operations` と020v1試用へ今回の方向を限定して保存。revision `6bcb6a0cbc102775d8aff7917f49d2f27b342e7f424a36994a5c608808f0c430`、ok=true/pending=false/freshness=local。ユーザー評価unknown/null、実装承認pending、一般指針への昇格なし。
 - 担当は設計調査・HTML制作・独立レビューをhost catalogのSol6.1/high、記録をSol6.1/mediumで選択。auto/no pins・上限3子を確認。公開/認証と開かれたUI設計の判断があるため。ブラウザ操作は親だけが担当。製品コード・現在のAccess・D1・配信内容は変更していない。
 - 提示: 仕様HTMLと操作モックの絶対パスをチャットで提示する。閲覧・コメント・本計画の回答を実装承認として扱わず、実装は020v1/対象範囲への提示後明示承認を受けて開始する。
+
+## 仕様書の可読性修正（2026-10-20）
+
+- 本人の「仕様書の文字が読みづらいです。」と画像を根拠に、020の文書表示だけを修正。固定の淡色パネルへダークテーマの白文字が継承される組合せを、背景・本文・補助文字を対応させたテーマ変数へ変更した。本文・表・受入条件を16px、補助文を14px、本文行間を1.7–1.8に調整。埋め込みモックの注記も濃くし、共有CSS内でライト配色を指定した。
+- srcとpacked HTMLの差分はCSSのみ。親の機械比較で非style内容とbodyメタデータがHEADと完全一致し、計画ID・仕様版1・対象範囲・approval pendingを維持。画像内の入力欄にある承認文案は、本人の実装承認として扱っていない。製品コード・単体モック・配信・Accessは変更しない。
+- pack lintとgit diff --checkは成功。静的な色の計算では警告カードの本文はライト15.40:1／ダーク11.78:1、埋め込みモックの変更した注記は画面背景に6.34:1。ブラウザの安全ポリシーによる既存のfile表示制約を迂回せず、実ブラウザ・実寸法での表示確認は未実施。
+- 独立レビューPASS。文書本文の評価した配色は最小7.25:1、変更したモック注記は背景に応じ5.89–6.71:1。最終src/packedの独自CSS・共有モックCSSの完全一致を親とレビュー担当が確認。変更はLuna/medium、独立レビューと改善記録はSol6.1/mediumで分担した。
+- 制作改善記録は根拠 `unipocket-020-document-readability-20261020`、020文書限定候補 `up-plan-doc-contrast`、試用 `up-plan-doc-contrast-020v1`。revision `1dc8d24f269f4d50779c61e56aa3f269145e42093631bfe5d8ad29761f67be75`、ok=true/pending=false/freshness=local。評価unknown/null、一般嗜好への昇格なし。
