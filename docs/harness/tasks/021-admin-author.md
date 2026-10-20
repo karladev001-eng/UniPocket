@@ -2,7 +2,7 @@
 
 - 計画ID: `021-admin-author`
 - 仕様版: **1**
-- 状態: implementing（仕様・モック提示後の明示実装承認を確認）
+- 状態: done（承認済み実装・ローカル検証・独立レビュー・作業ブランチへの統合を完了。配信・実記事登録は対象外）
 - 承認対象範囲: **管理画面からの運営記事投稿・編集と管理者バッジ（AC1–8）**
 - 基点: `c8c8493` / `codex/pwa-migration`
 - 仕様・モック: [021-admin-author.plan.html](021-admin-author.plan.html)
@@ -72,6 +72,47 @@ Notionの本文作成・Web公開はこれまでどおりNotion側で行う。�
 - 担当: `admin_author_implement`、`gpt-6.1-sol` / high。認可・保存の原子性とUI復旧の判断を伴うためcomplex役割。モデル候補・対応highの取得元は現在のcollaboration.spawn_agentカタログ。auto/no pins、後継の推測変更なし。
 - 作業領域: `/Users/kan/.codex/worktrees/admin-author/univ`、基点`c8c8493`。既存添付worktreeは別タスクの成果のため再利用しない。
 - 境界: `web/**`の製品実装と検証を担当。親は仕様正本を管理。独立レビュー後に別worktreeで統合。配信・実記事登録は行わない。
+- 独立レビュー: `admin_author_review`、Sol6.1/high（現在のcollaborationカタログ・auto/no pins）。承認仕様と基点のみから先に認可・移行・原子性・再送/競合・入力復旧・公開表示のリスク表を作成。最終コミットで判定予定。
+- 制作記録: `admin_author_record`、Sol6.1/medium。依頼と021v1承認を今回の機能・表示の候補としてローカル記憶へ保存済み。評価unknown/null、恒久的なデザイン指針への昇格なし。CLI ok、pending=false、freshness=local。
+
+### ローカル実画面の中間確認
+
+使い捨ての合成D1だけを使い、`http://127.0.0.1:8920`（一般）/`8921`（管理）で実製品bundleを確認。Notion本文の外部公開確認ではなく、投稿・表示の操作検証である。
+
+- 390px: 必須未入力を題名/URL欄に表示してフォーカス。入力→プレビューの単一閉じる→未チェックでは公開できない→確認後に合成記事登録→登録情報編集・再確認・保存を実操作。
+- 一般: 新着のバッジ、運営名で2記事への絞込、ブックマーク登録・一覧、詳細のバッジと編集/削除入口なしを確認。人気順で運営記事を優遇していないことも確認。
+- 320px詳細: document clientWidth/scrollWidthとも320。バッジが名前から離れる配置を検出し、名前の隣へまとめる修正を担当へ指示。最終bundleで再確認する。
+- 未保存の離脱では確認ダイアログの発生を観測。ただし操作ツールによるconfirm処理後に一覧へ移動したため、キャンセルによる保持はこの実操作では未検証。回復モデルの自動テストとコードレビューを併用する。
+- 初回QA起動のnode --input-type=module evalはMiniflareのworkerでrequireエラーになった。通常の一時.mjs起動へ変更して成功。製品の障害ではない。
+- スクリーンショット（中間版）: `/private/tmp/uni-pocket-021-public-390.png`、`/private/tmp/uni-pocket-021-detail-320.png`。最終画像は後で追加する。
+
+### 初回実装と独立レビュー
+
+- 初回成果 `76e7141`（基点c8c8493、web配下21ファイル）。担当検証203件PASS（公開131・管理41・SQLite11・実D1 runtime14・integration6）、全typecheck/両build成功。build `20261020082533-95bdfe`。
+- 独立レビュー判定 **NEEDS_WORK**: AC3/AC5の再送時の確認が不整合。Aの送信失敗後にBへ書き換えるとプレビューはB、実際の冪等再送はAとなる。公開前の同意内容と一致しないため修正必須。担当へ1巡目修正を依頼。前回送信の復旧と現在入力の反映を別操作にし、送信snapshotとプレビューを一致させる。仕様版/範囲は変えない。
+- 認可・匿名ID分離・移行・CAS・監査原子性に確定欠陥なし。レビュー側で公開131/管理41/運営runtimeと移行5件/typecheck、独自の同キー異本文・edit/hide競合・hidden編集・監査rollbackを実行してPASS。
+- P3改善提案: 重複URLの早期応答が失敗監査を通らない。変更/成功監査の原子性は成立し、今回の不合格理由ではない。入力本文を含めない失敗理由の監査を将来の改善候補として残す。
+- 最終実画面（初回commit）: 320pxの管理入力は16px・主要ボタン44px・横幅/scrollとも320。任意3欄のdetails化、Escで入力保持とフォーカス復元、登録、正規化URLの重複拒否と入力保持を確認。公開詳細で名前のすぐ隣にバッジ、320/PC1280で横はみ出しなし。これらと再送修正の影響経路を再確認後に完了判定する。
+
+### 1巡目修正・再レビュー・応答喪失の実画面検証
+
+- 修正 `574e81b`（76e7141の上、5ファイル、server/DB差分なし）。pendingの前回送信Aを固定した確認情報を用い、プレビューと実送信の一致を送信時にも検証。エラー後は同じDOM上のボタンを復旧専用文言に変更。復旧後は必ず最新結果と現在入力の比較へ進み、Bの反映は別のプレビュー/新キー/正しいrevisionのPATCHで行う。
+- 影響検証: 管理44（新規DOM回帰3を含む）/公開131、全typecheck/両build PASS。サーバー・移行の変更はないため前回のSQLite11/runtime14/integration6の根拠を保持。最新コードに対応する検証は計206件。公開build `20261020083611-302dee`（この時点のローカルbuildのみ）。
+- 独立再レビュー **PASS**。サーバー到達前の失敗と保存後の応答喪失を独立に実行。確認Aと再送A/同キーの一致、B保持、比較前の追加送信拒否、比較後の新キー/PATCH、重複拒否後の修正URL送信を確認。必須指摘なし。初回AC1/2/4/6/7のPASSを継続、AC3/5もPASS、AC8自動検証PASS。
+- 親の実ブラウザ: 使い捨て合成D1の管理8931をループバック8933へ中継。最初の作成が実際に201で保存された後、応答だけを一度503に置換。Aの失敗表示→同じフォームの復旧文言更新→Bへ編集→復旧プレビューはAだけ→結果Aと保持されたBの比較→変更適用→別のプレビューB→B反映成功、件数は6のままで二重投稿なし。390px、単一閉じる、Esc復帰も確認。
+- 最終画像: `/private/tmp/uni-pocket-021-public-390-final.png`、`/private/tmp/uni-pocket-021-detail-320-final.png`、`/private/tmp/uni-pocket-021-detail-desktop-final.png`、`/private/tmp/uni-pocket-021-admin-form-320-final.png`、`/private/tmp/uni-pocket-021-duplicate-320-final.png`、`/private/tmp/uni-pocket-021-recovery-confirm-390.png`。
+- 非必須の改善余地: 復旧後の比較画面が汎用409の競合文言となり、pending説明が未確認のまま残る。最新Aと現在入力Bは明示され、比較前に追加送信できず入力も保護される。操作上の安全性の欠陥としては確認せず、次回の文言整理候補に留める。
+
+### 最終統合
+
+- 統合担当 `admin_author_integrate`、gpt-6-luna/low。判定済みコミットの順次cherry-pickと等価確認という決定的な作業のためdeterministic役割。取得元は現在のcollaborationカタログ、auto/no pins。
+- 統合worktree `/Users/kan/.codex/worktrees/admin-author-integration/univ`、基点`7a93785`。`76e7141`→`574e81b`を`ea75024`→`a2d70a6`として競合なく取り込み。
+- `git diff --quiet 574e81b -- web`成功。公開/server/管理typecheck、公開/管理build成功。既存PDFのchunk-size advisoryのみ。ソース等価のため全206件の再実行はせず既存検証を継承。
+- 最終統合の独立整合レビュー **PASS**。レビュー担当がweb差分ゼロ、変更が承認範囲のweb配下のみ、認証/配信設定/依存関係の変更なしを再確認。親のブラウザ証拠も正本で照合した。
+- 親 `codex/pwa-migration` を `a2d70a6` へfast-forwardし、親でもwebのソース等価を確認。既存018の変更・未追跡013の文書を維持。rootの020/021作業記録のみ後続の記録コミットへ保存する。
+- 受入判定: AC1–7は自動テスト・独立コードレビューPASS、AC8はそれらと親の320/390/PC実ブラウザ検証を合わせPASS。物理iPhoneでの操作やCloudflare配布後の検証は今回実施していない。以前の016の旧iPhone復旧未確認を今回のPASSで完了扱いしない。
+- 完了時点: 2026-10-20 08:42:25 UTC（17:42:25 JST）、開始から26分29秒。1巡目の指摘修正でPASS。利用枠/トークン原価は未取得/null、比較ベンチマークなし。
+- 公開環境・リモートD1・実際の記事・Notionページの公開設定は変更なし。後続配信時はmigration0004を含む配布順序を守り、一般公開と管理認証の既存境界を維持する。ローカルQAサーバー/一時中継と検証用タブは停止・片付け済み。worktreeは添付したまま保持。
 
 macOS / zsh、実行ディレクトリ `/Volumes/Data_SSD/dev/univ`:
 
@@ -81,6 +122,6 @@ open 'docs/harness/tasks/021-admin-author.plan.html'
 
 HTML内の回答・承認文案はコピー用であり、外部送信や承認の記録は行わない。関連Markdownは別ファイルで、共有時は同じ相対配置を保持する。
 
-現在は仕様・モックのみ。実装・配信・実記事登録なし。packと静的検査を行う。過去のローカルHTMLへのブラウザアクセス拒否を迂回せず、この計画も実ブラウザでの表示/操作は未検証として扱う。
+初回提示時は仕様・モックのみで、実装・配信・実記事登録なし。packと静的検査を実施。過去のローカルHTMLへのブラウザアクセス拒否を迂回せず、計画HTMLの実ブラウザ表示/操作は未検証として扱った。その後の実製品のローカルブラウザ検証は上記へ別記した。
 
 2026-10-20 準備検証: Node.js v26.10.0のpack成功（CSS/JSを含む単一HTML、警告なし）。source/packed/正本のID・版・対象範囲・pending、claimの閉じ、承認/修正の別文案、異なる版の保存回答を復元しないこと、保存値からapprovalを復元しないことを静的/VM検査してPASS。最初の検査ではpackedのruntime内の文字列もタグとして数えて誤検出したため、実bodyに対象を限定して再検証。実ブラウザの視覚・操作検証と製品機能の受入検証は未実施。CodexでHTMLを開く要求はqueuedで、表示完了の証拠とは扱わない。
