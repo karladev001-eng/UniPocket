@@ -69,6 +69,7 @@ export interface Data {
   facilities: Facility[];
   links: Link[];
   theme: string;
+  colorMode?: "light" | "dark";
   background: string;
   backgroundMode?: string;
   showBands: boolean;
@@ -118,6 +119,7 @@ export function emptyData(): Data {
       favorite: false,
     })),
     theme: "green",
+    colorMode: "light",
     background: "",
     showBands: true,
     startHour: 8,
@@ -335,6 +337,7 @@ export function validateData(v: unknown): asserts v is Data {
     !Array.isArray(d.pinned) ||
     typeof d.articleDraft !== "object" ||
     !["green", "blue", "rose", "mono"].includes(d.theme) ||
+    (d.colorMode !== undefined && !["light", "dark"].includes(d.colorMode)) ||
     typeof d.background !== "string" ||
     (d.backgroundMode !== undefined && !["none", "custom", "forest", "sea", "sky", "sunset", "paper", "shape"].includes(d.backgroundMode)) ||
     d.startHour < 0 ||

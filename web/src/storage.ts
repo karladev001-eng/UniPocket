@@ -1,4 +1,5 @@
 import { emptyData, validateData, type Data } from "./domain";
+import { cacheAppearance } from "./appearance";
 export class LocalStore {
   private db?: IDBDatabase;
   revision = 0;
@@ -28,9 +29,10 @@ export class LocalStore {
         r.onsuccess = () => resolve(r.result);
         r.onerror = () => reject(r.error);
       });
-      if (!row) return emptyData();
+      if (!row) { const data = emptyData(); cacheAppearance(data); return data; }
       validateData(row.data);
       this.revision = row.revision;
+      cacheAppearance(row.data);
       return row.data;
     } catch (e) {
       this.blocked = true;
@@ -65,6 +67,7 @@ export class LocalStore {
       tx.onerror = () => reject(tx.error);
     });
     this.revision = next;
+    cacheAppearance(snapshot);
   }
   close() {
     this.db?.close();

@@ -1,4 +1,5 @@
 import { adminBadge } from "./author-badge";
+import { applyAppearance, modeOf } from "./appearance";
 import { bindArticlePreview } from "./article-preview";
 import { Community } from "./community";
 import { MapViewport } from "./map-viewport";
@@ -159,19 +160,7 @@ async function flushOrThrow() {
     throw Error("保存中に入力が変わりました。もう一度保存してください。");
 }
 function theme() {
-  const themes: Record<string, string[]> = {
-    green: ["#163e35", "#f6f7f2", "#223830", "#edf0e7", "#dceab9"],
-    blue: ["#233f63", "#f2f5f9", "#22374d", "#e8eef6", "#d7e6fa"],
-    rose: ["#663e50", "#faf4f6", "#493540", "#f3e8ed", "#f4dce7"],
-    mono: ["#2e3339", "#f5f5f4", "#2e343b", "#e9ebed", "#e0e4ea"],
-  };
-  const [accent, paper, ink, soft, light] = themes[data.theme] ?? themes.green;
-  for (const [k, v] of Object.entries({ accent, paper, soft, light }))
-    document.documentElement.style.setProperty("--" + k, v);
-  document.body.style.color = ink;
-  document
-    .querySelector("meta[name=theme-color]")
-    ?.setAttribute("content", accent);
+  applyAppearance(data);
   const bg = document.querySelector<HTMLElement>(".background")!;
   const image = visibleBackground(data);
   bg.style.backgroundImage = image ? `url("${image}")` : "";
@@ -1041,7 +1030,7 @@ function renderArticles() {
     priorFilters = undefined; render();
   });
   const tab = articleFilters.bookmarked ? "bookmarks" : articleSort, count = filterCount();
-  page.innerHTML = heading("記事", "", `<a class="text-action" href="#my-articles">自分の投稿</a>` + btn("＋ 登録", "article-new", "text-action")) +
+  page.innerHTML = `<div class="article-list-heading"><h1>記事</h1><div class="article-heading-actions"><a href="#my-articles">自分の投稿</a>${btn("＋ 登録", "article-new", "article-register")}</div></div>` +
     `<div class="article-search-row"><input id="article-query" type="search" placeholder="タイトル・紹介文で検索" value="${esc(articleFilters.q)}" aria-label="記事検索"><button type="button" class="article-filter-button" data-action="article-filters" aria-label="記事を絞り込む、${count}件適用">${icon("sliders")}<span>${count || ""}</span></button></div><div class="article-tabs" role="group" aria-label="記事の並びと対象">${[["popular", "人気"], ["newest", "新着"], ["bookmarks", "ブックマーク"]].map(([value, label]) => `<button type="button" data-action="articles-${value}" aria-pressed="${tab === value}" class="${tab === value ? "selected" : ""}">${label}</button>`).join("")}</div>${count ? `<div class="article-filter-state">${count}件の条件を適用 ${btn("解除", "article-clear-filters", "text-action")}${articleFilters.authorId && priorFilters ? btn("元の検索へ", "author-back", "text-action") : ""}</div>` : ""}<div id="article-list"></div>`;
   for (const value of ["popular", "newest", "bookmarks"] as const) action("articles-" + value, () => {
     articleFilters.bookmarked = value === "bookmarks" ? "1" : "";
@@ -1064,19 +1053,19 @@ async function renderArticleDetail(id: string) {
   const request = ++detailRequest;
   const scope = pageEpoch.scope("#articles/" + id, () => location.hash);
   const isCurrent = () => request === detailRequest && scope();
-  page.innerHTML =
-    heading("記事を開いています") + '<p role="status">読み込み中…</p>';
+  action("detail-retry", () => renderArticleDetail(id));
+  page.innerHTML = '<div class="article-detail"><a class="article-back" href="#articles">‹ 記事一覧</a><p role="status">読み込み中…</p></div>';
   let a: Article;
   try {
     user = await session();
-    if (!navigator.onLine) throw Error("オフラインです。記事の公開状態を確認してから開いてください。");
+    if (!navigator.onLine) throw Error("オフラインです");
     a = (await api<{ article: Article }>("/articles/" + encodeURIComponent(id)))
       .article;
+    if (a.visibility === "hidden") throw new ApiError("記事を表示できません", 404);
   } catch (e) {
     if (!isCurrent()) return;
-    page.innerHTML =
-      heading("記事を表示できません") +
-      `<div class="notice error" role="alert">${esc(e instanceof Error ? e.message : e)}<p>記事は非表示・削除されたか、通信できない可能性があります。</p></div><a href="#articles">記事一覧へ戻る</a>`;
+    const unavailable = e instanceof ApiError && [404, 410].includes(e.status);
+    page.innerHTML = `<div class="article-detail"><h1>${navigator.onLine ? "記事を表示できません" : "オフラインです"}</h1><div class="article-detail-state" role="alert">${unavailable ? "非表示・削除された記事です。" : "通信を確認して再試行してください。"}</div><div class="article-detail-tools">${unavailable ? "" : btn("再試行", "detail-retry")}<a href="#articles">記事一覧</a></div></div>`;
     return;
   }
   if (!isCurrent()) return;
@@ -1148,9 +1137,7 @@ async function renderArticleDetail(id: string) {
     } catch {
       error(Error("保存されたNotion URLを安全に表示できません。"));
     }
-    page.innerHTML =
-      heading(a.title, "NOTION ARTICLE") +
-      `<div class="row"><a href="#articles">‹ 元の一覧・検索へ</a><span class="tag">${esc(a.category || "未分類")}</span></div><section class="card section"><p>${esc(a.summary)}</p><div class="article-byline">${namedAuthor(a.authorName) ? `<button class="author" data-action="detail-author">${esc(a.authorName)}</button>` : '<span class="muted">匿名ユーザー</span>'}${adminBadge(a.authorKind)}</div>${articleStats(a, "detail-bookmark")}<p class="muted">閲覧はこのアプリ内で開いた記録（日本時間1日1回）。保存は匿名ブラウザID単位の件数です。</p><details class="article-auxiliary"><summary>記事のメニュー</summary>${btn("記事を通報", "detail-report")}</details>${a.canEdit ? `<hr><div class="row">${btn("登録情報を編集", "detail-edit")}${btn("登録を削除", "detail-delete", "danger")}</div>` : ""}</section><div class="notice"><p>${navigator.onLine ? "Notionの読込には通信が必要です。公開・表示できるかをここで確認してください。" : "オフラインです。通信が戻ってから再読み込みしてください。"}</p><div class="row">${embedURL ? btn("再読み込み", "frame-retry") : ""}${publicURL ? `<a href="${esc(publicURL)}" target="_blank" rel="noopener noreferrer">Notionで開く ↗</a>` : ""}</div><p class="muted">非公開化・削除・表示制限で読めない場合は元ページを開いてください。読込完了イベントから公開状態は判定しません。</p></div>${embedURL ? `<iframe class="article-frame" title="${esc(a.title)} — Notion本文" src="${esc(embedURL)}" sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox" referrerpolicy="strict-origin-when-cross-origin" allow="fullscreen"></iframe>` : empty("公式埋め込みURLが未登録です。「Notionで開く」から本文を読めます。")}`;
+    page.innerHTML = `<article class="article-detail"><div class="article-detail-top"><a class="article-back" href="#articles">‹ 記事一覧</a><span class="tag">${esc(a.category || "未分類")}</span></div><h1>${esc(a.title)}</h1><p class="article-intro">${esc(a.summary)}</p><div class="article-detail-meta"><div class="article-byline">${namedAuthor(a.authorName) ? `<button class="author" data-action="detail-author">${esc(a.authorName)}</button>` : '<span class="muted">匿名ユーザー</span>'}${adminBadge(a.authorKind)}</div>${articleStats(a, "detail-bookmark")}${a.canEdit ? `<details class="article-owner-menu"><summary aria-label="投稿者の操作">${icon("more")}</summary><div>${btn("登録情報を編集", "detail-edit")}${btn("登録を削除", "detail-delete", "danger")}</div></details>` : ""}</div><div class="article-detail-tools">${btn("通報", "detail-report")}${embedURL ? btn("再読み込み", "frame-retry") : ""}${publicURL ? `<a href="${esc(publicURL)}" target="_blank" rel="noopener noreferrer">Notionで開く ↗</a>` : ""}</div>${embedURL ? `<iframe class="article-frame" title="${esc(a.title)} — Notion本文" src="${esc(embedURL)}" sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox" referrerpolicy="strict-origin-when-cross-origin" allow="fullscreen"></iframe>` : '<p class="article-detail-state" role="status">埋め込み未登録</p>'}</article>`;
   };
   draw();
   try {
@@ -1165,8 +1152,7 @@ async function renderArticleDetail(id: string) {
     if (!isCurrent()) return;
     error(
       Error(
-        "閲覧記録を送信できませんでした。表示中の件数は前回取得値です。" +
-          (e instanceof Error ? e.message : ""),
+        "閲覧記録を保存できませんでした。",
       ),
     );
   }
@@ -1336,7 +1322,7 @@ function renderMore() {
   const activeCustom = data.backgroundMode === "custom" || (!data.backgroundMode && !!data.background);
   page.innerHTML = heading("その他", "") +
     `<div class="settings-list"><a class="community-item" href="#announcements"><strong>お知らせ・アンケート ›</strong></a></div><section class="settings-update"><h2>アプリの更新</h2><div id="more-update-state"></div></section><div class="settings-list">
-    <details id="appearance-settings" class="setting"><summary><span>背景・テーマ<small>${esc(backgroundName)}</small></span><span aria-hidden="true">›</span></summary><div class="setting-content">${choice("theme", "テーマ", [["green", "グリーン"], ["blue", "ブルー"], ["rose", "ローズ"], ["mono", "モノトーン"]], data.theme)}<h3>背景</h3><div class="background-samples">${backgrounds.map(b => `<button type="button" data-background="${b.id}" aria-pressed="${data.backgroundMode === b.id}"><span class="background-thumb"><img src="${esc(b.image)}" alt=""><span class="selection-check" aria-hidden="true">✓</span></span><span>${b.name}</span></button>`).join("")}${data.background ? `<button type="button" data-action="custom-bg" aria-pressed="${activeCustom}"><span class="background-thumb"><img src="${esc(data.background)}" alt="自分の背景画像"><span class="selection-check" aria-hidden="true">✓</span></span><span>自分の画像</span></button>` : ""}</div><p id="background-state" class="muted" role="status">${data.background ? "自分の画像を選択できます。" : "自分の画像はまだありません。"}</p><div class="row"><button type="button" id="change-background">${data.background ? "画像を変更" : "画像を選ぶ"}</button>${btn("背景なし", "clear-bg")}</div><input id="background" type="file" data-toolbar="true" class="file-native" tabindex="-1" accept="image/png,image/jpeg,image/webp,image/heic,.heic" aria-label="自分の背景画像を変更"><p class="muted">画像はこのブラウザに保存します。</p></div></details>
+    <details id="appearance-settings" class="setting"><summary><span>背景・テーマ<small>${modeOf(data) === "dark" ? "ダーク" : "ライト"} · ${esc(backgroundName)}</small></span><span aria-hidden="true">›</span></summary><div class="setting-content"><fieldset class="appearance-mode"><legend>明るさ</legend><div class="seg">${([["light", "ライト"], ["dark", "ダーク"]] as const).map(([value, label]) => `<label><input type="radio" name="colorMode" value="${value}" ${modeOf(data) === value ? "checked" : ""}><span><span aria-hidden="true" class="mode-check">✓ </span>${label}</span></label>`).join("")}</div></fieldset>${choice("theme", "カラー", [["green", "グリーン"], ["blue", "ブルー"], ["rose", "ローズ"], ["mono", "モノトーン"]], data.theme)}<h3>背景</h3><div class="background-samples">${backgrounds.map(b => `<button type="button" data-background="${b.id}" aria-pressed="${data.backgroundMode === b.id}"><span class="background-thumb"><img src="${esc(b.image)}" alt=""><span class="selection-check" aria-hidden="true">✓</span></span><span>${b.name}</span></button>`).join("")}${data.background ? `<button type="button" data-action="custom-bg" aria-pressed="${activeCustom}"><span class="background-thumb"><img src="${esc(data.background)}" alt="自分の背景画像"><span class="selection-check" aria-hidden="true">✓</span></span><span>自分の画像</span></button>` : ""}</div><p id="background-state" class="muted" role="status">${data.background ? "自分の画像を選択できます。" : "自分の画像はまだありません。"}</p><div class="row"><button type="button" id="change-background">${data.background ? "画像を変更" : "画像を選ぶ"}</button>${btn("背景なし", "clear-bg")}</div><input id="background" type="file" data-toolbar="true" class="file-native" tabindex="-1" accept="image/png,image/jpeg,image/webp,image/heic,.heic" aria-label="自分の背景画像を変更"><p class="muted">画像はこのブラウザに保存します。</p></div></details>
     <details id="display-settings" class="setting"><summary><span>時間割の表示<small>${data.startHour}:00–${data.endHour}:00</small></span><span aria-hidden="true">›</span></summary><div class="setting-content stack">${field("startHour", "日表示の開始時刻", String(data.startHour), "number", 'min="0" max="23"')}${field("endHour", "日表示の終了時刻", String(data.endHour), "number", 'min="1" max="24"')}<label class="check"><input name="bands" type="checkbox" ${data.showBands ? "checked" : ""}>施設の営業時間を表示</label><p class="muted">週間は1〜5コマ表示。終日・コマ外の予定も一覧で確認できます。</p></div></details>
     <details id="campus-settings" class="setting"><summary><span>施設・リンク<small>営業時間・地図・お気に入り</small></span><span aria-hidden="true">›</span></summary><div class="setting-content"><div class="row">${btn("施設の営業時間", "facilities")}${btn("キャンパスマップ", "map")}</div><p class="muted">営業時間は通常期の目安です。臨時変更は公式情報で確認してください。</p><div class="stack">${data.links.map(l => `<a href="${esc(l.url)}" target="_blank" rel="noopener noreferrer">${l.favorite ? "★ " : ""}${esc(l.title)} ↗</a>`).join("")}</div><p>${btn("リンクを編集", "links")}</p></div></details>
     <div class="setting"><button class="setting-profile" data-action="profile"><span>ユーザー名<small id="profile-name">${esc(namedAuthor(user?.displayName) ? user!.displayName : "未設定")}</small></span><span aria-hidden="true">›</span></button></div>
@@ -1345,6 +1331,12 @@ function renderMore() {
     <details id="diagnostic-information" class="settings-information"><summary>詳細情報</summary><p class="muted">この画面のビルド ${esc(__APP_BUILD_ID__)}</p><div id="version" class="muted">配信情報を読み込み中…</div></details>`;
   renderUpdateState();
   page.querySelectorAll<HTMLButtonElement>("[data-background]").forEach(button => button.onclick = () => { data.backgroundMode = button.dataset.background!; changed(); render(); });
+  page.querySelectorAll<HTMLInputElement>("[name=colorMode]").forEach(input => input.onchange = () => {
+    if (!input.checked) return;
+    data.colorMode = input.value as "light" | "dark"; changed(); theme();
+    const summary = page.querySelector("#appearance-settings summary small");
+    if (summary) summary.textContent = `${modeOf(data) === "dark" ? "ダーク" : "ライト"} · ${backgroundName}`;
+  });
   page.querySelector<HTMLSelectElement>("[name=theme]")!.onchange = e => { data.theme = (e.target as HTMLSelectElement).value; changed(); theme(); };
   for (const name of ["startHour", "endHour"] as const)
     page.querySelector<HTMLInputElement>(`[name=${name}]`)!.onchange = e => {

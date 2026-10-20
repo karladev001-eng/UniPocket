@@ -16,9 +16,12 @@ test('built public/admin applications share content while retaining HTTP and aut
     assert.equal(home.status, 200); assert.equal(adminHome.status, 200);
     assert.equal(adminHome.headers.get('cache-control'), 'private, no-store');
     for (const [base, shell] of [[qa.publicUrl, home], [qa.adminUrl, adminHome]]) {
-      const src = shell.data.match(/<script[^>]+src="([^"]+)"/)[1];
-      const js = await send(base, src); assert.equal(js.status, 200); assert.match(js.headers.get('content-type'), /javascript/);
-      assert.ok(!String(js.data).includes('test-admin-audience')); assert.ok(!String(js.data).includes('/__test_cleanup'));
+      const sources = [...shell.data.matchAll(/<script[^>]+src="([^"]+)"/g)].map(match => match[1]);
+      assert.ok(sources.length);
+      for (const src of sources) {
+        const js = await send(base, src); assert.equal(js.status, 200); assert.match(js.headers.get('content-type'), /javascript/);
+        assert.ok(!String(js.data).includes('test-admin-audience')); assert.ok(!String(js.data).includes('/__test_cleanup'));
+      }
     }
     assert.equal((await send(qa.publicUrl, '/api/admin/me')).status, 404);
     assert.equal((await send(qa.adminUrl, '/sw.js')).status, 404);
@@ -67,5 +70,25 @@ test('built public/admin applications share content while retaining HTTP and aut
     assert.ok(!publicFiles.some(path => path.includes('admin')));
     assert.ok(!adminFiles.some(path => /(^|\/)(sw\.js|manifest\.webmanifest|pdfs|papers|data)$/.test(path)));
     for (const file of adminFiles.filter(file => /\.js$/.test(file))) assert.doesNotMatch(await readFile(new URL('../dist-admin/' + file, import.meta.url), 'utf8'), /serviceWorker|caches\.open/);
+  } finally { await qa.close(); }
+});
+
+test('appearance QA serves synthetic embed/owner/hidden fixtures without changing public detail visibility', { timeout: 60000 }, async () => {
+  const qa = await startQa({ publicPort: 0, adminPort: 0, appearance: true });
+  try {
+    const get = async path => { const r = await fetch(qa.publicUrl + path); return { status: r.status, body: await r.json() }; };
+    const own = await get('/api/articles/' + qa.fixtures.ownerId);
+    assert.equal(own.status, 200); assert.equal(own.body.article.canEdit, true);
+    const embedded = await get('/api/articles/' + qa.fixtures.embeddedId);
+    assert.equal(embedded.status, 200); assert.equal(embedded.body.article.title, '☆記事の公開方法☆');
+    assert.match(embedded.body.article.embedUrl, /^https:\/\/stirring-nylon-c5a\.notion\.site\/ebd\//);
+    assert.equal(embedded.body.article.canEdit, false);
+    assert.equal((await get('/api/articles/' + qa.fixtures.hiddenId)).status, 404);
+    const mine = await get('/api/my/articles');
+    assert.ok(mine.body.articles.some(a => a.id === qa.fixtures.hiddenId && a.visibility === 'hidden'));
+    assert.ok(!(await get('/api/articles')).body.articles.some(a => a.id === qa.fixtures.hiddenId));
+    const html = await (await fetch(qa.publicUrl)).text();
+    assert.match(html, /<script src="\/appearance-boot\.js"><\/script>/);
+    const boot = await fetch(qa.publicUrl + '/appearance-boot.js'); assert.equal(boot.status, 200); assert.match(boot.headers.get('content-type'), /javascript/);
   } finally { await qa.close(); }
 });
