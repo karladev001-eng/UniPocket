@@ -2,7 +2,7 @@
 
 - 計画ID: `022-article-header-color-mode`
 - 仕様版: **2**
-- 状態: ready
+- 状態: done（実装・検証・独立レビュー・統合完了。未配信）
 - 承認対象範囲: **記事の操作配置と本文優先表示・ライト/ダーク切替（AC1–10）**
 - 基点: `8c58a34` / `codex/pwa-migration`
 - [仕様・モック](022-article-header-color-mode.plan.html) / [編集用HTML](022-article-header-color-mode.src.html)
@@ -82,6 +82,39 @@
 - 制作候補`up-article-header-modes`v2を今回のAC1–10だけへ暫定適用。preferences read: ok=true、pending=false、freshness=local、revision=f211d6252e31e6c7eda8d2dea8f3c0ebbbb6ccf2940a27f361187dcfabff2ab4。実装承認を使い勝手の評価へ換算せずunknown/nullを維持。
 - 旧タスクの添付worktreeは別の成果のため再利用せず、`/Users/kan/.codex/worktrees/article-appearance/univ`で実装し、独立レビュー後に別worktreeで統合する。配信・API・D1・管理画面・実記事は変更しない。
 - 開始: 2026-10-20 09:25:27 UTC（18:25:27 JST）。終了/利用枠/費用は未取得/null。取得できた検証結果だけ追記する。
+
+### 実装と検証
+
+- 実装担当`article_appearance_implement`、Sol6.1/high、分離worktreeで成果`5434c23`。公開用PWAの11ファイルのみ。任意の`colorMode`を追加し、旧データはライト。検証済みIndexedDBの読み込み/保存成功時だけ初期描画用ヒントを更新し、データ本体を正本とする。
+- 一覧ヘッダーを専用配置にし、詳細の定義/通常説明/大きなカードを削除。タイトル・紹介・投稿者/バッジ・数字を保ち、3操作の直下にiframe。本人編集/削除は補助メニュー、未登録/非表示は短い状態。公開API確認とURL/sandbox/referrer、集計の成功境界を維持。
+- 一般UIを意味別の配色変数へ揃え、8配色とメモ/講義色を検証。同期する外部`appearance-boot.js`で初期描画を補助し、script-src selfにも対応。Notion、画像、PDFの反転なし。
+- 担当検証: consumer149件、typecheck、一般/管理build、public-admin integration2件、diff check PASS。追加は明暗の旧データ/書出し/再起動/保存失敗/競合/不正値/ヒント保存不可/8配色と背景の合成コントラスト14件、実際の記事詳細処理の公開確認/失敗/古い応答/URL/本人操作/件数更新4件。既存のPDF chunk-size警告のみ。
+- 独立レビュー担当`article_appearance_review`、Sol6.1/highは実装主張より先にリスク表を作成。最終差分と周辺コードを読み、独立consumer149件・typecheck・一時コピーで両build・integration2件がPASS。最終判定は以下に追記する。
+
+### 実ブラウザ検証（親、合成ローカル環境のみ）
+
+- IAB/WebKit、`http://127.0.0.1:8890`の使い捨てD1、build`20261020093634-8f8cef`。画面/配信ビルド一致。中間buildから自動更新しても明暗・アップロードした背景・予定を保持。実公開記事の投稿や集計には触れていない。
+- 320×640: 一覧の「記事/自分の投稿/＋登録」が一列で横幅320、各操作44px高。詳細の通報が中間版で38px幅だったため44pxへ修正し、最終版44×44/74×44/約100×44を確認。詳細の横幅320、iframe開始y329.6、下部ナビ開始y576。両明暗の設定・記事一覧、ダーク通報理由フォーム、ライトの既存登録フォームを確認。
+- 390×700: 通常の題名/紹介の詳細は両明暗でiframe開始y308.2、下部ナビ開始y636。実Notionの先頭が初期表示に入り、Notion側の白い本文/ヘッダーを維持。閲覧と保存の説明、通常説明ボックスなし。ブックマーク0→1、再読込後も保存1/閲覧1。通報理由フォームを開ける。
+- その他の明暗はチェックと文字で選択を示し、ArrowLeftで切替、再読込でダーク保持。4色×2明暗をUIから切替。背景なし/森/自分の画像を選び、画像プレビュー・明暗・カラーを独立保持。背景なしへ戻しても自分の画像は選べる。
+- ダークのホーム（次の予定/今日2件）、予定表、空の5×5時間割、予定入力/保存、色付きメモ編集/保存、アンケート、地図の検索候補/操作枠を確認。地図画像と講義/メモの色分類は維持。実DOMの可視文字の色合成で測定した範囲は4.5:1未満なし（設定の8配色は最低6.30ライト/8.08ダーク、予定表6.28、時間割6.69、色メモ7.20）。任意の背景画像の最悪ケースは自動テストで別途確認。
+- 本人の埋め込み未登録記事は短い状態、iframe/無意味な再読み込みなし、44px補助メニューに編集/削除。非表示のURLへ直接移動しても短い案内と一覧入口のみ、iframe0。オフライン/通信失敗/書込失敗等の注入は独立VM/保存テストによる証拠で、ブラウザの実通信遮断による検証とは区別する。
+- PC1100×800: 両明暗の一覧3列と操作配置、ダーク詳細のiframe幅1044・開始y317.5、ライトの絞込ダイアログを確認、横あふれなし。ビューポート変更直後の最初の撮影で古い幅が残ることがあったため、更新後の実DOM幅と次の撮影で照合した。
+- 証拠例: `/private/tmp/uni-pocket-022-detail-light-390-final.png`、`/private/tmp/uni-pocket-022-articles-dark-320.png`、`/private/tmp/uni-pocket-022-settings-light-320.png`、`/private/tmp/uni-pocket-022-settings-dark-320.png`、`/private/tmp/uni-pocket-022-articles-light-desktop.png`、`/private/tmp/uni-pocket-022-detail-dark-desktop.png`。他の画面は同じ接頭辞のhome/calendar/timetable/dialog/note/survey/map/owner-noembed/hidden/report/filter画像。
+- 物理iPhone/Android、OS固有のステータスバーは未確認。ブラウザで確認した表示と区別する。モックHTMLの安全制限を迂回せず、今回の実装済み製品を別のローカルQA対象として検証した。配信・管理画面・API・D1・実記事の変更なし。
+
+### 完了記録（2026-10-20）
+
+- 対象仕様版: **022仕様版2、記事の操作配置と本文優先表示・ライト/ダーク切替（AC1–10）**。事前提示・直接承認・実装受領・レビューの対象が一致。追加承認が必要な仕様変更なし。
+- 結果: 一覧の操作を一列へ整え、詳細本文を早く表示。その他の背景・テーマからライト/ダークを選べる。旧データ・背景・カラー・投稿権限・集計・安全な表示を保持。
+- コード版: 実装`5434c23b4b7a688a4375d9d2a4ae3879ef04e45b`、統合`21747cb49a76481b7e78d34ecbaa3faec7654997`。親の`codex/pwa-migration`へfast-forward済み。
+- 変更ファイル: `web/index.html`、`web/public/appearance-boot.js`、`web/src/{appearance.ts,domain.ts,main.ts,storage.ts,style.css}`、`web/tests/{client-appearance.test.ts,client-article-detail.test.ts,helpers/public-admin-qa.mjs,public-admin-integration.test.mjs}`。
+- 独立レビュー: `article_appearance_review`がAC1–10すべて**PASS**、修正必須なし。原子性・互換・初期描画・公開確認・権限・配色・データ保護のリスク表を実差分と検証で確認。
+- 統合: `article_appearance_integrate`、Luna/medium（現在のホストカタログ、auto/no pins、決定的なcherry-pickと等価性検証）。別worktreeで149テスト/typecheck/一般・管理build/integration2件がPASS。レビュー済み実装と統合のweb tree完全一致を、独立レビュー担当も確認して最終統合**PASS**。無関係な018/013文書は変更・コミットしない。
+- 検証終了: 2026-10-20 09:49:01 UTC（18:49:01 JST）、取得した開始から23分34秒。利用枠/費用は未取得/null、比較実験なし。検証用タブは閉じ、ビューポートをreset、合成QAサーバーを停止。ソース/証拠/保存済みローカルテストデータは保持。
+- 残る制約: 上記の物理端末/OS chrome、実ブラウザ通信遮断は未確認。Notion内部の配色・ヘッダーは提供元のまま。既存のPDF chunk-size警告はビルド失敗ではない。
+- 引継ぎ: **未配信**。今回の承認範囲は実装・ローカル検証・独立レビューと統合まで。既存一般Workerへの配信を依頼されたとき、同じorigin/DB/管理認証を維持してこのレビュー済みソースをビルド・配布する。API・管理画面・D1 migration・実記事更新は不要。
+- 制作記録: 同じrecord-keeperが候補/試用の022v2だけを実装・統合完了/未配信へ更新。CLI ok、pending=false、freshness=local、revision `ba289595b7e1a04890d933ab944a297e19096036d515b7ce6a58a3e30da4f4b5`。使い勝手のユーザー評価はunknown/null、昇格なし。承認/自己検証をユーザー評価へ換算しない。
 
 ## 仕様版2への追加反映
 
