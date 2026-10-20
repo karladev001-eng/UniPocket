@@ -140,3 +140,8 @@
 - 記録管理: 根拠 `019-v2-deployment-approval-20261020`、revision `2efbbc48b68a6f0988aff49bd914c18c0f5bf231198c1bdd14d30de7f5373ac9`、ok=true/pending=false/freshness=local。使用感の評価unknown/null、一般指針昇格なし。
 
 - 続く016の更新不具合修正も配信済み。最新build `20261019215009-8ec8a6`、Version `c6490bba-38bd-4e45-9c70-bc82aa7bffd9`。019機能を含み、Cloudflare認証用URLへキャッシュ画面を返さない修正を追加。既存iPhoneへの適用完了は未確認。
+
+
+## 020への参照（計画段階、2026-10-20）
+
+次の公開運用として、記事の即時公開を維持した管理非表示、アプリ内お知らせ/アンケート、集計を020で計画する。019の承認を020へ流用しない。 [020の正本](020-public-admin.md)／[仕様とモック](020-public-admin.plan.html)。
