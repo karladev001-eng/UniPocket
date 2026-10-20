@@ -31,9 +31,11 @@ export type Editable = Announcement | Survey;
 export interface Article {
     id: string;
     authorId: string;
-    authorName: string;
+    authorName: string; authorKind?: "user" | "admin";
     title: string;
     publicUrl: string;
+    embedUrl?: string;
+    courseId?: string;
     summary: string;
     category: string;
     viewCount: number;
@@ -93,7 +95,7 @@ export interface Results {
     }[];
 }
 export class AdminError extends Error {
-    constructor(message: string, public status: number, public code?: string) { super(message); }
+    constructor(message: string, public status: number, public code?: string, public articleId?: string) { super(message); }
 }
 export type Sender = <T>(path: string, method?: string, body?: unknown, headers?: Record<string, string>) => Promise<T>;
 /** Only a successful server /me check opens the client gate. Server remains the authority. */
@@ -119,9 +121,9 @@ export class AdminClient {
         if (!response.ok) {
             const error = await response.json().catch(() => ({})) as {
                 error?: string;
-                code?: string;
+                code?: string; articleId?: string;
             };
-            throw new AdminError(error.error || `取得に失敗しました (${response.status})`, response.status, error.code);
+            throw new AdminError(error.error || `取得に失敗しました (${response.status})`, response.status, error.code, error.articleId);
         }
         return response;
     }

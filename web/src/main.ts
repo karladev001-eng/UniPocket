@@ -1,3 +1,4 @@
+import { adminBadge } from "./author-badge";
 import { bindArticlePreview } from "./article-preview";
 import { Community } from "./community";
 import { MapViewport } from "./map-viewport";
@@ -997,7 +998,7 @@ function articleCard(a: Article) {
     } catch (e) { if (isCurrent()) error(e); }
     finally { busy--; updates?.activity(); }
   });
-  return `<article class="card article-card"><span class="tag">${esc(a.category || "未分類")}</span><h3><button class="article-title" data-action="article-${esc(a.id)}">${esc(a.title)}</button></h3><p class="article-summary">${esc(a.summary)}</p><div class="article-byline">${namedAuthor(a.authorName) ? `<button class="author" data-action="author-${esc(a.id)}">${esc(a.authorName)}</button>` : '<span class="muted">匿名ユーザー</span>'}</div>${articleStats(a, "bookmark-" + a.id, bookmarkRequests.has(a.id))}</article>`;
+  return `<article class="card article-card"><span class="tag">${esc(a.category || "未分類")}</span><h3><button class="article-title" data-action="article-${esc(a.id)}">${esc(a.title)}</button></h3><p class="article-summary">${esc(a.summary)}</p><div class="article-byline">${namedAuthor(a.authorName) ? `<button class="author" data-action="author-${esc(a.id)}">${esc(a.authorName)}</button>` : '<span class="muted">匿名ユーザー</span>'}${adminBadge(a.authorKind)}</div>${articleStats(a, "bookmark-" + a.id, bookmarkRequests.has(a.id))}</article>`;
 }
 
 function filterAuthor(id: string) {
@@ -1149,7 +1150,7 @@ async function renderArticleDetail(id: string) {
     }
     page.innerHTML =
       heading(a.title, "NOTION ARTICLE") +
-      `<div class="row"><a href="#articles">‹ 元の一覧・検索へ</a><span class="tag">${esc(a.category || "未分類")}</span></div><section class="card section"><p>${esc(a.summary)}</p><div class="row between">${namedAuthor(a.authorName) ? `<button class="author" data-action="detail-author">${esc(a.authorName)}</button>` : '<span class="muted">匿名ユーザー</span>'}</div>${articleStats(a, "detail-bookmark")}<p class="muted">閲覧はこのアプリ内で開いた記録（日本時間1日1回）。保存は匿名ブラウザID単位の件数です。</p><details class="article-auxiliary"><summary>記事のメニュー</summary>${btn("記事を通報", "detail-report")}</details>${a.canEdit ? `<hr><div class="row">${btn("登録情報を編集", "detail-edit")}${btn("登録を削除", "detail-delete", "danger")}</div>` : ""}</section><div class="notice"><p>${navigator.onLine ? "Notionの読込には通信が必要です。公開・表示できるかをここで確認してください。" : "オフラインです。通信が戻ってから再読み込みしてください。"}</p><div class="row">${embedURL ? btn("再読み込み", "frame-retry") : ""}${publicURL ? `<a href="${esc(publicURL)}" target="_blank" rel="noopener noreferrer">Notionで開く ↗</a>` : ""}</div><p class="muted">非公開化・削除・表示制限で読めない場合は元ページを開いてください。読込完了イベントから公開状態は判定しません。</p></div>${embedURL ? `<iframe class="article-frame" title="${esc(a.title)} — Notion本文" src="${esc(embedURL)}" sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox" referrerpolicy="strict-origin-when-cross-origin" allow="fullscreen"></iframe>` : empty("公式埋め込みURLが未登録です。「Notionで開く」から本文を読めます。")}`;
+      `<div class="row"><a href="#articles">‹ 元の一覧・検索へ</a><span class="tag">${esc(a.category || "未分類")}</span></div><section class="card section"><p>${esc(a.summary)}</p><div class="article-byline">${namedAuthor(a.authorName) ? `<button class="author" data-action="detail-author">${esc(a.authorName)}</button>` : '<span class="muted">匿名ユーザー</span>'}${adminBadge(a.authorKind)}</div>${articleStats(a, "detail-bookmark")}<p class="muted">閲覧はこのアプリ内で開いた記録（日本時間1日1回）。保存は匿名ブラウザID単位の件数です。</p><details class="article-auxiliary"><summary>記事のメニュー</summary>${btn("記事を通報", "detail-report")}</details>${a.canEdit ? `<hr><div class="row">${btn("登録情報を編集", "detail-edit")}${btn("登録を削除", "detail-delete", "danger")}</div>` : ""}</section><div class="notice"><p>${navigator.onLine ? "Notionの読込には通信が必要です。公開・表示できるかをここで確認してください。" : "オフラインです。通信が戻ってから再読み込みしてください。"}</p><div class="row">${embedURL ? btn("再読み込み", "frame-retry") : ""}${publicURL ? `<a href="${esc(publicURL)}" target="_blank" rel="noopener noreferrer">Notionで開く ↗</a>` : ""}</div><p class="muted">非公開化・削除・表示制限で読めない場合は元ページを開いてください。読込完了イベントから公開状態は判定しません。</p></div>${embedURL ? `<iframe class="article-frame" title="${esc(a.title)} — Notion本文" src="${esc(embedURL)}" sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox" referrerpolicy="strict-origin-when-cross-origin" allow="fullscreen"></iframe>` : empty("公式埋め込みURLが未登録です。「Notionで開く」から本文を読めます。")}`;
   };
   draw();
   try {

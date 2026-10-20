@@ -68,7 +68,7 @@ test('real workerd/D1: popular SQL ranks all rows, filters, and traverses a fixe
     const session = await send('/api/session','POST',{}); assert.equal(session.status,200);
     const cookie = session.headers.get('Set-Cookie').split(';')[0]; const author = session.data.user.id;
     const viewers = Array.from({length:4},()=>crypto.randomUUID());
-    for (const viewer of viewers) await db.prepare('INSERT INTO profiles VALUES(?,?,?)').bind(viewer,'読者','2026-01-01T00:00:00.000Z').run();
+    for (const viewer of viewers) await db.prepare('INSERT INTO profiles(id,display_name,created_at) VALUES(?,?,?)').bind(viewer,'読者','2026-01-01T00:00:00.000Z').run();
     const rows = Array.from({length:67},(_,i)=>({
       id:`00000000-0000-4000-8000-${String(i+1).padStart(12,'0')}`,
       createdAt:new Date(Date.UTC(2026,0,1)-Math.floor(i/3)*3600000).toISOString(),

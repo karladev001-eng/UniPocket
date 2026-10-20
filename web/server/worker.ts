@@ -5,13 +5,13 @@ import { ifMatch, conflict, digest, jstDay, rate, originCheck, response } from '
 import { ApiError, articleInput, jsonBody, textField } from './validation.ts';
 const COOKIE = '__Host-campus_session';
 const SESSION_SECONDS = 60 * 60 * 24 * 365;
-const ARTICLE_COLUMNS = `a.id, a.author_id AS authorId, p.display_name AS authorName,
+const ARTICLE_COLUMNS = `a.id, a.author_id AS authorId, p.display_name AS authorName, CASE WHEN a.author_kind='admin' THEN 'admin' ELSE 'user' END AS authorKind,
  a.title, a.public_url AS publicUrl, a.embed_url AS embedUrl, a.summary, a.category,
  a.course_id AS courseId, a.created_at AS createdAt, a.updated_at AS updatedAt,
  a.view_count AS viewCount, a.revision,
  (SELECT COUNT(*) FROM bookmarks b WHERE b.article_id=a.id) AS bookmarkCount,
  EXISTS(SELECT 1 FROM bookmarks b WHERE b.article_id=a.id AND b.user_id=?) AS bookmarked,
- a.author_id=? AS canEdit`;
+ (a.author_id=? AND a.author_kind='user') AS canEdit`;
 const ARTICLE_FROM = ' FROM articles a JOIN profiles p ON p.id=a.author_id';
 const SELECT = `SELECT ${ARTICLE_COLUMNS}${ARTICLE_FROM}`;
 function article(row: Article): Article {
@@ -78,7 +78,7 @@ async function currentUser(request: Request, db: Database): Promise<User | null>
     if (!/^[a-f0-9]{64}$/.test(token))
         return null;
     return db.prepare(`SELECT p.id, p.display_name AS displayName FROM sessions s JOIN profiles p ON p.id=s.user_id
-    WHERE s.token_hash=? AND s.expires_at>?`).bind(await digest(token), Math.floor(Date.now() / 1000)).first<User>();
+    WHERE s.token_hash=? AND s.expires_at>? AND p.author_kind='user'`).bind(await digest(token), Math.floor(Date.now() / 1000)).first<User>();
 }
 function requireUser(user: User | null): User {
     if (!user)
@@ -241,7 +241,7 @@ async function route(request: Request, env: Env, issued: {
     }
     if (path === '/api/my/articles' && method === 'GET') {
         user = requireUser(user);
-        const rows = await env.DB.prepare(`${SELECT.replace(ARTICLE_FROM, ', a.visibility, a.hidden_reason AS hiddenReason' + ARTICLE_FROM)} WHERE a.author_id=? AND a.visibility!='deleted' ORDER BY a.created_at DESC,a.id DESC`).bind(user.id, user.id, user.id).all<Article>();
+        const rows = await env.DB.prepare(`${SELECT.replace(ARTICLE_FROM, ', a.visibility, a.hidden_reason AS hiddenReason' + ARTICLE_FROM)} WHERE a.author_id=? AND a.author_kind='user' AND a.visibility!='deleted' ORDER BY a.created_at DESC,a.id DESC`).bind(user.id, user.id, user.id).all<Article>();
         return response({ articles: rows.results.map(article) });
     }
     const contentResponse = await publicContent(request, env.DB, user);
@@ -257,7 +257,7 @@ async function route(request: Request, env: Env, issued: {
         return response({ article: existing });
     if (!action && (method === 'PATCH' || method === 'DELETE')) {
         user = requireUser(user);
-        if (existing.authorId !== user.id)
+        if (existing.authorKind === 'admin' || existing.authorId !== user.id)
             throw new ApiError(403, '自分の記事だけを変更できます。', 'forbidden');
         const expected = ifMatch(request);
         if (existing.revision !== expected)

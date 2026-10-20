@@ -38,7 +38,12 @@ test('additive migrations preserve existing identities, ownership, shared conten
     assert.equal((await db.prepare('SELECT request_key FROM create_keys').first()).request_key, 'original-create');
     const collected = (await db.prepare('SELECT collected_since FROM metric_settings').first()).collected_since;
     assert.ok(collected > oldDay); assert.equal((await db.prepare('SELECT COUNT(*) n FROM daily_content_metrics WHERE day=?').bind(oldDay).first()).n, 0);
-    assert.equal((await db.prepare('SELECT COUNT(*) n FROM profiles').first()).n, 1);
+    assert.equal((await db.prepare("SELECT COUNT(*) n FROM profiles WHERE author_kind='user'").first()).n, 1);
+    assert.equal(detail.article.authorKind,'user');
+    const reserved=await db.prepare("SELECT id,display_name FROM profiles WHERE author_kind='admin'").first();
+    assert.match(reserved.id,/^admin:[a-f0-9]{48}$/); assert.equal(reserved.display_name,'Uni Pocket運営');
+    await assert.rejects(db.prepare('INSERT INTO sessions(token_hash,user_id,expires_at) VALUES(?,?,?)').bind('reserved',reserved.id,9999999999).run(),/reserved_author/);
+    await assert.rejects(db.prepare("UPDATE profiles SET display_name='偽装' WHERE id=?").bind(reserved.id).run(),/reserved_author/);
     assert.equal((await db.prepare('SELECT COUNT(*) n FROM sessions').first()).n, 1);
   } finally { await mf.dispose(); }
 });

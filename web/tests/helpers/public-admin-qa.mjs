@@ -24,6 +24,8 @@ export async function seedQa(r) {
     await r.send(`/api/articles/${made.data.article.id}/view`, 'POST', {}, owner.cookie);
     await r.send(`/api/articles/${made.data.article.id}/bookmark`, 'PUT', {}, owner.cookie);
   }
+  const adminArticle = await r.adm('/articles','POST',{ title: '運営からのお知らせ：キャンパスでの学びと暮らしに役立つ、とても長い題名のローカル検証用記事', summary: '運営記事バッジと投稿・編集の表示を確認するための架空記事です。', publicUrl: 'https://demo.notion.site/local-admin-fixture', category: '運営案内' },{'Idempotency-Key':crypto.randomUUID()});
+  if(adminArticle.status!==201)throw Error(JSON.stringify(adminArticle));
   const notice = await r.content('announcements', { title: '秋学期の予定を確認しましょう', body: '時間割と予定はこの端末で管理できます。これはローカル検証用のお知らせです。', link: '' });
   const survey = await r.content('surveys', { title: 'Uni Pocket の使い心地', intro: '今後の改善の参考にする架空のアンケートです。回答は任意です。' });
   for (const [type, value] of [['announcements', notice], ['surveys', survey]]) {
@@ -34,7 +36,7 @@ export async function seedQa(r) {
   const answers = survey.questions.map(q => ({ questionId: q.id, value: q.type === 'text' ? '予定がすぐに見られると便利です。' : q.options[0].id }));
   const answered = await r.send(`/api/surveys/${survey.id}/responses`, 'POST', { answers }, sample.cookie, { 'Idempotency-Key': crypto.randomUUID() });
   if (answered.status !== 200 && answered.status !== 201) throw Error(JSON.stringify(answered));
-  return { noticeId: notice.id, surveyId: survey.id };
+  return { noticeId: notice.id, surveyId: survey.id, adminArticleId: adminArticle.data.article.id };
 }
 
 export async function startQa({ publicPort = 8890, adminPort = 8891, seed = true } = {}) {

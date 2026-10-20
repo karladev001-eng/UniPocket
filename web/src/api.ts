@@ -8,7 +8,7 @@ export interface Article {
   visibility?: "published" | "hidden";
   hiddenReason?: string;
   authorId: string;
-  authorName: string;
+  authorName: string; authorKind?: "user" | "admin";
   title: string;
   publicUrl: string;
   embedUrl: string;
@@ -142,7 +142,7 @@ export function notionURL(value: string): string {
     u.protocol !== "https:" ||
     u.username ||
     u.password ||
-    u.port ||
+    u.port || u.pathname === "/" || /[\\\s]/u.test(value.trim()) || !host.split(".").every(label => /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(label)) ||
     !["notion.site", "notion.so"].some(
       (h) => host === h || host.endsWith("." + h),
     )
@@ -151,6 +151,8 @@ export function notionURL(value: string): string {
       "notion.site / notion.so のHTTPS URLを指定してください。独自ドメインは未対応です。",
     );
   u.hash = "";
+  for (const key of [...u.searchParams.keys()]) if (key.startsWith("utm_") || key === "source") u.searchParams.delete(key);
+  u.searchParams.sort();
   if (Array.from(u.href).length > 2048)
     throw Error("NotionのURLは2048字以内で入力してください。");
   return u.href;

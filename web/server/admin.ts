@@ -1,10 +1,10 @@
 import type { Env, Database, Article, Statement } from './types.ts';
-import { ApiError, jsonBody, textField } from './validation.ts';
+import { ApiError, articleInput, jsonBody, textField } from './validation.ts';
 import { authenticate } from './access.ts';
 import { cols, contentInput, getContent, unpack, type Content } from './content.ts';
-import { audit, conflict, csv, digest, key, originCheck, response, revision } from './shared.ts';
+import { audit, conflict, csv, digest, key, originCheck, response, revision, rate } from './shared.ts';
 import { metrics, surveyResultSnapshot } from './metrics.ts';
-const articleCols = `a.id,a.author_id AS authorId,p.display_name AS authorName,a.title,a.public_url AS publicUrl,a.embed_url AS embedUrl,a.summary,a.category,a.course_id AS courseId,a.created_at AS createdAt,a.updated_at AS updatedAt,a.view_count AS viewCount,a.visibility,a.revision,a.hidden_reason AS hiddenReason,CASE WHEN a.visibility='deleted' THEN 0 ELSE (SELECT COUNT(*) FROM bookmarks b WHERE b.article_id=a.id) END AS bookmarkCount`;
+const articleCols = `a.id,a.author_id AS authorId,p.display_name AS authorName,CASE WHEN a.author_kind='admin' THEN 'admin' ELSE 'user' END AS authorKind,a.title,a.public_url AS publicUrl,a.embed_url AS embedUrl,a.summary,a.category,a.course_id AS courseId,a.created_at AS createdAt,a.updated_at AS updatedAt,a.view_count AS viewCount,a.visibility,a.revision,a.hidden_reason AS hiddenReason,CASE WHEN a.visibility='deleted' THEN 0 ELSE (SELECT COUNT(*) FROM bookmarks b WHERE b.article_id=a.id) END AS bookmarkCount`;
 async function adminArticle(db: Database, id: string) {
     const a = await db.prepare(`SELECT ${articleCols} FROM articles a JOIN profiles p ON p.id=a.author_id WHERE a.id=?`).bind(id).first<Article>();
     if (!a)
@@ -77,8 +77,10 @@ async function route(request: Request, env: Env, email: string): Promise<Respons
     const url = new URL(request.url), path = url.pathname, method = request.method, db = env.DB;
     if (!['GET', 'POST', 'PATCH'].includes(method))
         throw new ApiError(405, '未対応の操作です。', 'method_not_allowed');
-    if (method !== 'GET')
+    if (method !== 'GET') {
         originCheck(request, env);
+        await rate(db, `admin-write:${email}`, 120, 60);
+    }
     if (path === '/api/admin/me' && method === 'GET')
         return response({ admin: { email } });
     if (path === '/api/admin/overview' && method === 'GET') {
@@ -95,6 +97,41 @@ async function route(request: Request, env: Env, email: string): Promise<Respons
         const rows = await db.prepare(`SELECT ${articleCols} FROM articles a JOIN profiles p ON p.id=a.author_id WHERE (?='' OR a.visibility=?) AND (a.title LIKE ? ESCAPE '\\' OR p.display_name LIKE ? ESCAPE '\\' OR a.category LIKE ? ESCAPE '\\')${paging.condition} ORDER BY a.created_at DESC,a.id DESC LIMIT ?`).bind(visibility, visibility, pattern, pattern, pattern, ...paging.values, paging.limit + 1).all<Article>();
         const result = page(rows.results, paging.limit);
         return response({ articles: result.rows, nextCursor: result.nextCursor });
+    }
+    // Authorship is server-owned; ordinary article metadata is never editable here.
+    const articleEdit = /^\/api\/admin\/articles\/([a-f0-9-]{36})$/.exec(path);
+    if ((path === '/api/admin/articles' && method === 'POST') || (articleEdit && method === 'PATCH')) {
+        const body = await jsonBody(request), editing = !!articleEdit;
+        const { revision: rawRevision, ...fields } = body;
+        if (!editing && rawRevision !== undefined) throw new ApiError(400, 'revisionは作成時に指定できません。');
+        const input = articleInput(editing ? fields : body) as Required<ReturnType<typeof articleInput>>;
+        const id = articleEdit?.[1] || crypto.randomUUID(), v = editing ? revision(rawRevision) : 0;
+        const cmd = await command(request, db, path, body, id);
+        if (cmd.replay) return response({ article: await adminArticle(db, cmd.target) }, editing ? 200 : 201);
+        if (editing) {
+            const current = await adminArticle(db, id);
+            if (current.authorKind !== 'admin') throw new ApiError(403, '運営記事だけを編集できます。', 'forbidden');
+            if (current.visibility === 'deleted') throw new ApiError(409, '削除済みの記事は編集できません。', 'article_deleted');
+            if (current.revision !== v) conflict();
+        }
+        const duplicate = await db.prepare("SELECT id FROM articles WHERE author_kind='admin' AND public_url=? AND id!=?").bind(input.publicUrl, id).first<{id:string}>();
+        if (duplicate) return response({ error: 'この公開URLは登録済みです。既存記事を確認してください。', code: 'duplicate_article', articleId: duplicate.id, articleUrl: '/#articles/' + duplicate.id }, 409);
+        const now = new Date().toISOString();
+        const mutation = editing
+            ? db.prepare(`UPDATE articles SET title=?,public_url=?,embed_url=?,summary=?,category=?,course_id=?,updated_at=?,revision=revision+1 WHERE id=? AND author_kind='admin' AND revision=? AND visibility!='deleted' AND ${cmd.condition}`).bind(input.title,input.publicUrl,input.embedUrl,input.summary,input.category,input.courseId,now,id,v,...cmd.values)
+            : db.prepare(`INSERT INTO articles(id,author_id,author_kind,title,public_url,embed_url,summary,category,course_id,created_at,updated_at) SELECT ?,p.id,'admin',?,?,?,?,?,?,?,? FROM profiles p WHERE p.author_kind='admin' AND ${cmd.condition}`).bind(id,input.title,input.publicUrl,input.embedUrl,input.summary,input.category,input.courseId,now,now,...cmd.values);
+        try {
+            await db.batch([cmd.statement, mutation, audit(db,email,id,editing?'article.edit':'article.create',true,cmd.operation),discardFailedKey(db,cmd.operation)]);
+        } catch (error) {
+            // A different-key concurrent create/edit may have won the unique URL race.
+            const winner = await db.prepare("SELECT id FROM articles WHERE author_kind='admin' AND public_url=? AND id!=?").bind(input.publicUrl,id).first<{id:string}>();
+            if (winner) return response({error:'この公開URLは登録済みです。既存記事を確認してください。',code:'duplicate_article',articleId:winner.id,articleUrl:'/#articles/'+winner.id},409);
+            throw error;
+        }
+        const saved = await db.prepare('SELECT target_id,request_hash FROM admin_keys WHERE request_key=?').bind(key(request)).first<{target_id:string;request_hash:string}>();
+        if (!saved) conflict();
+        if (saved.request_hash !== await digest(JSON.stringify([path,body]))) throw new ApiError(409,'同じ送信キーの内容が異なります。','idempotency_conflict');
+        return response({article:await adminArticle(db,saved.target_id)},editing?200:201);
     }
     const singleArticle = /^\/api\/admin\/articles\/([a-f0-9-]{36})$/.exec(path);
     if (singleArticle && method === 'GET')
@@ -271,7 +308,7 @@ export default {
             const headers = new Headers(asset.headers);
             headers.set('Cache-Control', 'private, no-store');
             headers.set('X-Robots-Tag', 'noindex, nofollow');
-            headers.set('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; worker-src 'none'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'");
+            headers.set('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; worker-src 'none'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; frame-src https://notion.site https://*.notion.site https://notion.so https://*.notion.so");
             return new Response(asset.body, { status: asset.status, headers });
         }
         catch (error) {

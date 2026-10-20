@@ -20,7 +20,7 @@ export interface Env {
 }
 export interface User { id: string; displayName: string }
 export interface Article {
-  id: string; authorId: string; authorName: string; title: string;
+  id: string; authorId: string; authorName: string; authorKind?: "user" | "admin"; title: string;
   publicUrl: string; embedUrl: string; summary: string; category: string;
   courseId: string; createdAt: string; updatedAt: string;
   revision: number; visibility?: 'published' | 'hidden' | 'deleted'; hiddenReason?: string;

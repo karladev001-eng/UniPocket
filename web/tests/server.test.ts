@@ -180,7 +180,7 @@ function fixedTime(t: {after: (fn: () => void) => void}) {
 }
 function seedRanking(DB: SQLiteD1, firstAuthor: string, secondAuthor = firstAuthor, count = 67) {
   const viewers = Array.from({length: 5}, () => crypto.randomUUID());
-  for (const id of viewers) DB.sqlite.prepare('INSERT INTO profiles VALUES(?,?,?)').run(id, '閲覧者', '2026-01-01T00:00:00.000Z');
+  for (const id of viewers) DB.sqlite.prepare('INSERT INTO profiles(id,display_name,created_at) VALUES(?,?,?)').run(id, '閲覧者', '2026-01-01T00:00:00.000Z');
   return Array.from({length: count}, (_, i) => {
     const id = `00000000-0000-4000-8000-${String(i + 1).padStart(12, '0')}`;
     // Repeated timestamps exercise the ID tie-break across page boundaries.
@@ -207,7 +207,7 @@ test('popular ranks the complete population before limit, uses all tie-breaks, a
   // An old article outside the first twenty newest results must win the first popular page.
   const winner = rows[66]; winner.rankKey += 30;
   for (let i = 0; i < 10; i++) {
-    const viewer = crypto.randomUUID(); DB.sqlite.prepare('INSERT INTO profiles VALUES(?,?,?)').run(viewer,'保存者',winner.createdAt);
+    const viewer = crypto.randomUUID(); DB.sqlite.prepare('INSERT INTO profiles(id,display_name,created_at) VALUES(?,?,?)').run(viewer,'保存者',winner.createdAt);
     DB.sqlite.prepare('INSERT INTO bookmarks VALUES(?,?)').run(viewer,winner.id);
   }
   const popular = await send('/api/articles?sort=popular'); assert.equal(popular.status,200);
