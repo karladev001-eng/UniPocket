@@ -147,3 +147,40 @@ PWAのインストール検知は環境によって利用可否が異なり、Ch
 - `GET /api/admin/surveys/:id/results`→`{survey,responseCount,questions:{questionId,counts:{optionId,count}[]}[],freeText:{questionId,value,submittedAt}[]}`（自由記述も管理者専用）。`GET /api/admin/metrics?start=YYYY-MM-DD&end=YYYY-MM-DD`→`{start,end,collectedSince,asOf,daily:{day,articleViews,surveyResponses}[],articleViews,currentBookmarks,surveyResponses,articles:{id,title,views,bookmarks}[]}`。期間1–90日、未収集日はnull等で0と区別、currentBookmarksは現在値で期間非依存。CSVは`GET /api/admin/metrics.csv?start=&end=`と`GET /api/admin/surveys/:id/responses.csv`、機密/匿名IDを含めず式を無害化し監査する。回答詳細のCSVは集計と別操作。
 - 管理Workerの全URLはJWT署名・issuer・aud・期限・所有者許可をサーバーで検証してからASSETS/APIへ進む。`/api/admin/*`を一般Workerで処理しない。設定が欠けると拒否。管理にはSW/Cache Storageを作らない。Cloudflare側Accessも全パスで保護する。JWT公開鍵の取得とキャッシュは許可したteam originだけ、tokenや本文をログへ出さない。
 - D1 migrationは追記のみ。公開状態/回答/集計/監査を同じbatch/transactionで整合させ、visibility変更と競合した作者更新/view/bookmarkもSQL条件で防ぐ。日次集計を明細削除前に確定、再実行で二重計上しない。保持期限・クリーンアップ失敗の可観測性、学校共有IPから100新規セッションの許容と連投対策を検証する。日次集計に利用者識別子を入れず、新しいusageイベントを作らない。
+- 実装中の契約補足（AC4の意味を維持）: 管理記事検索はサーバー側で題名・著者・カテゴリを対象とし、visibilityと併用。管理記事/通報一覧はcursorとlimit（既定50・最大100）でページ送りし、応答にnextCursorを含める。`GET /api/admin/articles/:id`を追加し、通報から未読込ページの記事も取得する。先頭500件だけのローカル絞り込みにしない。
+- 回答済み判定の最小記録は回答内容と分ける。アンケートIDでドメイン分離した匿名ID・再送キーのSHA256とランダムな受付IDだけを当該アンケートの存続期間に保持し、終了後90日で個別回答を削除しても再開時の二重回答を防ぐ。回答本文の照合ハッシュは個別回答とともに90日で消し、少数の選択肢から回答を逆引きできる照合情報を長期に残さない。削除後の再試行は既存受付だけの返却か回答済み扱いとし、新しい回答を書き込まない。原匿名ID・IP・回答内容・時刻は長期の判定記録に含めず、管理集計や一般APIから取得させない。回答内容の90日、集計/監査の365日の上限を延ばすものではない。
+- 作者削除の実装補足: 本文等を削除したdeleted tombstoneと既存のブックマーク関連を保持し、公開経路から除外する。現在のブックマーク数にはdeleted記事を算入しない。閲覧明細は承認済み30日保持で削除する。ローカルソースへ「作者削除時にブックマーク/閲覧関連を即時削除する」補助変更を加えるshellは、自動承認レビューで「既存の履歴を不可逆に削除し、データ保持/tombstoneの範囲を超える」と拒否され、実行されていない。基点の作者DELETEと外部キーCASCADEを読取確認したが再試行せず、既存関連を維持する代替を採用。リモートDBで削除を実行した事実はない。完全な物理消去を提供するとは案内しない。
+- 保持期限後の再開（AC8–10）: 消去済みのアンケート集計を、締切延長や再公開で0件の完全な結果へ戻さない。結果APIに`resultsComplete:boolean`と`resultsSince:string`を追加し、集計消去時に不完全性/保持開始の印を原子的に保存する。回答数と選択肢件数を同じ保持範囲で算出し、管理画面は不完全な場合に「保存期間内の集計」と起点を示す。再開しても消去の印を戻さず、新しい回答だけを正しく加算する。365日保持を延長せず、回答済み判定用の最小記録を集計へ転用しない。
+
+
+## v2 実装・保護preview配信と検証実績（2026-10-20）
+
+- 本節は実装開始後の実績。一般利用者UI・サーバー/DB/認証・管理者UIを統合し、root mainの実装基点は`523d0d4`。独立レビューは同実装に対しPASS。追加helper変更`ad47073`は別途レビュー中で、その完了を本節のPASSへ含めない。一般公開へのAccess解除は未実施で、AC12に基づく具体的な対象提示と最終確認を待つ。実装・保護previewでの検証を、一般公開済み・全受入完了・使い勝手のユーザー評価へ換算しない。
+- 自動検証: client 125件、admin 36件、SQLite 11件、runtime 10件、integration 6件と、対象のtypecheck/buildがPASS。実D1で既存データを確認し、使い捨てのD1環境で更新を伴う主要フローを検証した。各検証の対象と実環境への作用を分けて記録する。
+
+### Cloudflare・共有DB・管理者保護
+
+- 一般アプリは既存origin、管理アプリは別originで同じD1を共有。remoteへ追記migration `0002`・`0003`を適用。移行前のprivateなSQLバックアップを権限`0600`で保持し、本文や取得先は記録へ載せない。既存の共有記事1件・ブックマーク1件を保持した。
+- 一般URL: https://uni-pocket-preview.kan0507kt.workers.dev 。保護previewへ一般build `20261020023701-e50a3b`、Version `6332bf0d-c608-46c0-bba2-409d7f6d0833`を配信。管理URL: https://uni-pocket-admin.kan0507kt.workers.dev 、Version `657f3af9-a396-4fd5-975a-8462790a7132`を配信した。
+- 管理Access app `c884358e-0318-4bc9-922a-88fda11e1812`と所有者のみを許可するpolicyを設定し、管理のproduction/previewの全URLを保護。Accessに加え、サーバーのJWT署名・issuer・audience・期限・所有者許可を実環境で検証し、所有者としての認証成功を確認した。認証設定値やtokenは本記録へ含めない。
+- 未認証の管理`/`・`/api/admin/me`・JS asset・`/sw.js`はログインへの302を確認。一般側も`/`・version・SWが302のままで、既存のAccess保護を維持している。一般URLを未認証利用できることの確認は、最終公開切替後の検証として残る。
+- 管理の既存記事表示は閲覧2・ブックマーク1を示し、overview/metricsと共有DBの対応を確認。実DBのお知らせ・アンケートは各0件で、テスト内容を実配信していない。
+- 管理Workerの`workers_dev: true`はprivateな一時deploy設定でのみ有効化した。リポジトリの既定`workers_dev: false`と`preview: false`は維持。認証に必要な設定はsecrets fileで同時配信し、値は文書・ログへ転載しない。
+
+### 実ブラウザと使い捨てD1での確認
+
+- 一般アプリを390×700と320×640で実ブラウザ確認し、横方向のoverflowなし。ホームの予定、小さな1行案内、既存の下部5タブを確認。管理アプリも320px・390px・PC 1280pxで実画面を確認した。これらは確認した画面・寸法の実績で、全キーボード/フォーカス・全端末の受入完了を意味しない。
+- 使い捨てのD1環境で、記事の非表示/再公開と一般一覧からの除外を確認。アンケートは複製→下書き保存→プレビュー→公開確認→公開、公開後の設問編集不可を確認した。お知らせの改訂、版ごとの端末内既読、アンケートの必須入力検証と回答送信成功も確認した。これらのテスト公開や回答を実共有DBへ投入していない。
+- 証拠画像: `/private/tmp/uni-pocket-020-admin-live.jpg`、`/private/tmp/uni-pocket-020-home-320.jpg`、`/private/tmp/uni-pocket-020-home-mobile.jpg`、`/private/tmp/uni-pocket-020-admin-320.jpg`。画像は確認時点の状態であり、公開切替の承認やユーザー評価の根拠とはしない。
+
+### 公開前に残る確認
+
+- 一般側の旧Service WorkerがAccessのredirectにより更新できない状態は残存。一般Access解除後に更新・復旧を検証する必要がある。旧iPhoneの復旧は未完了で、今回の保護preview配信により解決したとは報告しない。
+- 追加helper `ad47073`の独立レビュー等、公開前に必要な作業を完了してから、AC12に基づき一般URL・管理URL、公開対象となる既存共有記事と管理保護の確認結果を具体的に提示し、一般公開Access切替の最終確認を別途受ける。本節はその承認取得・Access解除・公開後検証・タスク完了の記録ではない。
+
+### 最終確認前の追記
+
+- helper `ad47073`も独立レビューPASS。rootへ`4a24484`として取り込み。変更はloopbackの使い捨て検証helperと回帰テストだけで、製品の認証は変更していない。複数のlocalhostアプリのCookie混在を分離し、元の一時D1と旧タブ入力を保持して追加relayで確認した。
+- 実ブラウザでアンケートの回答受付、再読込後の回答済み、管理の回答数/選択数/自由記述への一致を確認。通報の受付も確認。お知らせ改訂後、既読だったブラウザのホームで未読1件に戻ることを確認した。検証で使用した予定・記事・回答・通報・お知らせは使い捨て環境の架空データである。
+- Cookie名を調べるためのSIGUSR1診断案は、Node inspectorの別ポートを開く副作用が許可範囲外との自動承認レビューにより拒否され、実行していない。既存runnerの観測を変更せず、Cookie混在をHTTP fixtureで再現する安全な代替で診断を完了した。
+- 公開対象の共有記事は「Uni Pocket 動作確認用の記事」1件。実共有DBのお知らせ・アンケートは0件。一般公開切替の最終承認は引き続き未受領。管理画面保護を維持し、一般アプリのAccessだけを切り替える対象を本人へ提示する。
