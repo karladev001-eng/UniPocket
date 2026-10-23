@@ -5,7 +5,10 @@ import type { Data } from "./domain";
 export const appearanceCacheKey = "uni-pocket-appearance-v1";
 export const modeOf = (data: Pick<Data, "colorMode">) => data.colorMode ?? "light";
 export const themeColors: Record<string, string> = {
-  green: "#163e35", blue: "#233f63", rose: "#663e50", mono: "#2e3339",
+  green: "#f2f7f3", blue: "#edf4ff", rose: "#fff0f5", mono: "#f2f2f2",
+};
+export const darkThemeColors: Record<string, string> = {
+  green: "#111d17", blue: "#101c2f", rose: "#26141e", mono: "#171717",
 };
 export function cacheAppearance(data: Pick<Data, "theme" | "colorMode">) {
   try {
@@ -18,5 +21,5 @@ export function applyAppearance(data: Pick<Data, "theme" | "colorMode">) {
   document.documentElement.dataset.theme = data.theme;
   document.documentElement.style.colorScheme = mode;
   document.documentElement.style.backgroundColor = "";
-  document.querySelector("meta[name=theme-color]")?.setAttribute("content", mode === "dark" ? "#141b19" : themeColors[data.theme] ?? themeColors.green);
+  document.querySelector("meta[name=theme-color]")?.setAttribute("content", (mode === "dark" ? darkThemeColors : themeColors)[data.theme] ?? (mode === "dark" ? darkThemeColors.green : themeColors.green));
 }

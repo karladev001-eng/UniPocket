@@ -3,7 +3,7 @@ import { IDBFactory } from 'fake-indexeddb';
 import { readFileSync } from 'node:fs';
 import { runInNewContext } from 'node:vm';
 import { emptyData, validateData, tokyo } from '../src/domain';
-import { appearanceCacheKey, applyAppearance, cacheAppearance, modeOf, themeColors } from '../src/appearance';
+import { appearanceCacheKey, applyAppearance, cacheAppearance, modeOf, themeColors, darkThemeColors } from '../src/appearance';
 import { LocalStore, SaveQueue } from '../src/storage';
 
 let cache: Map<string, string>;
@@ -88,10 +88,24 @@ describe('CSP-compatible first paint before application boot', () => {
     for (const theme of Object.keys(themeColors)) for (const colorMode of ['light', 'dark']) {
       const { element, meta } = boot(JSON.stringify({ theme, colorMode }));
       expect(element.dataset).toEqual({ theme, colorMode }); expect(element.style.colorScheme).toBe(colorMode);
-      expect(meta.content).toBe(colorMode === 'dark' ? '#141b19' : themeColors[theme]);
+      expect(meta.content).toBe((colorMode === 'dark' ? darkThemeColors : themeColors)[theme]);
+      expect(element.style.backgroundColor).toBe(meta.content);
     }
     for (const value of [null, 'bad json', '{}', '{"theme":"__proto__","colorMode":"dark"}', '{"theme":"blue","colorMode":"auto"}']) expect(boot(value).element.dataset).toEqual({});
     expect(boot(null, true).element.dataset).toEqual({});
+  });
+  it('keeps the cached first paint and authoritative application palette in agreement for all eight choices', () => {
+    for (const theme of ['green', 'blue', 'rose', 'mono'] as const) for (const colorMode of ['light', 'dark'] as const) {
+      const { element, meta } = boot(JSON.stringify({ theme, colorMode }));
+      const firstPaint = { background: element.style.backgroundColor, themeColor: meta.content };
+      vi.stubGlobal('document', { documentElement: element, querySelector: () => ({ setAttribute: (_: string, value: string) => { meta.content = value; } }) });
+      applyAppearance({ theme, colorMode });
+      expect(meta.content).toBe(firstPaint.themeColor);
+      expect(meta.content).toBe(firstPaint.background);
+      expect(element.style.backgroundColor).toBe(''); // CSS takes over the same paper color.
+    }
+    const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+    expect(/name="theme-color" content="([^"]+)"/.exec(html)?.[1]).toBe(themeColors.green);
   });
   it('uses the authoritative state after async boot and does not depend on OS preferences', () => {
     const { element, meta } = boot('{"theme":"blue","colorMode":"dark"}');
@@ -124,6 +138,17 @@ describe('semantic text contrast', () => {
       if (sel.includes('data-color-mode=dark') && mode !== 'dark') continue;
       for (const [, key, value] of body.matchAll(/--([\w-]+):\s*(#[\da-f]{6}|#[\da-f]{3})\b/g)) tokens[key] = value;
     }
+    if (theme === 'mono') for (const key of ['paper', 'surface', 'chrome', 'ink', 'muted', 'line', 'soft', 'light', 'notice', 'accent', 'strong', 'on-strong', 'focus', 'badge-ink', 'badge-bg', 'badge-line']) {
+      expect(new Set(rgb(tokens[key])).size, `${key} must stay neutral`).toBe(1);
+    }
+    if (theme === 'blue' || theme === 'rose') for (const key of ['paper', 'surface', 'chrome', 'soft', 'light', 'notice']) {
+      const [r, g, b] = rgb(tokens[key]);
+      if (theme === 'blue') expect(b, `${key} should carry blue`).toBeGreaterThan(r);
+      else expect(r, `${key} should carry rose`).toBeGreaterThan(g);
+    }
+    expect(tokens.paper).toBe((mode === 'dark' ? darkThemeColors : themeColors)[theme]);
+    expect(contrast(rgb(tokens['on-strong']), rgb(tokens.strong)), 'primary action').toBeGreaterThanOrEqual(4.5);
+    for (const surface of ['paper', 'surface', 'soft', 'light']) expect(contrast(rgb(tokens.focus), rgb(tokens[surface])), `focus/${surface}`).toBeGreaterThanOrEqual(3);
     for (const surface of ['paper', 'surface', 'soft', 'light']) for (const ink of ['ink', 'muted', 'accent']) expect(contrast(rgb(tokens[ink]), rgb(tokens[surface])), `${ink}/${surface}`).toBeGreaterThanOrEqual(4.5);
     expect(contrast(rgb(tokens['badge-ink']), rgb(tokens['badge-bg']))).toBeGreaterThanOrEqual(4.5);
     expect(contrast(rgb(tokens['error-ink']), rgb(tokens['error-bg']))).toBeGreaterThanOrEqual(4.5);
