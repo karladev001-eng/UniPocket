@@ -116,6 +116,21 @@
 - 引継ぎ: **未配信**。今回の承認範囲は実装・ローカル検証・独立レビューと統合まで。既存一般Workerへの配信を依頼されたとき、同じorigin/DB/管理認証を維持してこのレビュー済みソースをビルド・配布する。API・管理画面・D1 migration・実記事更新は不要。
 - 制作記録: 同じrecord-keeperが候補/試用の022v2だけを実装・統合完了/未配信へ更新。CLI ok、pending=false、freshness=local、revision `ba289595b7e1a04890d933ab944a297e19096036d515b7ce6a58a3e30da4f4b5`。使い勝手のユーザー評価はunknown/null、昇格なし。承認/自己検証をユーザー評価へ換算しない。
 
+### 配信前の脆弱性確認（2026-10-23、調査のみ）
+
+ユーザーが最近のPHP・Node.js・証明書問題の残存を確認するよう依頼。対象コードはe8ee753、配信は引き続き未実施。製品コード・依存・認証・共有DB・OSの証明書ストアは変更していない。
+
+- **PHP**: 追跡ファイルにPHP/Composer/コンテナ構成なし。一般/管理ともCloudflare WorkersのTypeScript入口。PHPのCVE-2026-109618/109619は本アプリの実行構成に該当しない。[PHP公式10月21日告知](https://www.php.net/archive/2026.php#2026-10-21-5)。
+- **Node.js**: 現在の実行系はv26.12.1、同梱OpenSSL4.0.3。10月21日のDNS/TLSホスト名検証/Brotli等とeMudhra対策の修正版に一致。[Node公式セキュリティ告知](https://nodejs.org/en/blog/vulnerability/october-2026-security-releases) / [26.12.1](https://nodejs.org/en/blog/release/v26.12.1)。公開WorkersはNodeサーバーそのものではない。`engines.node >=22.18.0`は古い脆弱版も許すため、別環境での再現性・安全性を確保する下限指定は改善候補。
+- **依存監査**: npmレジストリへの最新`npm audit --json --ignore-scripts`成功。全依存でinfo/low/moderate/high/criticalすべて0件、total0。厳密なSSL検証はtrue。初回sandbox内DNS失敗は、権限付きの再実行で解消し、失敗結果を0件とは扱っていない。ロック/インストール済みのpdfjs6.4.299、Wrangler4.151.1、Miniflare5.20261012.1-beta、workerd1.20261012.1、Undici7.29.1等を照合。
+- **公開URLのTLS**: 一般・管理の両URLへ認証情報なしのHEAD。Nodeによる証明書/ホスト名検証成功、TLS1.3、現在の発行元Let's Encrypt YE1、有効期限2027-01-16。一般200、管理302でAccessホストへ転送。これは有効な自サイト証明書を確認した証拠で、危殆化CAの拒否テストとは別。
+- **危殆化CAの拒否実測**: [Cloudflare公式案内](https://blog.cloudflare.com/emudhra-certificate-compromise)から参照される[発見・検証者のサイト](https://emudhra.we-have-a-problem.com/)が指定したdv-g3b / dv-g3b-aaa / それぞれのNo CTの4ホストを利用。認証情報なし、検証無効化なし。Node26.12.1は4/4でCERT_REVOKEDにより拒否。一方、既存Miniflare/workerdの使い捨てWorkerの外向きfetchは**4/4でHTTP200を受け入れた**。開発/テスト実行系に証明書問題が残存していることを確認。新しい版への更新で直ると未検証のまま断定せず、更新後も同じ拒否テストが必要。
+- **Mac標準curl**: `/usr/bin/curl`8.7.1（LibreSSL3.3.6/SecureTransport表記）はdv-g3b-noctへHTTP200、ssl_verify_result0。今回の危殆化CAを遮断していないことを確認。Node成功やOS/ブラウザ側の対策から標準CLIも安全とは推論しない。システムのCAファイルは編集していない。
+- **Cloudflare管理側**: 公式案内ではCDN/Developer/Zero Trustに緩和策を配備。現在構成に独自PHPオリジン・Container・cloudflared依存なし。クラウド内部のパッチ実体をこちらで直接証明したわけではない。[Workers実行構成](https://developers.cloudflare.com/workers/reference/how-workers-works/)と現行設定から、ローカルworkerdを公開ランタイムに持ち込む構成ではないと判断。`compatibility_date`はランタイムのパッチバージョン固定ではない。
+- **判定**: npmの既知CVEは0件、PHPは対象外、現在のNodeは対策済み。ただし**開発用workerdとMac標準curlの証明書対策が残るため、環境全体を問題なしとは判定しない**。配信前に影響する開発ツール/信頼ストアの対策と拒否の再検証、Node下限指定の整理を行うことを推奨。変更は別の作業で扱う。
+- 証拠: `/private/tmp/uni-pocket-security-audit-20261023.json`、`/private/tmp/uni-pocket-security-check-20261023.json`、再現用の使い捨て`/private/tmp/uni-pocket-tls-probe-20261023.mjs`。調査用Workerはdispose済み、公開配信なし。初回Miniflareの設定形式エラー2回は公式オプション変換を用いて解消し、その後の実行結果だけを判定に使用。
+- 制約: 物理iPhone/Androidの失効情報適用、Cloudflare内部ランタイムの監査、網羅的な侵入テストは対象外/未検証。今回の既知脆弱性・依存監査・TLS検証結果から、未知の脆弱性まで否定しない。
+
 ## 仕様版2への追加反映
 
 仕様版1も未承認のまま、記事詳細の説明/操作によって本文が下へ押されるという追加フィードバックを受領。AC1–8を保持し、本文優先表示と既存動作/異常時の短い状態表示をAC9–10として追加。通常表示の説明を外すことを、公開確認・閲覧/保存処理・通報や作者権限の削除と混同しない。旧版の回答/承認文案は仕様版2の承認根拠にならない。
