@@ -1,3 +1,5 @@
+import { assertNode } from './runtime.mjs';
+assertNode();
 import { serviceWorker } from "./sw-template.mjs";
 import { readdir, readFile, writeFile } from "node:fs/promises";
 import { createHash } from "node:crypto";

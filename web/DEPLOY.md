@@ -4,7 +4,7 @@
 
 ## 必要な設定
 
-- Node.js 22.18以上（推奨24以上）、npm、プロジェクトに固定されたWrangler。
+- 修正済みNode.js（22.23.4以上の22系、24.22.1以上の24系、26.12.1以上の26系）、npm、プロジェクトに固定されたWrangler。
 - CloudflareのWorkers/D1を作成できるアカウントと配信認証。ブラウザへAPIトークンを渡さない。ローカルは認証不要。
 - Worker entry: `server/worker.ts`。D1 binding: `DB`。静的Assets binding: `ASSETS`、directory: `./dist`、`run_worker_first: ["/api/*"]`、`not_found_handling: "single-page-application"`。
 - 毎時のScheduled trigger例 `0 * * * *`。古いセッション/レート制限/閲覧重複キー/送信キーを各500行まで削除する。高トラフィック時は滞留件数を監視して頻度を調整する。
@@ -38,6 +38,7 @@
 
 ```sh
 npm ci
+npm run verify:tls
 npm run typecheck
 npm run test:all
 npm run test:integration
@@ -48,6 +49,8 @@ npm run local
 同じ `http://127.0.0.1:8787` originで画面とAPIを開く。別portの静的previewだけでは共有APIに接続できない。`Secure` Cookieはloopbackを安全なローカル開発元として扱うブラウザで利用する。LAN上の端末試験にはHTTPSプレビューを使う。`--remote` を付けなければローカルD1を使う。ローカルデータはWranglerの `.wrangler/state` に保存される。削除すると匿名権限を失うため、本番データと同様にCookieとDBを一緒に保持する。
 
 テストは実SQLiteへ本番SQLを適用し、ハンドラを実行する。モックの固定応答は使わない。実D1環境の制限やエッジCookie配送は別途プレビューで確認する。
+
+`verify:tls`とCA設定・7日間のローカル検証記録はルートREADMEを参照。配布準備でもプロジェクトの`npm run wrangler -- ...`を使い、未検証・期限切れは再検証する。CA更新手順は実行OSに従い、証明書エラーを回避しない。
 
 `npm ci` はlockfileのWrangler・Miniflare・esbuildも導入する。追加インストールは不要。`npm run test:runtime` は固定したMiniflare 5.20261012.1-betaの実workerd/D1で、12件の同時冪等投稿・20件の同時保存/閲覧を確認する。`npm run test:integration` はビルド後にWrangler Static Assets＋API＋一時D1を起動し、ヘッダ・深いURL・投稿編集・匿名権限・保存の再起動復元を確認する。一時DBは通常の `.wrangler/state` と分離し終了時に消去する。これらのテストはlocalhostリスナーを開く。ブラウザのCookie保存とPWA更新は別の実操作確認が必要。
 
@@ -72,16 +75,16 @@ npm run local
 以下のpreview手順は本人限定での個人検証用。Cloudflare認証後、既存Worker/D1があれば先に名前・IDを照合し、無関係なリソースを上書き・再利用しない。初回はpreview用DBだけを作成する。productionのWorker/DBには触れない。
 
 ```sh
-npx wrangler login
-npx wrangler d1 create uni-pocket-preview
+npm run wrangler -- login
+npm run wrangler -- d1 create uni-pocket-preview
 ```
 
 返されたIDを `env.preview.d1_databases` の仮IDへ設定し、Freeプランのままpreview migrationを適用して初回配信する。初回の `workers_dev: false` と `preview_urls: false` はHTTP入口を作らない状態にする。
 
 ```sh
-npx wrangler d1 migrations apply DB --remote --env preview
+npm run wrangler -- d1 migrations apply DB --remote --env preview
 npm run build
-npx wrangler deploy --env preview
+npm run wrangler -- deploy --env preview
 ```
 
 初回deploy後、`workers_dev: false` / `preview_urls: false` のままCloudflare DashboardでAccess設定を行う。この時点では公開HTTP入口がないため、ログアウト状態や本人ブラウザからリクエスト検証はできない。まず **Workers & Pages > `uni-pocket-preview` > Access** からこのWorkerの保護アプリを作成し、適用範囲を **All traffic** にする。次に **Zero Trust > Access > Applications** でそのアプリを開いてEditし、対象が `uni-pocket-preview` のWorker全体であること、全trafficに適用することを確認する。許可は単一のAllow policyにし、Includeに本人の完全なメールアドレス1件だけを `Emails` 条件で指定する。Everyone、メールドメイン、追加の広いAllow条件、Bypass policyを作らない。Cloudflareが作成した既定の認証プロバイダーを使い、One-time PINは必要なら任意で追加する。実際のZero Trust checkout画面ではFreeの基本料金が$0/月と表示される一方、支払い情報・規約登録と、Freeに含まれる使用量を超えた場合の月次課金を承認するチェックボックスが求められた。Free枠を超えた請求が絶対に発生しないとは案内しない。本人が料金条件と課金承認を確認し、自分で受諾するか判断する。こちらでは課金承認や有料プランへの変更を行わない。受諾しない場合はAccess設定を中断し、未保護のURLは有効化・共有しない（[Zero Trust setup](https://developers.cloudflare.com/cloudflare-one/setup/)）。規約同意も本人がDashboard上で完了する。
@@ -95,22 +98,22 @@ npx wrangler deploy --env preview
 本番へ進める前にD1 exportと現在のWorker deployment/version IDを保存し、build IDと変更内容を確認する。
 
 ```sh
-npx wrangler d1 export DB --remote --env production --output=production-before-release.sql
-npx wrangler d1 time-travel info DB --env production
-npx wrangler deployments list --env production
-npx wrangler d1 migrations apply DB --remote --env production
-npx wrangler deploy --env production
+npm run wrangler -- d1 export DB --remote --env production --output=production-before-release.sql
+npm run wrangler -- d1 time-travel info DB --env production
+npm run wrangler -- deployments list --env production
+npm run wrangler -- d1 migrations apply DB --remote --env production
+npm run wrangler -- deploy --env production
 ```
 
 初回DBが空ならバックアップ対象がない点を記録する。公開後、HTTPS/深いURL/manifest/SW/記事APIのno-store・Cookie・投稿/保存を確認する。DB migrationは追加型を基本に旧クライアントと互換を保つ。公開時に既存のユーザー/ブックマークを消すseedやresetを実行しない。
 
-Git連携を使用する場合はCloudflare Workers Buildsでリポジトリと公開対象branchを運営者が接続する。Build commandは `cd web && npm ci && npm run typecheck && npm test && npm run test:server && npm run build`、deploy commandは対象環境の `npx wrangler deploy --env production`（working directoryをwebに設定している場合は `cd web` を除く）。DB migrationはバックアップ付きの明示リリース段階で行う。PR・任意branchから本番DBへ配信しない。認証トークンはCloudflareのsecret管理へ置く。Git接続は未実施。
+Git連携を使用する場合はCloudflare Workers Buildsでリポジトリと公開対象branchを運営者が接続する。Build commandは `cd web && npm ci && npm run verify:tls && npm run typecheck && npm test && npm run test:server && npm run build`、deploy commandは対象環境の `npm run wrangler -- deploy --env production`（working directoryをwebに設定している場合は `cd web` を除く）。DB migrationはバックアップ付きの明示リリース段階で行う。PR・任意branchから本番DBへ配信しない。認証トークンはCloudflareのsecret管理へ置く。Git接続は未実施。
 
 ## ロールバックと障害
 
 1. 共有API障害では成功扱いせず入力と端末内の個人データを保持する。静的本体/個人機能はAPI障害から独立する。
-2. コードを戻す時は保存したIDで `npx wrangler rollback WORKER_VERSION_ID --env production`。静的アセットとWorkerを同じ版へ戻し、DB互換を確認する。Cookie/IndexedDBを消す対処は行わない。コードのrollbackはDBを巻き戻さない。
-3. DB破損・誤migrationは書込を停止して現在のexportと復旧点を保存し、運営者の判断で `npx wrangler d1 time-travel restore DB --bookmark=BOOKMARK --env production`。復元点以降の投稿・保存・セッションを失う操作であり、通常の配信rollbackには使わない。復元後はschema/migration履歴/API互換・匿名セッション・集計を再検証する。
+2. コードを戻す時は保存したIDで `npm run wrangler -- rollback WORKER_VERSION_ID --env production`。静的アセットとWorkerを同じ版へ戻し、DB互換を確認する。Cookie/IndexedDBを消す対処は行わない。コードのrollbackはDBを巻き戻さない。
+3. DB破損・誤migrationは書込を停止して現在のexportと復旧点を保存し、運営者の判断で `npm run wrangler -- d1 time-travel restore DB --bookmark=BOOKMARK --env production`。復元点以降の投稿・保存・セッションを失う操作であり、通常の配信rollbackには使わない。復元後はschema/migration履歴/API互換・匿名セッション・集計を再検証する。
 4. Time Travel対象外の長期復旧は安全な新規DBにexportをimportして確認し、bindingを切り替える設計が必要。exportにはセッションハッシュ等を含むため非公開で厳重に保管する。
 5. 修正版は新build IDで配信して次回更新確認から取得する。旧版タブに必要なアセットは保持する。自動reloadや保存領域消去を障害回避策にしない。
 

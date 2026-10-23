@@ -1,3 +1,5 @@
+import { configureWorkerd } from '../../scripts/runtime.mjs';
+configureWorkerd();
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync, existsSync, statSync } from 'node:fs';
 import { resolve, extname, sep } from 'node:path';

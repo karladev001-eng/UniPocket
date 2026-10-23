@@ -1,3 +1,5 @@
+import { assertNode } from './scripts/runtime.mjs';
+assertNode();
 import { defineConfig } from "vite";
 export default defineConfig({
   define: {

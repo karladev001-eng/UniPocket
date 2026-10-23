@@ -4,21 +4,25 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev:admin": "vite --config vite.admin.config.ts",
-    "build:admin": "tsc --noEmit -p tsconfig.admin.json && vite build --config vite.admin.config.ts",
-    "typecheck:admin": "tsc --noEmit -p tsconfig.admin.json",
-    "test:admin": "vitest run tests/admin-client*.ts",
-    "dev": "node scripts/pdf-assets.mjs && vite --host 127.0.0.1",
-    "build": "tsc --noEmit && node scripts/build.mjs",
-    "preview": "vite preview --host 127.0.0.1",
-    "test": "vitest run tests/client*.test.ts",
-    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.server.json",
-    "local": "wrangler dev --env preview --ip 127.0.0.1",
-    "db:local": "wrangler d1 migrations apply DB --local --env preview",
-    "test:server": "node --experimental-strip-types --test tests/server.test.ts",
-    "test:runtime": "node --test tests/server*-runtime.mjs",
-    "test:all": "npm test && npm run test:admin && npm run test:server && npm run test:runtime",
-    "test:integration": "npm run build && npm run build:admin && node --test tests/*integration.test.mjs"
+    "dev:admin": "node scripts/run.mjs vite --config vite.admin.config.ts",
+    "build:admin": "node scripts/run.mjs tsc --noEmit -p tsconfig.admin.json && node scripts/run.mjs vite build --config vite.admin.config.ts",
+    "typecheck:admin": "node scripts/run.mjs tsc --noEmit -p tsconfig.admin.json",
+    "test:admin": "node scripts/run.mjs vitest run tests/admin-client*.ts",
+    "dev": "node scripts/run.mjs node scripts/pdf-assets.mjs && node scripts/run.mjs vite --host 127.0.0.1",
+    "build": "node scripts/run.mjs tsc --noEmit && node scripts/run.mjs node scripts/build.mjs",
+    "preview": "node scripts/run.mjs vite preview --host 127.0.0.1",
+    "test": "node scripts/run.mjs vitest run tests/client*.test.ts",
+    "typecheck": "node scripts/run.mjs tsc --noEmit && node scripts/run.mjs tsc --noEmit -p tsconfig.server.json",
+    "local": "node scripts/run.mjs wrangler dev --env preview --ip 127.0.0.1",
+    "db:local": "node scripts/run.mjs wrangler d1 migrations apply DB --local --env preview",
+    "test:server": "node scripts/run.mjs node --experimental-strip-types --test tests/server.test.ts",
+    "test:runtime": "node scripts/run.mjs node --test tests/server*-runtime.mjs",
+    "test:all": "npm run test:toolchain && npm test && npm run test:admin && npm run test:server && npm run test:runtime",
+    "test:integration": "npm run build && npm run build:admin && node scripts/run.mjs node --test tests/*integration.test.mjs",
+    "preinstall": "node scripts/runtime.mjs",
+    "wrangler": "node scripts/run.mjs wrangler",
+    "test:toolchain": "node scripts/run.mjs node --test tests/toolchain.test.mjs",
+    "verify:tls": "node scripts/verify-tls.mjs"
   },
   "dependencies": {
     "pdfjs-dist": "^6.4.299"
@@ -34,6 +38,6 @@
     "wrangler": "^4.45.0"
   },
   "engines": {
-    "node": ">=22.18.0"
+    "node": ">=22.23.4 <23 || >=24.22.1 <25 || >=26.12.1 <27"
   }
 }

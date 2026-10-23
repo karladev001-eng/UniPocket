@@ -4,7 +4,7 @@ Swift版を変更せず、ブラウザごとの新規データから始める独
 
 ## ローカル
 
-Node 22.18以上で `npm ci`、`npm run build`、`npm run db:local`、`npm run local`。画面とAPIを127.0.0.1:8787で開けます。開発時は `npm run dev`。APIは同一オリジン `/api/*` で、Vite開発サーバーは127.0.0.1:8787へプロキシします。Worker/D1の配信はDEPLOY.mdを参照。`npm run preview` の静的配信だけでは共有記事APIは動作しません。
+Node 22.23.4以上の22系・24.22.1以上の24系・26.12.1以上の26系で `npm ci`、`npm run verify:tls`、`npm run build`、`npm run db:local`、`npm run local`。画面とAPIを127.0.0.1:8787で開けます。開発時は `npm run dev`。APIは同一オリジン `/api/*` で、Vite開発サーバーは127.0.0.1:8787へプロキシします。Worker/D1の配信はDEPLOY.mdを参照。`npm run preview` の静的配信だけでは共有記事APIは動作しません。
 
 - `npm run typecheck`
 - `npm test` — 個人修正・PDF差分、PDF座標パーサー、IndexedDB原本保護と複数タブ競合、SW更新プロトコル

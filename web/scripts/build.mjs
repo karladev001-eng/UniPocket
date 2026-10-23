@@ -1,3 +1,5 @@
+import { assertNode } from './runtime.mjs';
+assertNode();
 import { randomBytes } from "node:crypto";
 import { build } from "vite";
 process.env.BUILD_ID ??=

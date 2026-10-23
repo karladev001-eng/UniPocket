@@ -1,3 +1,5 @@
+import { assertNode } from './runtime.mjs';
+assertNode();
 import { cp, mkdir } from "node:fs/promises";
 const source = new URL("../node_modules/pdfjs-dist/", import.meta.url),
   target = new URL("../public/pdfjs/", import.meta.url);
