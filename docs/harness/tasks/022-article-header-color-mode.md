@@ -24,6 +24,20 @@
 
 未解決の実装必須判断なし。開始時のpreferences readはsandbox lock作成失敗後、CLIの権限付きreadでok=true/pending=false/freshness=local、revision ba289595b7e1a04890d933ab944a297e19096036d515b7ce6a58a3e30da4f4b5。候補up-article-header-modes v2の今回だけの試用を継続し、この配色/整列への否定的フィードバックは当該部分に限定。新修正のユーザー評価unknown/null、一般的な好みへ昇格しない。保存は別record-keeperを唯一のwriterとして委譲。
 
+### 配信後修正の完了記録
+
+- 状態: C1–C5の修正・検証・独立レビュー・分離統合完了、**今回の修正は未配信**。公開中は直前のbuild20261023054059-ef7f5eのまま。コード実装`4ea20d8e83c137881c496858d3087cb03fe24534`、統合`1c9811cd0f8b61bb5663ba54a9bda21be47c2b37`、rootへfast-forward済み。web tree完全一致（cce77c65580221c6d70e87488f10d0a8ca7abdbf）を独立レビューとrootで確認。
+- 修正: themeごとの全一般トークン・8状態の初期描画/meta、hero等の固定文字色・影/hover/overlayの残存greenを修正。モノトーンの一般UIは無彩色。お知らせは専用settings-rowで60px最小高・14px左右余白・右端矢印へ整列。変更はindex初期meta、appearance-boot、appearance、mainのリンク1箇所、style、appearanceテストの6ファイルのみ。API/DB/保存処理/権限/依存/ツールチェーン・globalcommunity一覧・分類色と元画像は保持。
+- 担当: 実装Sol6.1/medium（開かれた配色の具体化）、独立レビューSol6.1/high、明確な分離統合Luna/medium、記録管理Sol6.1/medium。各起動前status auto/no pins・現在のspawn_agentモデル/effortを確認。前作業の完了・clean・コード同一性を確認してtls-toolchain作業コピーを実装へ再利用、統合はa9dd54e基点の新しいpalette-alignment-integrationへ限定。productionの代筆や親の018/013変更の取り込みなし。
+- 検証: 一般150件、一般/server/管理の型検査、一般/管理の両build、diff検査が実装・統合で成功。レビューでも一般150件を独立再実行し成功。既存PDF chunk-size警告のみ。TLS/server/D1の非影響スイートを繰り返さず、023のguardを維持。初回の旧dark固定値期待テスト失敗は期待値を今回契約へ更新後に成功。sandboxのVite/git一時領域書込EPERMは権限付き実行で解消し、失敗を成功と数えていない。
+- 独立レビュー: C1–C5すべてPASS、必須修正・改善指摘なし。通常文字/補助/notice/chrome/exam等へ広げた独立コントラスト最小4.72:1、8状態のboot/CSS/meta一致、未知/壊れたキャッシュを無視する境界、保存成功時だけのcache契約、カテゴリー色・背景opacity・globalcommunity-item不変を確認。
+- 親の実アプリブラウザQA（localhost8890、一時合成D1のみ）: 8状態の選択・実computed色とmeta一致を測定。モノトーンdarkのpaper#171717/card#262626、blue dark#101c2f/#1b2c46など画面全体の違いを確認。320/390/1100幅でnotice高60px・左右14px・お知らせ/update/settings文字の開始位置完全一致、横はみ出しなし。夕暮れ画像がtheme変更とreloadで保持され、mono/dark/meta#171717も再起動後維持。実アプリ build20261023060849-b2debeを使用、物理端末やOSステータスバーは未検証。
+- 画面証拠: `/private/tmp/uni-pocket-mono-dark-fixed-top.png`、`uni-pocket-blue-dark-fixed.png`、`uni-pocket-mono-dark-fixed.png`。測定`/private/tmp/uni-pocket-palette-qa.json`と`uni-pocket-palette-geometry.json`を独立レビューが再確認。最初のviewport設定は新規tabに引き継がれず1280pxだったため、実測widthを確認して390pxへ設定し直した。最初の色切替後のテキスト一致操作1件は対象不一致で未実行、最新AXのradio操作で切り替えた。
+- 補足HTMLのfile URLはブラウザ安全ポリシーで拒否。別経路での同モック表示を試さず、HTMLの静的色検査（8組最小5.38以上）と通常のHTTPで動く実アプリの操作検証を区別。Codexでの補足HTML表示要求はqueuedで描画済みとはしない。既存の承認済み仕様/モックと今回の補足資料提示は記録し、後付けの承認を作らない。
+- 一時QAタブを閉じ、viewport reset、合成QAサーバーを停止。画像/計測証拠は保持。実公開URL/記事/DB/管理認証を変更していない。取得済み終了06:15:58 UTC（15:15:58 JST）、開始時刻を未取得のため全体所要を推定しない。利用枠/トークン/費用は未取得/null。
+- 制作記録: 最初の記録更新はok/pending=false/freshness=local、revision d78b6719720338bca347901c8eae9ade132a48da4b58a3a1261f441492384939。根拠unipocket-theme-colors-alignment-feedback-20261023は1件として保持、候補up-theme-color-separationだけへ限定。配信済み旧022への評価は配色/整列の否定に限定し、今回の修正後はunknown/nullのまま。完了した試用結果を同じrecord-keeperへ追記委譲する。
+- 完了した試用の記録追記もCLI ok=true/exit0/pending=false/freshness=local、revision8246c730b126bb082a40b23c7df489b99988aa42cdb2cb0d05004063d96608ee。候補と今回の試用2項目のみ更新、未配信・新修正unknown/nullを維持。
+
 ## 目的と依頼
 
 「自分の投稿と+登録のボタンの場所が違和感があります。また、ライトテーマとダークテーマを切り替えられるようにしてください」
