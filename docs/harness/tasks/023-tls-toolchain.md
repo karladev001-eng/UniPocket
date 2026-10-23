@@ -73,3 +73,7 @@ Gitは新しい実行ファイルでもlibcurl8.7.1を参照し、初期状態�
 - Homebrew curl/Python標準sslは実測成功、Gitはこのリポジトリ限定CA設定後に成功。Mac標準CLI、他リポジトリ、別Python bundle、他OSの安全性を一般化しない。OS/global設定やHomebrew管理ファイルは変更なし。
 - 配信・push・DB/Access/JWT/記事更新は未実施。UI022も引き続き未配信。公開時は同じorigin/DB/管理認証を保ち、レビュー済みソースとguard付きWrangler入口を用いる。
 - 計測: worktree作成時の取得値04:51:57 UTC、最終確認取得値05:11:30 UTC（観測区間19分33秒、全会話時間を表す値ではない）。メインは現在のホストモデル、実装・レビューSol6.1/high、統合Luna/medium。利用枠/トークン/費用は未取得/null。今回の修正はセキュリティ対策で制作評価や好みを更新しない。
+
+## 後続の明示承認による配信
+
+上記の未配信報告後、ユーザーが最新版配信を直接依頼。[022の配信承認・完了記録](022-article-header-color-mode.md)に基づき2026-10-23 05:46 UTC、guard付きWranglerで一般Workerへbuild20261023054059-ef7f5e/version7f9c4d8b-fe28-456e-a17f-fe4bfe5610c7を100%配信。独立配信レビューPASS、管理認証・DB・APIは維持。ここまでの023実装時点の未配信記録は履歴として残す。

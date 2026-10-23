@@ -2,7 +2,7 @@
 
 - 計画ID: `022-article-header-color-mode`
 - 仕様版: **2**
-- 状態: done（実装・検証・独立レビュー・統合完了。未配信）
+- 状態: done（実装・検証・独立レビュー・統合と、2026-10-23に別途承認された一般Workerへの配信を完了）
 - 承認対象範囲: **記事の操作配置と本文優先表示・ライト/ダーク切替（AC1–10）**
 - 基点: `8c58a34` / `codex/pwa-migration`
 - [仕様・モック](022-article-header-color-mode.plan.html) / [編集用HTML](022-article-header-color-mode.src.html)
@@ -136,6 +136,28 @@
 ユーザーの対象を特定した直接指示により[023 TLS実行系修正](023-tls-toolchain.md)を実施。レビュー済み`84f2ab4`を分離統合`ade9552`としてrootへ取り込み、Node下限の強制と、更新済みCAを使用する開発/テスト入口を整備した。rootでも正常HTTPSと危殆化証明書4種の拒否を再検証成功。Homebrew curl/Pythonは検査成功、Gitはリポジトリ限定CA設定後に成功した。OSのCAストア・グローバルGitは変更していない。
 
 独立レビュー/統合整合PASS、型検査・両ビルド・全対象テストの成功とaudit0件を確認。統合初回のTLS失敗と既存時刻依存テスト1件の失敗、および限定再検査の成功は023に保存し、失敗を隠さない。上記の「調査のみ」の時点の発見は履歴として保持する。**022製品UIは引き続き未配信**であり、今回も公開URL/DB/Access/実記事の変更はない。
+
+### 最新版の配信承認（2026-10-23）
+
+上記の修正・独立レビュー・再検証完了と未配信の報告後、ユーザーが「では、修正済みの最新版を配信してください。」と直接承認。対象は022仕様版2/AC1–10のレビュー済みUIと023仕様版1/T1–T6の検証済みツール経路を使用した、現在の一般Worker `uni-pocket-preview` への配信。配信元はroot `1cc9f83` とREADME/webが等価な分離統合コミット`ade9552`。新機能・仕様変更・追加の実装なし、既存の製品モック・承認・検証を再利用する。
+
+一般URL、D1、管理Worker/Access/JWT/所有者を維持。管理側の製品コードは変更されておらず再配信不要。DBバックアップ、現在のdeployment情報とbindingの照合、ビルドとguard付きWrangler配信、公開URL/深いURL/manifest/SW/version/assetsと管理未認証保護の配信後検査を含む。DB migration/記事編集/Access変更/別origin作成は対象外。未解決の利用者判断なし。問題時は保存した一般Worker版へのコードrollbackだけを検討し、端末保存やDBを消さない。
+
+Harnessはstatus再確認でactive/all-enabled、max3、model auto/no pins。認証境界を維持する配信担当はSol6.1/high、独立確認もSol6.1/high（現在のspawn_agentカタログの対応モデル/effort）。親は記録と配信判定を担当し、担当は既存の分離統合作業コピーを使用、再委譲なし。制作好みの変更ではないため新しい嗜好評価を作らない。
+
+配信前の操作上の補足: 既存OAuth更新は初回通信失敗後の限定再検査で成功し、同一accountを確認。D1全体をローカルSQLへexportする操作はautomatic approval reviewが実行前に拒否（共有DBの機微な内容全体とローカル保存先への転送は配信承認のみでは具体的に承認されていないため）。exportは未実行、別経路の持出しや再試行をしない。DB/API/migration変更のないコード配信のため、より狭い代替としてCloudflare内のTime Travel復旧bookmark/infoと旧Worker版を保存し、ローカルSQLバックアップは作らない方針へ変更。新たな製品仕様や権限・データ範囲の拡張はない。復旧情報を確認できない場合は完了とせず報告する。
+
+### 最新版の配信完了・検証（2026-10-23）
+
+- 一般URL: https://uni-pocket-preview.kan0507kt.workers.dev/ 。build **20261023054059-ef7f5e**、Worker version **7f9c4d8b-fe28-456e-a17f-fe4bfe5610c7**、deployment **105509d2-6c63-4805-ada3-56322041331e**、100%。配信時刻05:46:00 UTC（14:46 JST）。配信元ade9552はroot1cc9f83とREADME/web完全一致、作業コピーclean。
+- 旧一般version cf1ccd76-6ad8-4221-9f8e-75a876550147/deployment bcb31193-38f6-4f98-bda1-2f31b5080e65を保存。初回deployはAPIへのGET失敗で終了し、新しいversion/deploymentがないことを両listで照合してから同一build/guard付きコマンドを1回再実行し成功。証明書検証やCAの変更による回避はない。
+- 同じD1 UUID、一般binding、compatibility date、管理deployment/version/Access/JWT境界を維持。管理は再配信なし（deployment8b9592bc-8429-4d91-b9d0-d0e46e6b02ba/version70cbce21-741b-400d-896c-a163facc99e5）。server/migrations/両configは021配信ソースc52647fと差分ゼロ。DB集計・0001–0004のmigration・FK検査は前後一致、検査SQLのrowsWritten=0。記事やアンケート等の書込なし。
+- Cloudflare内のTime Travel bookmark取得成功、復元操作なし。CLIが保持期間を返さないため期間を測定済みと扱わない。SQL exportは未実行、ローカルSQLバックアップなし。コードのみの配信であることと、旧Worker版・remote復旧点・変更なしのDB照合を独立レビューが確認しPASS。
+- 配信後226条件PASS: 211オフライン資産存在、主要13ファイルの配信元バイト一致、同一buildのHTML/main/SW/version、manifest/appearance-boot/深いURL、CSP/nosniff/cache制御、一般管理API404・管理未認証Access302、TLS1.3。初回static検査は189資産成功後の通信中断で不完了として保存し、限定再確認の最終結果は全成功（要求単位の再試行0回）。
+- 独立配信レビューも前後の実設定/DB/管理保護を照合し最終PASS。主要13ファイルと公開HTTP/管理境界を別経路で独立実測。範囲内の未解決事項・必須修正なし。
+- 親の実ブラウザ: 更新前021の#moreを保持し、「更新を確認」→新版取得→安全なタイミングで自動再読込。適用操作前にページが更新されたため、古い「最新版をインストール」要素へのクリックは実行されず停止。更新後の画面/配信buildが両方20261023054059-ef7f5eで一致し「最新です」、ユーザー名「管理者」を保持。データ削除・再インストールなし。新しい記事ヘッダーとライト設定表示も確認。物理iPhone/Androidの実測とは区別する。公開記事detailや保存ボタンは操作していない。
+- 証拠: `/private/tmp/uni-pocket-022-release.PmvCFO/`（directory700/files600）、`release-verification.json`、`release-control-summary.json`、`d1-recovery-before.log`。初回通信/SQL読取形式エラー/配信前失敗/static中断も保存し、秘密値・SQL全文・export URLは正本へ転載しない。画面証拠`/private/tmp/uni-pocket-022-live.png`、最新版の記事タブを成果として保持。
+- 計測: 配信準備で取得した開始05:38:25 UTC、最終static確認05:47:30 UTC（取得値間9分5秒、ブラウザ確認・記録はその後）。担当Sol6.1/high×2、利用枠/トークン/費用は未取得/null。制作のユーザー評価はunknownのまま。既存の無関係な018/013文書、他worktreeを保持。
 
 ## 仕様版2への追加反映
 
