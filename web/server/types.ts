@@ -18,13 +18,32 @@ export interface Env {
   ACCESS_AUD?: string;
   ADMIN_OWNER_EMAIL?: string;
 }
-export interface User { id: string; displayName: string }
+export interface User {
+  id: string;
+  displayName: string;
+}
 export interface Article {
-  id: string; authorId: string; authorName: string; authorKind?: "user" | "admin"; title: string;
-  publicUrl: string; embedUrl: string; summary: string; category: string;
-  courseId: string; createdAt: string; updatedAt: string;
-  revision: number; visibility?: 'published' | 'hidden' | 'deleted'; hiddenReason?: string;
-  viewCount: number; bookmarkCount: number; bookmarked: boolean; canEdit: boolean;
+  id: string;
+  authorId: string;
+  authorName: string;
+  authorKind?: "user" | "admin";
+  title: string;
+  publicUrl: string;
+  embedUrl: string;
+  summary: string;
+  category: string;
+  courseId: string;
+  createdAt: string;
+  updatedAt: string;
+  revision: number;
+  visibility?: "published" | "hidden" | "deleted";
+  hiddenReason?: string;
+  viewCount: number;
+  bookmarkCount: number;
+  bookmarked: boolean;
+  canEdit: boolean;
 }
 /** Session cookie issued mid-request; error responses still carry it. */
-export interface Issued { cookie?: string }
+export interface Issued {
+  cookie?: string;
+}

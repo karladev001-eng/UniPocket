@@ -29,7 +29,12 @@ function renderUpdateState() {
   box.innerHTML = `<p class="update-label" role="status">${esc(state.label)}</p>${state.detail ? `<p class="muted">${esc(state.detail)}</p>` : ""}<div class="update-actions">${btn("更新を確認", "check-update", "smallbtn")}${state.install ? btn("最新版をインストール", "update", "primary smallbtn") : ""}</div>`;
 }
 export function reportUpdateFailure(e: unknown) {
-  updateState = { message: "更新できませんでした。通信・保存状態を確認して再試行してください。 " + (e instanceof Error ? e.message : String(e)), ready: false };
+  updateState = {
+    message:
+      "更新できませんでした。通信・保存状態を確認して再試行してください。 " +
+      (e instanceof Error ? e.message : String(e)),
+    ready: false,
+  };
   renderUpdateState();
 }
 export function noticeUpdate(message: string, ready: boolean) {
@@ -44,72 +49,182 @@ export function renderMore() {
   action("check-update", () => updates.check());
   action("share-url", async () => {
     const url = location.origin + location.pathname;
-    try { await navigator.clipboard.writeText(url); const state = page.querySelector("#share-state"); if (state) state.textContent = "URLをコピーしました。"; }
-    catch { const d = modal("アプリのURL", field("share", "コピーして共有", url), undefined, "", { singleClose: true }); d.querySelector<HTMLInputElement>("input")?.select(); }
+    try {
+      await navigator.clipboard.writeText(url);
+      const state = page.querySelector("#share-state");
+      if (state) state.textContent = "URLをコピーしました。";
+    } catch {
+      const d = modal(
+        "アプリのURL",
+        field("share", "コピーして共有", url),
+        undefined,
+        "",
+        { singleClose: true },
+      );
+      d.querySelector<HTMLInputElement>("input")?.select();
+    }
   });
-  action("clear-bg", () => { data.backgroundMode = "none"; changed(); render(); });
-  action("custom-bg", () => { data.backgroundMode = "custom"; changed(); render(); });
+  action("clear-bg", () => {
+    data.backgroundMode = "none";
+    changed();
+    render();
+  });
+  action("custom-bg", () => {
+    data.backgroundMode = "custom";
+    changed();
+    render();
+  });
   action("profile", async () => {
     try {
       const current = await session();
       setUser(current);
-      const d = modal("ユーザー名", field("displayName", "記事に表示する名前", namedAuthor(current.displayName) ? current.displayName : "", "text", 'required maxlength="40"') +
-        `<p class="muted">${anonymousNotice}</p>`, async f => {
-          setUser((await api<{ user: User }>("/session", "PATCH", { displayName: val(f, "displayName") })).user);
-          d.close(); render();
-        });
-    } catch (e) { error(e); }
+      const d = modal(
+        "ユーザー名",
+        field(
+          "displayName",
+          "記事に表示する名前",
+          namedAuthor(current.displayName) ? current.displayName : "",
+          "text",
+          'required maxlength="40"',
+        ) + `<p class="muted">${anonymousNotice}</p>`,
+        async (f) => {
+          setUser(
+            (
+              await api<{ user: User }>("/session", "PATCH", {
+                displayName: val(f, "displayName"),
+              })
+            ).user,
+          );
+          d.close();
+          render();
+        },
+      );
+    } catch (e) {
+      error(e);
+    }
   });
-  const backgroundName = backgrounds.find(b => b.id === data.backgroundMode)?.name || (data.backgroundMode !== "none" && data.background ? "自分の画像" : "背景なし");
-  const activeCustom = data.backgroundMode === "custom" || (!data.backgroundMode && !!data.background);
-  page.innerHTML = heading("その他", "") +
+  const backgroundName =
+    backgrounds.find((b) => b.id === data.backgroundMode)?.name ||
+    (data.backgroundMode !== "none" && data.background
+      ? "自分の画像"
+      : "背景なし");
+  const activeCustom =
+    data.backgroundMode === "custom" ||
+    (!data.backgroundMode && !!data.background);
+  page.innerHTML =
+    heading("その他", "") +
     `<div class="settings-list"><a class="settings-row" href="#announcements"><strong>お知らせ・アンケート</strong><span aria-hidden="true">›</span></a></div><section class="settings-update"><h2>アプリの更新</h2><div id="more-update-state"></div></section><div class="settings-list">
-    <details id="appearance-settings" class="setting"><summary><span>背景・テーマ<small>${modeOf(data) === "dark" ? "ダーク" : "ライト"} · ${esc(backgroundName)}</small></span><span aria-hidden="true">›</span></summary><div class="setting-content"><fieldset class="appearance-mode"><legend>明るさ</legend><div class="seg">${([["light", "ライト"], ["dark", "ダーク"]] as const).map(([value, label]) => `<label><input type="radio" name="colorMode" value="${value}" ${modeOf(data) === value ? "checked" : ""}><span><span aria-hidden="true" class="mode-check">✓ </span>${label}</span></label>`).join("")}</div></fieldset>${choice("theme", "カラー", [["green", "グリーン"], ["blue", "ブルー"], ["rose", "ローズ"], ["mono", "モノトーン"]], data.theme)}<h3>背景</h3><div class="background-samples">${backgrounds.map(b => `<button type="button" data-background="${b.id}" aria-pressed="${data.backgroundMode === b.id}"><span class="background-thumb"><img src="${esc(b.image)}" alt=""><span class="selection-check" aria-hidden="true">✓</span></span><span>${b.name}</span></button>`).join("")}${data.background ? `<button type="button" data-action="custom-bg" aria-pressed="${activeCustom}"><span class="background-thumb"><img src="${esc(data.background)}" alt="自分の背景画像"><span class="selection-check" aria-hidden="true">✓</span></span><span>自分の画像</span></button>` : ""}</div><p id="background-state" class="muted" role="status">${data.background ? "自分の画像を選択できます。" : "自分の画像はまだありません。"}</p><div class="row"><button type="button" id="change-background">${data.background ? "画像を変更" : "画像を選ぶ"}</button>${btn("背景なし", "clear-bg")}</div><input id="background" type="file" data-toolbar="true" class="file-native" tabindex="-1" accept="image/png,image/jpeg,image/webp,image/heic,.heic" aria-label="自分の背景画像を変更"><p class="muted">画像はこのブラウザに保存します。</p></div></details>
+    <details id="appearance-settings" class="setting"><summary><span>背景・テーマ<small>${modeOf(data) === "dark" ? "ダーク" : "ライト"} · ${esc(backgroundName)}</small></span><span aria-hidden="true">›</span></summary><div class="setting-content"><fieldset class="appearance-mode"><legend>明るさ</legend><div class="seg">${(
+      [
+        ["light", "ライト"],
+        ["dark", "ダーク"],
+      ] as const
+    )
+      .map(
+        ([value, label]) =>
+          `<label><input type="radio" name="colorMode" value="${value}" ${modeOf(data) === value ? "checked" : ""}><span><span aria-hidden="true" class="mode-check">✓ </span>${label}</span></label>`,
+      )
+      .join("")}</div></fieldset>${choice(
+      "theme",
+      "カラー",
+      [
+        ["green", "グリーン"],
+        ["blue", "ブルー"],
+        ["rose", "ローズ"],
+        ["mono", "モノトーン"],
+      ],
+      data.theme,
+    )}<h3>背景</h3><div class="background-samples">${backgrounds.map((b) => `<button type="button" data-background="${b.id}" aria-pressed="${data.backgroundMode === b.id}"><span class="background-thumb"><img src="${esc(b.image)}" alt=""><span class="selection-check" aria-hidden="true">✓</span></span><span>${b.name}</span></button>`).join("")}${data.background ? `<button type="button" data-action="custom-bg" aria-pressed="${activeCustom}"><span class="background-thumb"><img src="${esc(data.background)}" alt="自分の背景画像"><span class="selection-check" aria-hidden="true">✓</span></span><span>自分の画像</span></button>` : ""}</div><p id="background-state" class="muted" role="status">${data.background ? "自分の画像を選択できます。" : "自分の画像はまだありません。"}</p><div class="row"><button type="button" id="change-background">${data.background ? "画像を変更" : "画像を選ぶ"}</button>${btn("背景なし", "clear-bg")}</div><input id="background" type="file" data-toolbar="true" class="file-native" tabindex="-1" accept="image/png,image/jpeg,image/webp,image/heic,.heic" aria-label="自分の背景画像を変更"><p class="muted">画像はこのブラウザに保存します。</p></div></details>
     <details id="display-settings" class="setting"><summary><span>時間割の表示<small>${data.startHour}:00–${data.endHour}:00</small></span><span aria-hidden="true">›</span></summary><div class="setting-content stack">${field("startHour", "日表示の開始時刻", String(data.startHour), "number", 'min="0" max="23"')}${field("endHour", "日表示の終了時刻", String(data.endHour), "number", 'min="1" max="24"')}<label class="check"><input name="bands" type="checkbox" ${data.showBands ? "checked" : ""}>施設の営業時間を表示</label><p class="muted">週間は1〜5コマ表示。終日・コマ外の予定も一覧で確認できます。</p></div></details>
-    <details id="campus-settings" class="setting"><summary><span>施設・リンク<small>営業時間・地図・お気に入り</small></span><span aria-hidden="true">›</span></summary><div class="setting-content"><div class="row">${btn("施設の営業時間", "facilities")}${btn("キャンパスマップ", "map")}</div><p class="muted">営業時間は通常期の目安です。臨時変更は公式情報で確認してください。</p><div class="stack">${data.links.map(l => `<a href="${esc(l.url)}" target="_blank" rel="noopener noreferrer">${l.favorite ? "★ " : ""}${esc(l.title)} ↗</a>`).join("")}</div><p>${btn("リンクを編集", "links")}</p></div></details>
+    <details id="campus-settings" class="setting"><summary><span>施設・リンク<small>営業時間・地図・お気に入り</small></span><span aria-hidden="true">›</span></summary><div class="setting-content"><div class="row">${btn("施設の営業時間", "facilities")}${btn("キャンパスマップ", "map")}</div><p class="muted">営業時間は通常期の目安です。臨時変更は公式情報で確認してください。</p><div class="stack">${data.links.map((l) => `<a href="${esc(l.url)}" target="_blank" rel="noopener noreferrer">${l.favorite ? "★ " : ""}${esc(l.title)} ↗</a>`).join("")}</div><p>${btn("リンクを編集", "links")}</p></div></details>
     <div class="setting"><button class="setting-profile" data-action="profile"><span>ユーザー名<small id="profile-name">${esc(namedAuthor(user?.displayName) ? user!.displayName : "未設定")}</small></span><span aria-hidden="true">›</span></button></div>
     <details id="data-settings" class="setting"><summary><span>データ<small>書き出し・保存について</small></span><span aria-hidden="true">›</span></summary><div class="setting-content">${btn("入力データを書き出す", "export-data")}<p class="muted">保存に失敗したときや別タブと競合したときは、現在の入力を書き出してから再読み込みできます。メモ・画像も含まれます。</p><p class="muted">${anonymousNotice}</p></div></details></div>
     <details id="install-information" class="settings-information"><summary>ホーム画面に追加・URLを共有</summary><p>${btn("URLをコピー", "share-url")}<span id="share-state" role="status"></span></p><p class="muted">iPhone: Safariの共有から「ホーム画面に追加」。Android/PC: ブラウザのメニューから「アプリをインストール」を選びます。HTTPSの公開URLで利用できます。</p></details>
     <details id="diagnostic-information" class="settings-information"><summary>詳細情報</summary><p class="muted">この画面のビルド ${esc(__APP_BUILD_ID__)}</p><div id="version" class="muted">配信情報を読み込み中…</div></details>`;
   renderUpdateState();
-  page.querySelectorAll<HTMLButtonElement>("[data-background]").forEach(button => button.onclick = () => { data.backgroundMode = button.dataset.background!; changed(); render(); });
-  page.querySelectorAll<HTMLInputElement>("[name=colorMode]").forEach(input => input.onchange = () => {
-    if (!input.checked) return;
-    data.colorMode = input.value as "light" | "dark"; changed(); theme();
-    const summary = page.querySelector("#appearance-settings summary small");
-    if (summary) summary.textContent = `${modeOf(data) === "dark" ? "ダーク" : "ライト"} · ${backgroundName}`;
-  });
-  page.querySelector<HTMLSelectElement>("[name=theme]")!.onchange = e => { data.theme = (e.target as HTMLSelectElement).value; changed(); theme(); };
+  page.querySelectorAll<HTMLButtonElement>("[data-background]").forEach(
+    (button) =>
+      (button.onclick = () => {
+        data.backgroundMode = button.dataset.background!;
+        changed();
+        render();
+      }),
+  );
+  page.querySelectorAll<HTMLInputElement>("[name=colorMode]").forEach(
+    (input) =>
+      (input.onchange = () => {
+        if (!input.checked) return;
+        data.colorMode = input.value as "light" | "dark";
+        changed();
+        theme();
+        const summary = page.querySelector(
+          "#appearance-settings summary small",
+        );
+        if (summary)
+          summary.textContent = `${modeOf(data) === "dark" ? "ダーク" : "ライト"} · ${backgroundName}`;
+      }),
+  );
+  page.querySelector<HTMLSelectElement>("[name=theme]")!.onchange = (e) => {
+    data.theme = (e.target as HTMLSelectElement).value;
+    changed();
+    theme();
+  };
   for (const name of ["startHour", "endHour"] as const)
-    page.querySelector<HTMLInputElement>(`[name=${name}]`)!.onchange = e => {
-      const value = Number((e.target as HTMLInputElement).value), start = name === "startHour" ? value : data.startHour, end = name === "endHour" ? value : data.endHour;
-      if (!Number.isInteger(value) || start < 0 || end > 24 || start >= end) { error(Error("表示時間は0〜24時で、終了を開始より後にしてください。")); return; }
-      data[name] = value; changed();
+    page.querySelector<HTMLInputElement>(`[name=${name}]`)!.onchange = (e) => {
+      const value = Number((e.target as HTMLInputElement).value),
+        start = name === "startHour" ? value : data.startHour,
+        end = name === "endHour" ? value : data.endHour;
+      if (!Number.isInteger(value) || start < 0 || end > 24 || start >= end) {
+        error(Error("表示時間は0〜24時で、終了を開始より後にしてください。"));
+        return;
+      }
+      data[name] = value;
+      changed();
     };
-  page.querySelector<HTMLInputElement>("[name=bands]")!.onchange = e => { data.showBands = (e.target as HTMLInputElement).checked; changed(); };
-  page.querySelector<HTMLButtonElement>("#change-background")!.onclick = () => page.querySelector<HTMLInputElement>("#background")!.click();
-  page.querySelector<HTMLInputElement>("#background")!.onchange = async e => {
-    const input = e.target as HTMLInputElement, file = input.files?.[0];
+  page.querySelector<HTMLInputElement>("[name=bands]")!.onchange = (e) => {
+    data.showBands = (e.target as HTMLInputElement).checked;
+    changed();
+  };
+  page.querySelector<HTMLButtonElement>("#change-background")!.onclick = () =>
+    page.querySelector<HTMLInputElement>("#background")!.click();
+  page.querySelector<HTMLInputElement>("#background")!.onchange = async (e) => {
+    const input = e.target as HTMLInputElement,
+      file = input.files?.[0];
     if (!file) return;
     busy++;
     const box = page.querySelector<HTMLElement>("#background-state");
     if (box) box.textContent = "画像を読み込んでいます…";
     try {
       const image = await imageData(file);
-      data.background = image; data.backgroundMode = "custom";
-      changed(); render();
+      data.background = image;
+      data.backgroundMode = "custom";
+      changed();
+      render();
     } catch (e) {
-      if (box?.isConnected) box.textContent = "画像を読み込めませんでした。前の画像と選択を保持しています。";
+      if (box?.isConnected)
+        box.textContent =
+          "画像を読み込めませんでした。前の画像と選択を保持しています。";
       error(e);
     } finally {
       input.value = "";
-      busy--; updates?.activity();
+      busy--;
+      updates?.activity();
     }
   };
   const version = page.querySelector("#version")!;
-  void fetch("/version.json", { cache: "no-store" }).then(r => { if (!r.ok) throw Error(); return r.json(); }).then(v => {
-    if (version.isConnected) version.innerHTML = `<p>配信中のビルド ${esc(v.id)} · ${esc(v.builtAt)}</p>${Array.isArray(v.changes) ? "<ul>" + v.changes.map((s: string) => `<li>${esc(s)}</li>`).join("") + "</ul>" : ""}`;
-  }).catch(() => { if (version.isConnected) version.textContent = "配信情報を取得できません。"; });
+  void fetch("/version.json", { cache: "no-store" })
+    .then((r) => {
+      if (!r.ok) throw Error();
+      return r.json();
+    })
+    .then((v) => {
+      if (version.isConnected)
+        version.innerHTML = `<p>配信中のビルド ${esc(v.id)} · ${esc(v.builtAt)}</p>${Array.isArray(v.changes) ? "<ul>" + v.changes.map((s: string) => `<li>${esc(s)}</li>`).join("") + "</ul>" : ""}`;
+    })
+    .catch(() => {
+      if (version.isConnected)
+        version.textContent = "配信情報を取得できません。";
+    });
 }
 function editFacilities() {
   const d = modal(

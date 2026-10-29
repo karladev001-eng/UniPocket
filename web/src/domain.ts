@@ -339,7 +339,17 @@ export function validateData(v: unknown): asserts v is Data {
     !["green", "blue", "rose", "mono"].includes(d.theme) ||
     (d.colorMode !== undefined && !["light", "dark"].includes(d.colorMode)) ||
     typeof d.background !== "string" ||
-    (d.backgroundMode !== undefined && !["none", "custom", "forest", "sea", "sky", "sunset", "paper", "shape"].includes(d.backgroundMode)) ||
+    (d.backgroundMode !== undefined &&
+      ![
+        "none",
+        "custom",
+        "forest",
+        "sea",
+        "sky",
+        "sunset",
+        "paper",
+        "shape",
+      ].includes(d.backgroundMode)) ||
     d.startHour < 0 ||
     d.endHour > 24 ||
     d.startHour >= d.endHour
@@ -374,10 +384,20 @@ export function validateData(v: unknown): asserts v is Data {
     )
       throw Error("予定の保存データが破損しています。");
   if (d.eventMemos !== undefined) {
-    if (!d.eventMemos || typeof d.eventMemos !== "object" || Array.isArray(d.eventMemos))
+    if (
+      !d.eventMemos ||
+      typeof d.eventMemos !== "object" ||
+      Array.isArray(d.eventMemos)
+    )
       throw Error("予定メモの保存データが破損しています。");
     for (const memo of Object.values(d.eventMemos))
-      if (!memo || typeof memo.text !== "string" || memo.text.length > 5000 || typeof memo.modified !== "string" || !Number.isFinite(Date.parse(memo.modified)))
+      if (
+        !memo ||
+        typeof memo.text !== "string" ||
+        memo.text.length > 5000 ||
+        typeof memo.modified !== "string" ||
+        !Number.isFinite(Date.parse(memo.modified))
+      )
         throw Error("予定メモの保存データが破損しています。");
   }
   for (const n of d.notes) {

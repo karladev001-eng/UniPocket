@@ -24,13 +24,17 @@ function modal(
   dialog.className = "modal " + (options.className ?? "");
   dialog.innerHTML = `<form><div class="modal-heading"><h2>${esc(title)}</h2><button type="button" data-close aria-label="${options.className === "map-modal" ? "地図を閉じる" : "閉じる"}">×</button></div>${content}<div role="alert" class="modal-error error notice" hidden></div>${options.singleClose && !submit ? "" : `<div class="footer">${options.singleClose ? "" : '<button type="button" data-close>閉じる</button>'}${submit ? `<button class="primary" type="submit">${esc(submitText)}</button>` : ""}</div>`}</form>`;
   document.body.append(dialog);
-  dialog
-    .querySelectorAll("[data-close]")
-    .forEach((b) => b.addEventListener("click", () => {
-      if (current.dispatchEvent(new Event("requestclose", { cancelable: true }))) current.close();
-    }));
+  dialog.querySelectorAll("[data-close]").forEach((b) =>
+    b.addEventListener("click", () => {
+      if (
+        current.dispatchEvent(new Event("requestclose", { cancelable: true }))
+      )
+        current.close();
+    }),
+  );
   const current = dialog;
-  if (!submit) current.querySelector("form")!.onsubmit = e => e.preventDefault();
+  if (!submit)
+    current.querySelector("form")!.onsubmit = (e) => e.preventDefault();
   current.addEventListener("close", () => {
     current.remove();
     if (dialog === current) dialog = undefined;

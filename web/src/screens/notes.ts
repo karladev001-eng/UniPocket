@@ -1,7 +1,17 @@
 // Notes: searchable note cards and the note editor (text, checklist, images, color, pin).
 import { icon, noteHasContent } from "../ui-assets";
 import { type Note, uid, dayKey } from "../domain";
-import { action, composing, data, isBusy, page, render, saves, trackBusy, updates } from "../app/context";
+import {
+  action,
+  composing,
+  data,
+  isBusy,
+  page,
+  render,
+  saves,
+  trackBusy,
+  updates,
+} from "../app/context";
 import { changed, exportData, save } from "../app/status";
 import { btn, empty, esc, heading } from "../ui/html";
 import { imageData } from "../ui/image";
@@ -68,10 +78,27 @@ function editNote(id: string, fresh?: Note) {
   let notePinned = data.pinned.includes(id);
   const d = modal(
     "メモ",
-    `<div class="note-top"><button type="button" id="note-pin" class="icon-button" aria-label="ホームに固定" aria-pressed="${data.pinned.includes(id)}">${icon("pin")}</button></div><textarea name="text" class="note-body" aria-label="メモ本文" placeholder="メモを入力…" maxlength="10000">${esc(n.text)}</textarea><div class="checks stack"></div><div class="thumbs attachments"></div><div id="note-palette" class="note-palette" role="group" aria-label="メモの色" hidden>${[["default", "標準"], ["yellow", "イエロー"], ["green", "グリーン"], ["pink", "ピンク"], ["blue", "ブルー"]].map(([value, label]) => `<button type="button" data-color="${value}" class="swatch ${value}" aria-label="${label}" aria-pressed="${value === n.color}"></button>`).join("")}</div><div id="note-more-menu" class="note-more-menu" hidden><button type="button" id="delete-note" class="danger">このメモを削除</button><p class="muted">入力は端末内に自動保存します。HEICはブラウザにより変換が必要です。</p></div><input id="note-images" class="file-native" data-toolbar="true" tabindex="-1" type="file" accept="image/png,image/jpeg,image/webp,image/heic,image/heif,.heic,.heif" multiple><span id="note-file-name" class="muted" role="status"></span><div id="note-save-recovery" class="notice error" hidden><p>入力はこの画面に保持しています。再試行しても保存できない場合は、入力データを書き出してからブラウザを再読み込みしてください。書き出しには現在のメモ・画像・チェック項目も含まれます。</p><button type="button" id="note-export-data">入力データを書き出す</button></div><div class="note-tools"><button type="button" id="add-image" class="icon-button" aria-label="画像を追加">${icon("image")}</button><button type="button" id="add-check" class="icon-button" aria-label="チェック項目を追加">${icon("check")}</button><button type="button" id="note-color" class="icon-button" aria-label="色を選ぶ" aria-expanded="false">${icon("color")}</button><button type="button" id="note-more" class="icon-button" aria-label="その他の操作" aria-expanded="false">${icon("more")}</button></div>`,
+    `<div class="note-top"><button type="button" id="note-pin" class="icon-button" aria-label="ホームに固定" aria-pressed="${data.pinned.includes(id)}">${icon("pin")}</button></div><textarea name="text" class="note-body" aria-label="メモ本文" placeholder="メモを入力…" maxlength="10000">${esc(n.text)}</textarea><div class="checks stack"></div><div class="thumbs attachments"></div><div id="note-palette" class="note-palette" role="group" aria-label="メモの色" hidden>${[
+      ["default", "標準"],
+      ["yellow", "イエロー"],
+      ["green", "グリーン"],
+      ["pink", "ピンク"],
+      ["blue", "ブルー"],
+    ]
+      .map(
+        ([value, label]) =>
+          `<button type="button" data-color="${value}" class="swatch ${value}" aria-label="${label}" aria-pressed="${value === n.color}"></button>`,
+      )
+      .join(
+        "",
+      )}</div><div id="note-more-menu" class="note-more-menu" hidden><button type="button" id="delete-note" class="danger">このメモを削除</button><p class="muted">入力は端末内に自動保存します。HEICはブラウザにより変換が必要です。</p></div><input id="note-images" class="file-native" data-toolbar="true" tabindex="-1" type="file" accept="image/png,image/jpeg,image/webp,image/heic,image/heif,.heic,.heif" multiple><span id="note-file-name" class="muted" role="status"></span><div id="note-save-recovery" class="notice error" hidden><p>入力はこの画面に保持しています。再試行しても保存できない場合は、入力データを書き出してからブラウザを再読み込みしてください。書き出しには現在のメモ・画像・チェック項目も含まれます。</p><button type="button" id="note-export-data">入力データを書き出す</button></div><div class="note-tools"><button type="button" id="add-image" class="icon-button" aria-label="画像を追加">${icon("image")}</button><button type="button" id="add-check" class="icon-button" aria-label="チェック項目を追加">${icon("check")}</button><button type="button" id="note-color" class="icon-button" aria-label="色を選ぶ" aria-expanded="false">${icon("color")}</button><button type="button" id="note-more" class="icon-button" aria-label="その他の操作" aria-expanded="false">${icon("more")}</button></div>`,
     async () => {
-      if (isBusy() || composing) throw Error("文字変換・画像処理を終えてから完了してください。");
-      if (!(await save())) throw Error("保存できませんでした。入力を保持しています。もう一度完了してください。");
+      if (isBusy() || composing)
+        throw Error("文字変換・画像処理を終えてから完了してください。");
+      if (!(await save()))
+        throw Error(
+          "保存できませんでした。入力を保持しています。もう一度完了してください。",
+        );
       d.close();
       render();
     },
@@ -80,28 +107,43 @@ function editNote(id: string, fresh?: Note) {
   d.dataset.draft = "true";
   d.classList.add("note-editor", n.color);
   d.querySelector("h2")!.classList.add("sr-only");
-  d.querySelectorAll("[data-close]").forEach(b => (b as HTMLElement).hidden = true);
-  d.querySelector(".note-tools")!.append(d.querySelector(".footer [type=submit]")!);
+  d.querySelectorAll("[data-close]").forEach(
+    (b) => ((b as HTMLElement).hidden = true),
+  );
+  d.querySelector(".note-tools")!.append(
+    d.querySelector(".footer [type=submit]")!,
+  );
   const form = d.querySelector("form")!;
   d.querySelector<HTMLButtonElement>("#note-export-data")!.onclick = exportData;
-  d.addEventListener("cancel", e => { e.preventDefault(); if (!composing) form.requestSubmit(); });
-  d.addEventListener("requestclose", e => { e.preventDefault(); form.requestSubmit(); });
+  d.addEventListener("cancel", (e) => {
+    e.preventDefault();
+    if (!composing) form.requestSubmit();
+  });
+  d.addEventListener("requestclose", (e) => {
+    e.preventDefault();
+    form.requestSubmit();
+  });
   const showPanel = (buttonID: string, panelID: string) => {
     const button = d.querySelector<HTMLButtonElement>(buttonID)!;
     const panel = d.querySelector<HTMLElement>(panelID)!;
-    button.onclick = () => { panel.hidden = !panel.hidden; button.setAttribute("aria-expanded", String(!panel.hidden)); };
+    button.onclick = () => {
+      panel.hidden = !panel.hidden;
+      button.setAttribute("aria-expanded", String(!panel.hidden));
+    };
   };
   showPanel("#note-color", "#note-palette");
   showPanel("#note-more", "#note-more-menu");
-  d.querySelector<HTMLButtonElement>("#add-image")!.onclick = () => d.querySelector<HTMLInputElement>("#note-images")!.click();
+  d.querySelector<HTMLButtonElement>("#add-image")!.onclick = () =>
+    d.querySelector<HTMLInputElement>("#note-images")!.click();
   const touch = () => {
     n.modified = new Date().toISOString();
     if (fresh) {
-      const present = data.notes.some(note => note.id === id);
+      const present = data.notes.some((note) => note.id === id);
       if (noteHasContent(n) && !present) data.notes.unshift(n);
-      if (!noteHasContent(n) && present) data.notes = data.notes.filter(note => note.id !== id);
+      if (!noteHasContent(n) && present)
+        data.notes = data.notes.filter((note) => note.id !== id);
     }
-    data.pinned = data.pinned.filter(x => x !== id);
+    data.pinned = data.pinned.filter((x) => x !== id);
     if (notePinned && (!fresh || noteHasContent(n))) data.pinned.push(id);
     changed();
   };
@@ -109,16 +151,24 @@ function editNote(id: string, fresh?: Note) {
     n.text = (e.target as HTMLTextAreaElement).value;
     touch();
   });
-  d.querySelectorAll<HTMLButtonElement>("[data-color]").forEach(button => button.onclick = () => {
-    d.classList.remove(n.color);
-    n.color = button.dataset.color!;
-    d.classList.add(n.color);
-    d.querySelectorAll("[data-color]").forEach(b => b.setAttribute("aria-pressed", String(b === button)));
-    touch();
-  });
-  d.querySelector<HTMLButtonElement>("#note-pin")!.onclick = e => {
+  d.querySelectorAll<HTMLButtonElement>("[data-color]").forEach(
+    (button) =>
+      (button.onclick = () => {
+        d.classList.remove(n.color);
+        n.color = button.dataset.color!;
+        d.classList.add(n.color);
+        d.querySelectorAll("[data-color]").forEach((b) =>
+          b.setAttribute("aria-pressed", String(b === button)),
+        );
+        touch();
+      }),
+  );
+  d.querySelector<HTMLButtonElement>("#note-pin")!.onclick = (e) => {
     notePinned = !notePinned;
-    (e.currentTarget as HTMLElement).setAttribute("aria-pressed", String(notePinned));
+    (e.currentTarget as HTMLElement).setAttribute(
+      "aria-pressed",
+      String(notePinned),
+    );
     touch();
   };
   const checks = () => {
@@ -182,7 +232,9 @@ function editNote(id: string, fresh?: Note) {
   images();
   d.querySelector<HTMLInputElement>("#note-images")!.onchange = async (e) => {
     const input = e.target as HTMLInputElement;
-    d.querySelector("#note-file-name")!.textContent = [...input.files ?? []].map(f => f.name).join("、");
+    d.querySelector("#note-file-name")!.textContent = [...(input.files ?? [])]
+      .map((f) => f.name)
+      .join("、");
     busy++;
     try {
       for (const f of input.files ?? []) {
@@ -192,7 +244,8 @@ function editNote(id: string, fresh?: Note) {
       images();
     } catch (e) {
       const box = d.querySelector<HTMLElement>(".modal-error")!;
-      box.hidden = false; box.textContent = e instanceof Error ? e.message : String(e);
+      box.hidden = false;
+      box.textContent = e instanceof Error ? e.message : String(e);
     } finally {
       images();
       input.value = "";
@@ -203,7 +256,8 @@ function editNote(id: string, fresh?: Note) {
   d.querySelector<HTMLButtonElement>("#delete-note")!.onclick = async () => {
     if (isBusy() || composing) return;
     if (!confirm("このメモを削除しますか？")) return;
-    const notes = [...data.notes], pins = [...data.pinned];
+    const notes = [...data.notes],
+      pins = [...data.pinned];
     data.notes = data.notes.filter((n) => n.id !== id);
     data.pinned = data.pinned.filter((x) => x !== id);
     changed();
@@ -211,10 +265,12 @@ function editNote(id: string, fresh?: Note) {
     const deleted = await save();
     form.inert = false;
     if (!deleted) {
-      data.notes = notes; data.pinned = pins;
+      data.notes = notes;
+      data.pinned = pins;
       saves.changed();
       const box = d.querySelector<HTMLElement>(".modal-error")!;
-      box.hidden = false; box.textContent = "削除を保存できませんでした。メモを保持しています。";
+      box.hidden = false;
+      box.textContent = "削除を保存できませんでした。メモを保持しています。";
       return;
     }
     d.close();

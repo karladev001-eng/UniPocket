@@ -33,21 +33,18 @@ function harness() {
     },
     match: async (p: string) => (p === "/" ? "old-index" : undefined),
   };
-  runInNewContext(
-    serviceWorker("new-build", ["/", "/assets/app-new.js"]),
-    {
-      self,
-      location: { origin: "https://pocket.test" },
-      URL,
-      crypto,
-      setTimeout,
-      clearTimeout,
-      caches: { open: async () => cache, match: async () => undefined },
-      fetch: async () => {
-        throw Error("offline");
-      },
+  runInNewContext(serviceWorker("new-build", ["/", "/assets/app-new.js"]), {
+    self,
+    location: { origin: "https://pocket.test" },
+    URL,
+    crypto,
+    setTimeout,
+    clearTimeout,
+    caches: { open: async () => cache, match: async () => undefined },
+    fetch: async () => {
+      throw Error("offline");
     },
-  );
+  });
   return {
     messages,
     ports,
@@ -112,7 +109,9 @@ describe("actual service worker update protocol", () => {
   it("also prepares tabs opened while an update is saving", async () => {
     vi.useFakeTimers();
     const h = harness();
-    await h.dispatch("message", { data: { type: "APPLY_UPDATE", protocol: 2 } });
+    await h.dispatch("message", {
+      data: { type: "APPLY_UPDATE", protocol: 2 },
+    });
     const token = h.messages[0].data.token;
     h.addClient("c");
     for (const id of ["a", "b"])
@@ -130,7 +129,11 @@ describe("actual service worker update protocol", () => {
   });
   it.each([
     ["https://pocket.test/cdn-cgi/access/authorized", "GET", "navigate"],
-    ["https://pocket.test/cdn-cgi/access/authorized?code=test-only&state=test-only", "GET", "navigate"],
+    [
+      "https://pocket.test/cdn-cgi/access/authorized?code=test-only&state=test-only",
+      "GET",
+      "navigate",
+    ],
     ["https://pocket.test/cdn-cgi/access/login", "GET", "navigate"],
     ["https://pocket.test/cdn-cgi/access/logout", "GET", "navigate"],
     ["https://pocket.test/cdn-cgi/trace", "GET", "navigate"],
@@ -145,11 +148,14 @@ describe("actual service worker update protocol", () => {
     const h = harness();
     const respondWith = vi.fn();
     await h.dispatch("fetch", { request: { url, method, mode }, respondWith });
-    await Promise.allSettled(respondWith.mock.calls.map(([response]) => response));
+    await Promise.allSettled(
+      respondWith.mock.calls.map(([response]) => response),
+    );
     expect(respondWith).not.toHaveBeenCalled();
   });
   it.each(["/", "/#notes", "/timetable/2026"])(
-    "serves the installed shell offline for app navigation %s", async (path) => {
+    "serves the installed shell offline for app navigation %s",
+    async (path) => {
       const h = harness();
       let result: unknown;
       await h.dispatch("fetch", {
@@ -169,9 +175,14 @@ describe("automatic worker update safety", () => {
   it("requires v2 readiness for automatic updates and refuses mixed old tabs", async () => {
     vi.useFakeTimers();
     const h = harness();
-    await h.dispatch("message", { data: { type: "APPLY_UPDATE", protocol: 2 } });
+    await h.dispatch("message", {
+      data: { type: "APPLY_UPDATE", protocol: 2 },
+    });
     const token = h.messages[0].data.token;
-    await h.dispatch("message", { data: { type: "UPDATE_READY", token }, source: { id: "a" } });
+    await h.dispatch("message", {
+      data: { type: "UPDATE_READY", token },
+      source: { id: "a" },
+    });
     expect(h.skips).toBe(0);
     expect(h.ports.at(-1).reason).toBe("legacy");
   });
@@ -181,20 +192,36 @@ describe("automatic worker update safety", () => {
     await h.dispatch("message", { data: { type: "APPLY_UPDATE" } });
     const token = h.messages[0].data.token;
     for (const id of ["a", "b"])
-      await h.dispatch("message", { data: { type: "UPDATE_READY", token }, source: { id } });
+      await h.dispatch("message", {
+        data: { type: "UPDATE_READY", token },
+        source: { id },
+      });
     expect(h.skips).toBe(1);
   });
   it("does not activate on processing refusal, timeout, stale or foreign readiness", async () => {
     vi.useFakeTimers();
     const h = harness();
-    await h.dispatch("message", { data: { type: "APPLY_UPDATE", protocol: 2 } });
+    await h.dispatch("message", {
+      data: { type: "APPLY_UPDATE", protocol: 2 },
+    });
     const token = h.messages[0].data.token;
-    await h.dispatch("message", { data: { type: "UPDATE_READY", token, protocol: 2 }, source: { id: "outsider" } });
-    await h.dispatch("message", { data: { type: "UPDATE_REFUSED", token, reason: "busy" }, source: { id: "b" } });
+    await h.dispatch("message", {
+      data: { type: "UPDATE_READY", token, protocol: 2 },
+      source: { id: "outsider" },
+    });
+    await h.dispatch("message", {
+      data: { type: "UPDATE_REFUSED", token, reason: "busy" },
+      source: { id: "b" },
+    });
     expect(h.ports.at(-1).reason).toBe("busy");
-    await h.dispatch("message", { data: { type: "APPLY_UPDATE", protocol: 2 } });
+    await h.dispatch("message", {
+      data: { type: "APPLY_UPDATE", protocol: 2 },
+    });
     for (const id of ["a", "b"])
-      await h.dispatch("message", { data: { type: "UPDATE_READY", token, protocol: 2 }, source: { id } });
+      await h.dispatch("message", {
+        data: { type: "UPDATE_READY", token, protocol: 2 },
+        source: { id },
+      });
     await vi.advanceTimersByTimeAsync(15000);
     expect(h.skips).toBe(0);
     expect(h.ports.at(-1).reason).toBe("failed");
@@ -202,17 +229,26 @@ describe("automatic worker update safety", () => {
   it("keeps an activation lock for duplicate apply requests", async () => {
     vi.useFakeTimers();
     const h = harness();
-    await h.dispatch("message", { data: { type: "APPLY_UPDATE", protocol: 2 } });
+    await h.dispatch("message", {
+      data: { type: "APPLY_UPDATE", protocol: 2 },
+    });
     const token = h.messages[0].data.token;
     for (const id of ["a", "b"])
-      await h.dispatch("message", { data: { type: "UPDATE_READY", token, protocol: 2 }, source: { id } });
-    await h.dispatch("message", { data: { type: "APPLY_UPDATE", protocol: 2 } });
+      await h.dispatch("message", {
+        data: { type: "UPDATE_READY", token, protocol: 2 },
+        source: { id },
+      });
+    await h.dispatch("message", {
+      data: { type: "APPLY_UPDATE", protocol: 2 },
+    });
     expect(h.skips).toBe(1);
     expect(h.ports.at(-1).reason).toBe("pending");
   });
   it("propagates editing completion to the other tabs without an automatic retry loop", async () => {
     const h = harness();
-    await h.dispatch("message", { data: { type: "UPDATE_ACTIVITY", protocol: 2, recovered: true } });
+    await h.dispatch("message", {
+      data: { type: "UPDATE_ACTIVITY", protocol: 2, recovered: true },
+    });
     expect(h.messages).toEqual([
       { id: "a", data: { type: "RECHECK_UPDATE", recovered: true } },
       { id: "b", data: { type: "RECHECK_UPDATE", recovered: true } },
@@ -224,15 +260,28 @@ describe("automatic worker update safety", () => {
 import { installUpdates } from "../src/update";
 function clientHarness(waitingAtStart = true) {
   vi.useFakeTimers();
-  const sw = new EventTarget() as EventTarget & { controller: object | null; register: any };
+  const sw = new EventTarget() as EventTarget & {
+    controller: object | null;
+    register: any;
+  };
   sw.controller = {};
-  const registration = new EventTarget() as EventTarget & { waiting: any; installing: any; update: any };
-  const worker = new EventTarget() as EventTarget & { postMessage: any; state: string };
+  const registration = new EventTarget() as EventTarget & {
+    waiting: any;
+    installing: any;
+    update: any;
+  };
+  const worker = new EventTarget() as EventTarget & {
+    postMessage: any;
+    state: string;
+  };
   worker.state = "installed";
-  const messages: any[] = [], replies: any[] = [], requests: any[] = [];
+  const messages: any[] = [],
+    replies: any[] = [],
+    requests: any[] = [];
   worker.postMessage = vi.fn((data, ports) => {
     messages.push(data);
-    if (data.type === "APPLY_UPDATE") requests.push({ data, reply: ports[0].postMessage });
+    if (data.type === "APPLY_UPDATE")
+      requests.push({ data, reply: ports[0].postMessage });
     else replies.push(data);
   });
   registration.waiting = waitingAtStart ? worker : null;
@@ -247,24 +296,44 @@ function clientHarness(waitingAtStart = true) {
   vi.stubGlobal("document", doc);
   vi.stubGlobal("window", win);
   vi.stubGlobal("location", { reload });
-  vi.stubGlobal("MessageChannel", class {
-    port1 = { onmessage: null as any, close: vi.fn() };
-    port2 = { postMessage: (data: any) => this.port1.onmessage?.({ data }) };
-  });
+  vi.stubGlobal(
+    "MessageChannel",
+    class {
+      port1 = { onmessage: null as any, close: vi.fn() };
+      port2 = { postMessage: (data: any) => this.port1.onmessage?.({ data }) };
+    },
+  );
   let idle = true;
   const hooks = {
     isIdle: () => idle,
     prepare: vi.fn(async () => {}),
-    freeze: vi.fn(), notice: vi.fn(), error: vi.fn(),
+    freeze: vi.fn(),
+    notice: vi.fn(),
+    error: vi.fn(),
   };
   const client = installUpdates(hooks);
   return {
-    client, hooks, sw, registration, worker, doc, win, reload, messages, replies, requests,
-    idle: (value: boolean) => { idle = value; },
+    client,
+    hooks,
+    sw,
+    registration,
+    worker,
+    doc,
+    win,
+    reload,
+    messages,
+    replies,
+    requests,
+    idle: (value: boolean) => {
+      idle = value;
+    },
     settle: () => vi.advanceTimersByTimeAsync(150),
     receive: async (data: any) => {
-      sw.dispatchEvent(Object.assign(new Event("message"), { data, source: worker }));
-      await Promise.resolve(); await Promise.resolve();
+      sw.dispatchEvent(
+        Object.assign(new Event("message"), { data, source: worker }),
+      );
+      await Promise.resolve();
+      await Promise.resolve();
     },
     installed: () => {
       registration.installing = worker;
@@ -277,14 +346,18 @@ function clientHarness(waitingAtStart = true) {
     },
   };
 }
-afterEach(() => { vi.clearAllTimers(); vi.unstubAllGlobals(); });
+afterEach(() => {
+  vi.clearAllTimers();
+  vi.unstubAllGlobals();
+});
 describe("automatic client lifecycle", () => {
   it("automatically applies an already waiting worker at startup and serializes duplicate requests", async () => {
     const h = clientHarness();
     await h.settle();
     expect(h.requests).toHaveLength(1);
     expect(h.requests[0].data.protocol).toBe(2);
-    const a = h.client.apply(), b = h.client.apply();
+    const a = h.client.apply(),
+      b = h.client.apply();
     expect(a).toBe(b);
     expect(h.requests).toHaveLength(1);
     h.requests[0].reply({ ok: true });
@@ -310,7 +383,10 @@ describe("automatic client lifecycle", () => {
     h.idle(false);
     await h.settle();
     await h.receive({ type: "PREPARE_UPDATE", protocol: 2, token: "t" });
-    expect(h.replies.at(-1)).toMatchObject({ type: "UPDATE_REFUSED", reason: "busy" });
+    expect(h.replies.at(-1)).toMatchObject({
+      type: "UPDATE_REFUSED",
+      reason: "busy",
+    });
     expect(h.hooks.prepare).not.toHaveBeenCalled();
     h.sw.dispatchEvent(new Event("controllerchange"));
     expect(h.reload).not.toHaveBeenCalled();
@@ -325,9 +401,17 @@ describe("automatic client lifecycle", () => {
     await h.settle();
     h.hooks.prepare.mockRejectedValueOnce(Error("save conflict"));
     await h.receive({ type: "PREPARE_UPDATE", protocol: 2, token: "bad" });
-    expect(h.replies.at(-1)).toMatchObject({ type: "UPDATE_REFUSED", reason: "failed" });
-    h.requests[0].reply({ ok: false, reason: "failed", error: "save conflict" });
-    await Promise.resolve(); await Promise.resolve();
+    expect(h.replies.at(-1)).toMatchObject({
+      type: "UPDATE_REFUSED",
+      reason: "failed",
+    });
+    h.requests[0].reply({
+      ok: false,
+      reason: "failed",
+      error: "save conflict",
+    });
+    await Promise.resolve();
+    await Promise.resolve();
     h.client.activity();
     await h.settle();
     expect(h.requests).toHaveLength(1);
@@ -335,19 +419,37 @@ describe("automatic client lifecycle", () => {
     h.client.activity(true);
     await h.settle();
     expect(h.requests).toHaveLength(2);
-    expect(h.messages).toContainEqual({ type: "UPDATE_ACTIVITY", protocol: 2, recovered: true });
+    expect(h.messages).toContainEqual({
+      type: "UPDATE_ACTIVITY",
+      protocol: 2,
+      recovered: true,
+    });
     h.requests[1].reply({ ok: true });
   });
   it("never sends late readiness after the worker aborted during a save", async () => {
     const h = clientHarness(false);
     await h.settle();
     let finish!: () => void;
-    h.hooks.prepare.mockImplementationOnce(() => new Promise<void>(resolve => { finish = resolve; }));
-    await h.receive({ type: "PREPARE_UPDATE", protocol: 2, token: "cancelled" });
-    await h.receive({ type: "ABORT_UPDATE", token: "cancelled", reason: "busy" });
+    h.hooks.prepare.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          finish = resolve;
+        }),
+    );
+    await h.receive({
+      type: "PREPARE_UPDATE",
+      protocol: 2,
+      token: "cancelled",
+    });
+    await h.receive({
+      type: "ABORT_UPDATE",
+      token: "cancelled",
+      reason: "busy",
+    });
     finish();
-    await Promise.resolve(); await Promise.resolve();
-    expect(h.replies.some(m => m.type === "UPDATE_READY")).toBe(false);
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(h.replies.some((m) => m.type === "UPDATE_READY")).toBe(false);
     expect(h.hooks.freeze).toHaveBeenLastCalledWith(false);
   });
   it("rechecks on foreground/connectivity recovery while deduplicating registration", async () => {
@@ -389,7 +491,8 @@ describe("automatic client lifecycle", () => {
     await h.settle();
     h.hooks.prepare.mockRejectedValueOnce(Error("save failed"));
     h.sw.dispatchEvent(new Event("controllerchange"));
-    await Promise.resolve(); await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
     expect(h.reload).not.toHaveBeenCalled();
     expect(h.hooks.freeze).toHaveBeenLastCalledWith(false);
     h.client.activity(true);
@@ -400,13 +503,15 @@ describe("automatic client lifecycle", () => {
     const h = clientHarness();
     await h.settle();
     h.requests[0].reply({ ok: false, reason: "busy" });
-    await Promise.resolve(); await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
     await h.receive({ type: "RECHECK_UPDATE" });
     await h.settle();
     expect(h.requests).toHaveLength(2);
     // Receiving the peer notification must not rebroadcast it forever.
-    expect(h.messages.filter(m => m.type === "UPDATE_ACTIVITY")).toHaveLength(0);
+    expect(h.messages.filter((m) => m.type === "UPDATE_ACTIVITY")).toHaveLength(
+      0,
+    );
     h.requests[1].reply({ ok: true });
   });
-
 });

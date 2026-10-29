@@ -29,7 +29,11 @@ export class LocalStore {
         r.onsuccess = () => resolve(r.result);
         r.onerror = () => reject(r.error);
       });
-      if (!row) { const data = emptyData(); cacheAppearance(data); return data; }
+      if (!row) {
+        const data = emptyData();
+        cacheAppearance(data);
+        return data;
+      }
       validateData(row.data);
       this.revision = row.revision;
       cacheAppearance(row.data);

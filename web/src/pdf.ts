@@ -11,13 +11,33 @@ GlobalWorkerOptions.workerSrc = worker;
 import { PageText, parsePages } from "./pdf-parser";
 import type { TextContent } from "pdfjs-dist/types/src/display/api";
 
-type PDFStage = "R-FILE" | "A-FILE" | "R-OPEN" | "A-OPEN" | "R-TEXT" | "A-TEXT" | "LAYOUT" | "PARSE" | "CLOSE";
+type PDFStage =
+  | "R-FILE"
+  | "A-FILE"
+  | "R-OPEN"
+  | "A-OPEN"
+  | "R-TEXT"
+  | "A-TEXT"
+  | "LAYOUT"
+  | "PARSE"
+  | "CLOSE";
 class PDFStageError extends Error {
-  constructor(readonly stage: PDFStage, cause: unknown) {
-    super(cause instanceof Error ? cause.message : "破損・パスワードを確認してください。", { cause });
+  constructor(
+    readonly stage: PDFStage,
+    cause: unknown,
+  ) {
+    super(
+      cause instanceof Error
+        ? cause.message
+        : "破損・パスワードを確認してください。",
+      { cause },
+    );
   }
 }
-async function atStage<T>(stage: PDFStage, run: () => T | Promise<T>): Promise<T> {
+async function atStage<T>(
+  stage: PDFStage,
+  run: () => T | Promise<T>,
+): Promise<T> {
   try {
     return await run();
   } catch (error) {
@@ -25,10 +45,15 @@ async function atStage<T>(stage: PDFStage, run: () => T | Promise<T>): Promise<T
   }
 }
 function importError(error: unknown): Error {
-  const message = error instanceof Error ? error.message : "破損・パスワードを確認してください。";
+  const message =
+    error instanceof Error
+      ? error.message
+      : "破損・パスワードを確認してください。";
   const code = error instanceof PDFStageError ? ` [PDF:${error.stage}]` : "";
   // Local diagnostic only: no file names, extracted text, stack or telemetry.
-  return Error(`PDFの取込を中止しました。${message}${code} 既存の予定は変更していません。`);
+  return Error(
+    `PDFの取込を中止しました。${message}${code} 既存の予定は変更していません。`,
+  );
 }
 async function textItems(p: PDFPageProxy): Promise<TextContent["items"]> {
   // PDF.js handles pure XFA separately, without the text-content stream.
@@ -83,7 +108,9 @@ export async function previewPDF(
     at: ReturnType<typeof getDocument> | undefined;
   let failed = false;
   try {
-    const registrationBytes = await atStage("R-FILE", () => registration.arrayBuffer());
+    const registrationBytes = await atStage("R-FILE", () =>
+      registration.arrayBuffer(),
+    );
     const annualBytes = await atStage("A-FILE", () => annual.arrayBuffer());
     const [r, a] = await Promise.all([
       atStage("R-OPEN", () => {
@@ -111,9 +138,15 @@ export async function previewPDF(
       if (r.numPages !== 1 || a.numPages < 1)
         throw Error("登録票は1ページの原本を選択してください。");
     });
-    const registrationPage = await atStage("R-TEXT", async () => page(await r.getPage(1)));
-    const annualPage = await atStage("A-TEXT", async () => page(await a.getPage(1)));
-    return await atStage("PARSE", () => parsePages(registrationPage, annualPage));
+    const registrationPage = await atStage("R-TEXT", async () =>
+      page(await r.getPage(1)),
+    );
+    const annualPage = await atStage("A-TEXT", async () =>
+      page(await a.getPage(1)),
+    );
+    return await atStage("PARSE", () =>
+      parsePages(registrationPage, annualPage),
+    );
   } catch (e) {
     failed = true;
     throw importError(e);
@@ -121,9 +154,9 @@ export async function previewPDF(
     // Release both tasks even if one fails. A cleanup error must not conceal
     // the original failing phase, which is needed to diagnose device errors.
     const cleanup = await Promise.allSettled(
-      [rt, at].map(task => Promise.resolve().then(() => task?.destroy())),
+      [rt, at].map((task) => Promise.resolve().then(() => task?.destroy())),
     );
-    const rejected = cleanup.find(result => result.status === "rejected");
+    const rejected = cleanup.find((result) => result.status === "rejected");
     if (!failed && rejected?.status === "rejected")
       throw importError(new PDFStageError("CLOSE", rejected.reason));
   }

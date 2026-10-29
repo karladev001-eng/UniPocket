@@ -2,9 +2,18 @@
 import { dayKey } from "../domain";
 import { btn, esc } from "../ui/html";
 import { dialog } from "../ui/modal";
-import { data, errorBox, frozen, root, saves, status, updates } from "./context";
+import {
+  data,
+  errorBox,
+  frozen,
+  root,
+  saves,
+  status,
+  updates,
+} from "./context";
 let saveTimer: ReturnType<typeof setTimeout> | undefined;
-export let memoSaveStatus: ((state: string, reason?: unknown) => void) | undefined;
+export let memoSaveStatus:
+  ((state: string, reason?: unknown) => void) | undefined;
 export let lastSaveError: unknown;
 export function setMemoSaveStatus(next: typeof memoSaveStatus) {
   memoSaveStatus = next;

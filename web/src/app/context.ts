@@ -2,7 +2,10 @@
 // state, the data-action registry and render/navigate. Screens import from here
 // rather than from main.ts, which keeps the module graph acyclic.
 import { ViewEpoch } from "../article-request";
-import { type CalendarMode, initialCalendarMode } from "../calendar-presentation";
+import {
+  type CalendarMode,
+  initialCalendarMode,
+} from "../calendar-presentation";
 import { type Data, emptyData, dayKey, weekDay } from "../domain";
 import { LocalStore, SaveQueue } from "../storage";
 import type { installUpdates } from "../update";
@@ -34,7 +37,11 @@ export function setUpdates(value: typeof updates) {
 }
 const today = dayKey();
 // Date and calendar mode shared by the home, timetable and calendar screens.
-export const view: { selectedDay: string; calendarMode: CalendarMode; weekend: boolean } = {
+export const view: {
+  selectedDay: string;
+  calendarMode: CalendarMode;
+  weekend: boolean;
+} = {
   selectedDay: today,
   calendarMode: initialCalendarMode(window.innerWidth),
   weekend: weekDay(today) > 5,
@@ -43,7 +50,8 @@ export const store = new LocalStore();
 export const saves = new SaveQueue(store, () => data);
 // Handlers for [data-action] clicks; render() clears them and each screen re-registers its own.
 export const actions = new Map<string, () => unknown>();
-export const action = (name: string, fn: () => unknown) => actions.set(name, fn);
+export const action = (name: string, fn: () => unknown) =>
+  actions.set(name, fn);
 export const pageEpoch = new ViewEpoch();
 // Modules with async work (PDF parsing, image decoding, API writes) register their
 // in-flight counter so updates and page unload wait until the app is idle.

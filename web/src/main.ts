@@ -35,8 +35,20 @@ import { renderHome } from "./screens/home";
 import { renderTimetable } from "./screens/timetable";
 import { renderCalendar } from "./screens/calendar";
 import { renderNotes } from "./screens/notes";
-import { community, loadArticles, renderArticles, renderArticleDetail, setUser, user } from "./screens/articles";
-import { noticeUpdate, renderMore, reportUpdateFailure, theme } from "./screens/more";
+import {
+  community,
+  loadArticles,
+  renderArticles,
+  renderArticleDetail,
+  setUser,
+  user,
+} from "./screens/articles";
+import {
+  noticeUpdate,
+  renderMore,
+  reportUpdateFailure,
+  theme,
+} from "./screens/more";
 import { editEvent } from "./screens/events";
 let loadFailed = false;
 async function flushOrThrow() {
@@ -58,7 +70,9 @@ async function flushOrThrow() {
     throw Error("保存中に入力が変わりました。もう一度保存してください。");
 }
 function renderRoute() {
-  const openDetails = [...page.querySelectorAll<HTMLDetailsElement>("details[id][open]")].map(d => d.id);
+  const openDetails = [
+    ...page.querySelectorAll<HTMLDetailsElement>("details[id][open]"),
+  ].map((d) => d.id);
   const previousRoute = root.dataset.route;
   dismissPicker();
   pageEpoch.advance();
@@ -73,14 +87,12 @@ function renderRoute() {
   });
   const r = route();
   root.dataset.route = r;
-  document
-    .querySelectorAll(".nav a")
-    .forEach((a) => {
-      const active = a.getAttribute("href") === "#" + r;
-      a.classList.toggle("active", active);
-      if (active) a.setAttribute("aria-current", "page");
-      else a.removeAttribute("aria-current");
-    });
+  document.querySelectorAll(".nav a").forEach((a) => {
+    const active = a.getAttribute("href") === "#" + r;
+    a.classList.toggle("active", active);
+    if (active) a.setAttribute("aria-current", "page");
+    else a.removeAttribute("aria-current");
+  });
   page.innerHTML = "";
   if (r === "timetable") renderTimetable();
   else if (r === "calendar") renderCalendar();
@@ -88,16 +100,20 @@ function renderRoute() {
   else if (r === "articles") renderArticles();
   else if (r === "announcements") {
     const id = location.hash.split("/")[1];
-    if (id) void community.renderAnnouncement(decodeURIComponent(id)); else void community.renderFeed();
-  }
-  else if (r === "surveys") void community.renderSurvey(decodeURIComponent(location.hash.split("/")[1] ?? ""));
+    if (id) void community.renderAnnouncement(decodeURIComponent(id));
+    else void community.renderFeed();
+  } else if (r === "surveys")
+    void community.renderSurvey(
+      decodeURIComponent(location.hash.split("/")[1] ?? ""),
+    );
   else if (r === "my-articles") void community.renderOwnArticles();
   else if (r === "more") renderMore();
   else renderHome();
-  if (previousRoute === r) for (const id of openDetails) {
-    const details = page.querySelector<HTMLDetailsElement>(`#${id}`);
-    if (details) details.open = true;
-  }
+  if (previousRoute === r)
+    for (const id of openDetails) {
+      const details = page.querySelector<HTMLDetailsElement>(`#${id}`);
+      if (details) details.open = true;
+    }
   theme();
   enhanceControls(page);
 }
@@ -136,9 +152,17 @@ document.addEventListener("compositionend", () => {
 document.addEventListener("focusout", () => updates?.activity());
 let renderedHash = location.hash;
 window.addEventListener("hashchange", () => {
-  if (!community.leave()) { history.replaceState(null, "", renderedHash || "#home"); return; }
+  if (!community.leave()) {
+    history.replaceState(null, "", renderedHash || "#home");
+    return;
+  }
   if (dialog) {
-    if (!dialog.dispatchEvent(new Event("requestclose", { cancelable: true }))) { history.replaceState(null, "", renderedHash || "#home"); return; }
+    if (
+      !dialog.dispatchEvent(new Event("requestclose", { cancelable: true }))
+    ) {
+      history.replaceState(null, "", renderedHash || "#home");
+      return;
+    }
     dialog.close();
   }
   renderedHash = location.hash;
@@ -150,16 +174,22 @@ window.addEventListener("resize", () => {
   calendarResizeTimer = setTimeout(() => {
     if (route() !== "calendar") return;
     const previous = page.querySelector<HTMLElement>(".timeline-scroll");
-    const top = previous?.scrollTop, left = previous?.scrollLeft;
+    const top = previous?.scrollTop,
+      left = previous?.scrollLeft;
     render();
     const current = page.querySelector<HTMLElement>(".timeline-scroll");
-    if (current && top !== undefined) { current.scrollTop = top; current.scrollLeft = left ?? 0; }
+    if (current && top !== undefined) {
+      current.scrollTop = top;
+      current.scrollLeft = left ?? 0;
+    }
   }, 100);
 });
 setInterval(() => {
   refreshCurrentTime(page, Date.now());
-  if (route() === "home" && !dialog?.open) { render(); void community.refresh(); }
-  else if (route() === "announcements" && !dialog?.open) render();
+  if (route() === "home" && !dialog?.open) {
+    render();
+    void community.refresh();
+  } else if (route() === "announcements" && !dialog?.open) render();
 }, 60000);
 window.addEventListener("beforeunload", (e) => {
   if (saves.dirty || isBusy() || submitting || community.dirty) {
@@ -172,8 +202,14 @@ document.addEventListener("visibilitychange", () => {
     if (route() !== "announcements") void community.refresh();
     if (route() === "articles") {
       const id = location.hash.split("/")[1];
-      if (id) void renderArticleDetail(id); else void loadArticles();
-    } else if (!dialog?.open && !community.dirty && ["announcements", "my-articles"].includes(route())) render();
+      if (id) void renderArticleDetail(id);
+      else void loadArticles();
+    } else if (
+      !dialog?.open &&
+      !community.dirty &&
+      ["announcements", "my-articles"].includes(route())
+    )
+      render();
   }
 });
 const connection = () => {
@@ -181,7 +217,11 @@ const connection = () => {
     ? "オンライン"
     : "オフライン · 個人データは利用可能";
 };
-window.addEventListener("online", () => { connection(); if (route() === "announcements" && !dialog?.open) render(); else void community.refresh(); });
+window.addEventListener("online", () => {
+  connection();
+  if (route() === "announcements" && !dialog?.open) render();
+  else void community.refresh();
+});
 window.addEventListener("offline", connection);
 connection();
 async function boot() {
@@ -193,27 +233,36 @@ async function boot() {
     error(e);
     statusText("保存データを保護中 · 再読み込みで再試行");
   }
-  setUpdates(installUpdates({
-    isIdle: () => !isBusy() && !submitting && !composing && !community.dirty && !dialog?.open &&
-      !document.querySelector("dialog[open]") &&
-      !document.activeElement?.matches("input, textarea, select, [contenteditable]:not([contenteditable=false])"),
-    prepare: async () => {
-      if (dialog?.open)
-        throw Error(
-          "開いている編集画面を保存するか閉じてから更新してください。",
-        );
-      await flushOrThrow();
-    },
-    freeze: (v) => {
-      setFrozen(v);
-      root.inert = v;
-      if (dialog) dialog.inert = v;
-    },
-    notice: (message, ready) => {
-      noticeUpdate(message, ready);
-    },
-    error: reportUpdateFailure,
-  }));
+  setUpdates(
+    installUpdates({
+      isIdle: () =>
+        !isBusy() &&
+        !submitting &&
+        !composing &&
+        !community.dirty &&
+        !dialog?.open &&
+        !document.querySelector("dialog[open]") &&
+        !document.activeElement?.matches(
+          "input, textarea, select, [contenteditable]:not([contenteditable=false])",
+        ),
+      prepare: async () => {
+        if (dialog?.open)
+          throw Error(
+            "開いている編集画面を保存するか閉じてから更新してください。",
+          );
+        await flushOrThrow();
+      },
+      freeze: (v) => {
+        setFrozen(v);
+        root.inert = v;
+        if (dialog) dialog.inert = v;
+      },
+      notice: (message, ready) => {
+        noticeUpdate(message, ready);
+      },
+      error: reportUpdateFailure,
+    }),
+  );
   render();
   if (route() !== "announcements") void community.refresh();
   if (loadFailed) {
@@ -223,7 +272,10 @@ async function boot() {
   try {
     setUser((await api<{ user: User | null }>("/session")).user);
     const label = page.querySelector("#profile-name");
-    if (label) label.textContent = namedAuthor(user?.displayName) ? user!.displayName : "未設定";
+    if (label)
+      label.textContent = namedAuthor(user?.displayName)
+        ? user!.displayName
+        : "未設定";
   } catch {
     /* Shared API availability never blocks personal features. */
   }
