@@ -37,7 +37,7 @@
 | 管理画面 | TypeScript, Vite, 別Worker + Cloudflare Access（JWT検証） |
 | テスト・静的検査 | Vitest, Node test runner, Miniflare（実workerd/D1）, Wrangler結合テスト, ESLint（typescript-eslint）, Prettier, GitHub Actions |
 | iOSアプリ | Swift, SwiftUI, PDFKit, EventKit, WebKit, iOS 17+ |
-| iOS共通ロジック | ローカルSwift Package `CampusCore`（XCTest） |
+| iOS共通ロジック | ローカルSwift Package `CampusCore`（Swift Testing） |
 
 ## アーキテクチャ
 

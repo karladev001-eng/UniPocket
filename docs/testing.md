@@ -21,12 +21,12 @@
 
 ### CI（GitHub Actions）
 
-`.github/workflows/ci.yml` は push と pull request で動きます。`web` ジョブ（Ubuntu）は `npm ci`、`verify:tls`、`format:check`、`lint`、`typecheck`、`typecheck:admin`、`test:all`、`test:integration` を順に実行し、`swift` ジョブ（macOS）は `scripts/test-core.sh`（CampusCoreの `swift test`）を実行します。`audit.yml` は毎週月曜と手動で `npm audit --audit-level=high` を実行します。Workflowは `actionlint` で検査していますが、GitHub上の実行結果はpush後に確認する必要があります。
+`.github/workflows/ci.yml` は main への push とすべての pull request で動きます。`web` ジョブ（Ubuntu）は `npm ci`、`format:check`、`lint`、`verify:tls`、`typecheck`、`typecheck:admin`、`test:all`、`test:integration` を順に実行し、`swift` ジョブ（macOS）は `scripts/test-core.sh`（CampusCoreの `swift test`）を実行します。`audit.yml` は毎週月曜と手動で `npm audit --audit-level=low` を実行し、勧告が1件でもあれば失敗します。Workflowは `actionlint` で検査していますが、GitHub上の実行結果はpush後に確認する必要があります。
 
 ### 整形とlint
 
 - Prettierの一括整形コミットは `.git-blame-ignore-revs` に登録済みです。`git config blame.ignoreRevsFile .git-blame-ignore-revs` を設定すると blame から除外できます。
-- `src/style.css` と `admin/src/style.css` は、テストが文字列として読み取る（`client-appearance` / `client-modal`）ためPrettierの対象外です。
+- `src/style.css` はテストが文字列として読み取る（`client-appearance` / `client-modal`）ため、CSSはまとめてPrettierの対象外にしています。
 - `no-explicit-any` はテストだけ無効です（偽のDOM・Workers束縛・D1を緩く型付けしているため）。意図的な制御文字の正規表現（入力検証・CSV）と、`finally` 内の限定的な `throw`（`src/pdf.ts`）は、理由付きの `eslint-disable-next-line` で明示しています。
 - 未使用変数は `_` 始まりで意図的な未使用を示します。
 

@@ -20,7 +20,7 @@ npm run verify:tls
 
 ## 固定している開発ツール
 
-Wrangler 4.155.0、Miniflare 5.20261023.2-beta（`web/package.json` で固定）、workerd 1.20261023.1、undici 7.30.1を `web/package-lock.json` が解決します。Wrangler/Miniflare/lockが変わると `verify:tls` の記録は無効になり、再検証が必要です。`npm audit`（開発依存を含む）は0件を維持します。
+Wrangler 4.155.0、Miniflare 5.20261023.2-beta（`web/package.json` で完全一致指定、Wranglerは `^4.155.0` で正確な版はlockが固定）、workerd 1.20261023.1、undici 7.30.1を `web/package-lock.json` が解決します。Wrangler/Miniflare/lockが変わると `verify:tls` の記録は無効になり、再検証が必要です。`npm audit`（開発依存を含む）は0件を維持し、週次の `audit.yml` はlow以上の勧告が1件でもあれば失敗します。
 
 ## 整形・lint・CI
 

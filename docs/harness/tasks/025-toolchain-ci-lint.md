@@ -1,6 +1,6 @@
 # タスク: 025 — 依存の脆弱性修正・CI・整形とlint
 
-- 状態: ready
+- 状態: done
 - 仕様版: 1
 - コード基点: 86e32da（ブランチ `refactor/interview-ready`）
 - 担当範囲: web/package.json・package-lock.json、.github/workflows/、web の整形・lint設定、web/src・server・admin・tests・scripts の整形のみ、関連文書
@@ -42,4 +42,8 @@
 
 ## 進捗・完了
 
-（未着手）
+- 実装（sonnet/high）7b5dfa7〜9d8f3c4: wrangler 4.155.0・miniflare 5.20261023.2-beta（undici 7.30.1、overrides不要）、ci.yml・audit.yml、Prettier・ESLint、整形コミット 829e35b（.git-blame-ignore-revs 登録）、lint修正 ba580bf。CSS はテストが文字列で読むため整形対象外。no-explicit-any は tests/** のみ無効、理由付き eslint-disable 4か所。
+- レビュー（2者、ced619c→9d8f3c4）: harness:reviewer（opus/high）PASS（全ゲート再実行、esbuild正規化で整形の等価性確認、Ubuntu CA新旧2版で verify:tls 成功）。Codex PASS（静的）。
+- レビュー提案の反映: CI の push を main に限定、format:check・lint を verify:tls より前へ、actions/checkout・setup-node を v7 へ、audit を --audit-level=low へ、文書の固定版・CSS・Swift Testing の記述修正。actionlint 成功。
+- 統合後の本体checkoutで npm ci・verify:tls・format:check・lint・typecheck・typecheck:admin・test:all・test:integration 全通過、npm audit 0件。
+- 未確認: GitHub 上での実行（Linux の workerd、macOS の swift）。
