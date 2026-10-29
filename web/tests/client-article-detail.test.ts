@@ -8,7 +8,7 @@ import { adminBadge } from '../src/author-badge';
 
 // Exercise the product handlers, including their async publication gate, instead
 // of reimplementing a second detail renderer in the test.
-const source = readFileSync(new URL('../src/main.ts', import.meta.url), 'utf8');
+const source = readFileSync(new URL('../src/screens/articles.ts', import.meta.url), 'utf8');
 const detailSource = source.slice(source.indexOf('let detailRequest ='), source.indexOf('const anonymousNotice ='));
 const statsSource = source.slice(source.indexOf('function articleStats('), source.indexOf('function articleCard('));
 const article = (): Article => ({ id: 'fixture', revision: 1, authorId: 'author', authorName: '運営ユーザー', authorKind: 'admin', title: '☆記事の公開方法☆', summary: '投稿者の紹介文を残す', category: '運営', courseId: '', publicUrl: 'https://demo.notion.site/page', embedUrl: 'https://demo.notion.site/ebd/page', createdAt: '', updatedAt: '', viewCount: 4, bookmarkCount: 2, bookmarked: false, canEdit: false });
