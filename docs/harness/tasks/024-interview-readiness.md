@@ -1,6 +1,6 @@
 # タスク: 024 — 面接で見せられるコードとドキュメントへの整理
 
-- 状態: ready
+- 状態: done
 - 仕様版: 1
 - コード基点: 18afcac（ブランチ `refactor/interview-ready`）
 - 担当範囲: README.md、docs/、web/src、web/admin/src、web/server、CampusPocket・CampusCore（軽微のみ）
@@ -62,3 +62,11 @@ Node 26.12.1。テストは `web/` で実行。worktreeでは `npm ci` が必要
 ## 進捗・完了
 
 基点で typecheck・test:all・test:integration が全通過。
+
+- 024a（opus/high）7df4816: web/src/main.ts 1722→231行、app/・ui/・screens/ へ分割。最大は screens/articles.ts 401行。
+- 024b（sonnet/high）1c9cbe8・27cf834: worker.ts 399→63行、admin main.ts 623→21行。server/admin.ts は自然な境界がなく据え置き。
+- 024d（sonnet/medium）27a8ec1: CampusCore主要型に `///`、未使用 `import EventKit` 削除。PersonalViews.swift 分割はリスク対効果から見送り。
+- 024c（opus/medium）488f2ef・d68cc17・be551f9: README再構成、docs/{README,pwa,ios,testing,toolchain}.md、docs/harness/README.md 索引、旧版38件削除（64MB→34MB）。
+- 統合（sonnet/medium）dceca42: 競合なし。typecheck・typecheck:admin・test:all（toolchain12/client150/admin44/server11/runtime14）・test:integration 7/7・build・build:admin・Core 36テスト・リンク0件切れ。
+- レビュー（2者、base 052ba3f→head dceca42）: harness:reviewer（opus/high）PASS（全ゲート再実行、14状態DOM一致）。Codex NEEDS_WORK（README: build手順欠落・メモ保存の記述）→ 修正済み。reviewer提案（verify:tls注記・状態更新）も反映。
+- 未確認: admin画面のheadless DOM比較、データあり状態のDOM比較、iOS Simulator起動。013→017の既存リンク切れは013コミットで解消。

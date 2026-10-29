@@ -39,7 +39,7 @@
 | 021 | [tasks/021-admin-author.md](tasks/021-admin-author.md) | 運営名義の記事と管理者バッジ | done |
 | 022 | [tasks/022-article-header-color-mode.md](tasks/022-article-header-color-mode.md) | 記事の本文優先表示とライト/ダーク切替 | done |
 | 023 | [tasks/023-tls-toolchain.md](tasks/023-tls-toolchain.md) | 開発ツールのTLS信頼とNode最低版の強制 | done |
-| 024 | [tasks/024-interview-readiness.md](tasks/024-interview-readiness.md) | コードとドキュメントの整理（本整理） | 進行中 |
+| 024 | [tasks/024-interview-readiness.md](tasks/024-interview-readiness.md) | コードとドキュメントの整理（本整理） | 完了 |
 
 レビュー・検証の別紙: [001-review.md](001-review.md)、[001-v4-review.md](001-v4-review.md)、[010-review.md](010-review.md)、[010-validation.md](010-validation.md)、[010-performance-work.md](010-performance-work.md)、[010-appearance-work.md](010-appearance-work.md)、[tasks/011-implementation-contract.md](tasks/011-implementation-contract.md)。
 

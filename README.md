@@ -89,6 +89,7 @@ Node.js 22.23.4+ / 24.22.1+ / 26.12.1+ の各系列が必要です（[理由と�
 cd web
 npm ci
 npm run verify:tls      # CA bundleとTLS検証（7日間有効）
+npm run build           # PWAをweb/distへビルド（localが配信する静的資材）
 npm run db:local        # ローカルD1へmigrationを適用
 npm run local           # http://127.0.0.1:8787 でPWAとAPIを起動（Cloudflare認証不要）
 ```
@@ -101,6 +102,8 @@ UIだけを編集するときは `npm run dev`（Vite、APIは8787へプロキ�
 2. Simulatorで実行（実機はXcodeのSigning設定と開発者モードが必要）
 
 ## テスト
+
+新しいcheckoutでは、先に `npm run verify:tls`（ネットワークが必要）を済ませてください。検証記録がないと、実workerdを使う `test:runtime`（`test:all` に含まれる）は起動を止めます。
 
 ```sh
 cd web
@@ -141,7 +144,7 @@ node scripts/test-board.cjs && node scripts/test-articles.cjs                   
 - **複数タブでも上書きしない保存**: IndexedDBへの保存はトランザクションとrevision照合で行い、別タブの保存を検出したら書き込みを拒否して入力を画面に残します。読み込めないデータを初期値で上書きしません。iOS版も原子的書き込みと、移行前の原本退避（schema=1→2）を行います。
 - **利用者が確定する更新**: 新しいService Workerは全資材を取得できた場合だけ待機状態にし、利用者の「保存して更新」→全タブへ保存要求→全タブ成功→`skipWaiting`→1回の再読み込み、の順で適用します。IME入力・画像処理・PDF解析中や保存失敗時は更新しません。
 - **PDF由来の予定と個人修正を分けて保存**: 再取込は差分として表示し、個人修正がある回は「修正を保持」か「新PDFを採用」を選ぶまで保存しません。既知の書式だけを検証付きで取り込み、未知の書式やOCRを推測で取り込みません。
-- **プライバシーの境界**: PDF原本・氏名・学籍番号・メモは保存・送信しません。匿名セッションは `HttpOnly; Secure; SameSite=Strict` のCookieで、D1には秘密値のSHA-256ハッシュだけを保存します。
+- **プライバシーの境界**: PDF原本・氏名・学籍番号は保存しません。時間割・メモ・画像は端末内にだけ保存し、サーバーへは送信しません（サーバーに届く情報は「アーキテクチャ」の節に記載）。匿名セッションは `HttpOnly; Secure; SameSite=Strict` のCookieで、D1には秘密値のSHA-256ハッシュだけを保存します。
 - **管理機能の分離**: 管理画面は別originの別Workerとし、Cloudflare Accessに加えてサーバー側でJWTの署名・issuer・audience・期限・所有者を検証します。変更操作は冪等キーとrevisionで二重送信・競合を防ぎます。
 - **ツールチェーンのTLS防御**: 危殆化した証明書を受け入れる開発ツール経路を見つけたため、修正版Nodeだけを許可し、CA bundleでの検証に失敗したらローカルWorker・テスト・Wranglerを起動しないガードを入れました（[詳細](docs/toolchain.md)）。
 
