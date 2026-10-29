@@ -5,8 +5,9 @@ import { transpileModule, ScriptTarget } from 'typescript';
 
 // Execute the actual product modal/report handlers with a small dialog contract
 // double. Browser-native focus trapping and geometry are checked separately in QA.
-const source = readFileSync(new URL('../src/main.ts', import.meta.url), 'utf8');
-const modalSource = source.slice(source.indexOf('function modal('), source.indexOf('const val ='));
+const source = readFileSync(new URL('../src/screens/articles.ts', import.meta.url), 'utf8');
+const modalFile = readFileSync(new URL('../src/ui/modal.ts', import.meta.url), 'utf8');
+const modalSource = modalFile.slice(modalFile.indexOf('function modal('), modalFile.indexOf('const val ='));
 const reportSource = source.slice(source.indexOf('function reportArticle('), source.indexOf('const community ='));
 class Control extends EventTarget { disabled = false; }
 class Dialog extends EventTarget {
