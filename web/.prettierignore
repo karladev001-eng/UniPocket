@@ -1,0 +1,21 @@
+# Build output, dependencies and local state
+dist
+dist-admin
+node_modules
+.wrangler
+coverage
+
+# Vendored / copied assets and static files served as-is (public/pdfjs is copied
+# from pdfjs-dist by scripts/pdf-assets.mjs)
+public
+
+# Data and catalogs: JSON, SQL migrations, lockfile, manifests
+*.json
+*.jsonc
+*.webmanifest
+package-lock.json
+migrations
+
+# Prose and HTML entry pages are not part of the code formatting scope
+*.md
+*.html

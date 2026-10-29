@@ -22,17 +22,25 @@
     "preinstall": "node scripts/runtime.mjs",
     "wrangler": "node scripts/run.mjs wrangler",
     "test:toolchain": "node scripts/run.mjs node --test tests/toolchain.test.mjs",
-    "verify:tls": "node scripts/verify-tls.mjs"
+    "verify:tls": "node scripts/verify-tls.mjs",
+    "lint": "node scripts/run.mjs eslint .",
+    "format": "node scripts/run.mjs prettier --write .",
+    "format:check": "node scripts/run.mjs prettier --check ."
   },
   "dependencies": {
     "pdfjs-dist": "^6.4.299"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@types/node": "^22.20.5",
     "esbuild": "^0.28.2",
+    "eslint": "^10.13.0",
     "fake-indexeddb": "^6.2.4",
+    "globals": "^17.13.0",
     "miniflare": "5.20261023.2-beta",
+    "prettier": "^3.9.10",
     "typescript": "^5.9.3",
+    "typescript-eslint": "^8.72.1",
     "vite": "^7.1.10",
     "vitest": "^5.0.5",
     "wrangler": "^4.155.0"
