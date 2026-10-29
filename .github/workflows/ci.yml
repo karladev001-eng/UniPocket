@@ -36,6 +36,8 @@ jobs:
       - run: node --version && npm --version
       - run: npm ci
       - run: npm run verify:tls
+      - run: npm run format:check
+      - run: npm run lint
       - run: npm run typecheck
       - run: npm run typecheck:admin
       - run: npm run test:all
