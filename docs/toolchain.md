@@ -18,6 +18,10 @@ npm ci
 npm run verify:tls
 ```
 
+## 固定している開発ツール
+
+Wrangler 4.155.0、Miniflare 5.20261023.2-beta（`web/package.json` で固定）、workerd 1.20261023.1、undici 7.30.1を `web/package-lock.json` が解決します。Wrangler/Miniflare/lockが変わると `verify:tls` の記録は無効になり、再検証が必要です。`npm audit`（開発依存を含む）は0件を維持します。
+
 ## Wranglerの呼び出し方
 
 Wranglerは`npm run wrangler -- ...`、開発起動とテストは [PWAの説明](pwa.md#ローカル実行) のnpmコマンドを使います。直接の`npx wrangler`はこのプロジェクトの実行系・CA検査を通りません。`--force`・`--ignore-scripts`・TLS検証無効化で対策を回避しないでください。
