@@ -35,7 +35,7 @@
 | PWAクライアント | TypeScript, Vite, PDF.js（`pdfjs-dist`、CMap・フォント・WASMを同梱）, IndexedDB, Service Worker, Web Locks |
 | 共有API | Cloudflare Workers（TypeScript）, Cloudflare D1（SQLite）, Static Assets, Cron Trigger |
 | 管理画面 | TypeScript, Vite, 別Worker + Cloudflare Access（JWT検証） |
-| テスト | Vitest, Node test runner, Miniflare（実workerd/D1）, Wrangler結合テスト |
+| テスト・静的検査 | Vitest, Node test runner, Miniflare（実workerd/D1）, Wrangler結合テスト, ESLint（typescript-eslint）, Prettier, GitHub Actions |
 | iOSアプリ | Swift, SwiftUI, PDFKit, EventKit, WebKit, iOS 17+ |
 | iOS共通ロジック | ローカルSwift Package `CampusCore`（XCTest） |
 
@@ -107,6 +107,7 @@ UIだけを編集するときは `npm run dev`（Vite、APIは8787へプロキ�
 
 ```sh
 cd web
+npm run format:check && npm run lint   # Prettier / ESLint
 npm run typecheck && npm run typecheck:admin
 npm run test:all          # toolchain / クライアント / 管理画面 / SQLite API / 実workerd+D1
 npm run test:integration  # ビルド後、実Wrangler + 一時D1で結合テスト
@@ -116,6 +117,8 @@ npm run test:integration  # ビルド後、実Wrangler + 一時D1で結合テス
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer ./scripts/test-core.sh   # CampusCore
 node scripts/test-board.cjs && node scripts/test-articles.cjs                     # iOS内のWebView部分
 ```
+
+GitHub Actions（`.github/workflows/ci.yml`）が push / PR ごとに、`web/` の `verify:tls`・整形・lint・型検査・`test:all`・`test:integration`（Ubuntu）と CampusCore の `swift test`（macOS）を実行します。依存の `npm audit` は週1回（`audit.yml`）です。`npm run format` で整形します。整形だけのコミットを blame から除くには、`git config blame.ignoreRevsFile .git-blame-ignore-revs` を一度実行してください。
 
 テストの内容と日付付きの検証記録は [docs/testing.md](docs/testing.md) にあります。
 

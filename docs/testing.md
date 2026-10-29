@@ -8,6 +8,8 @@
 |---|---|
 | `npm run typecheck` | クライアントとWorkerの型検査 |
 | `npm run typecheck:admin` | 管理画面の型検査 |
+| `npm run lint` | ESLint（`@eslint/js` と typescript-eslint の recommended）。設定は `web/eslint.config.js` |
+| `npm run format:check` / `npm run format` | Prettier（2スペース・ダブルクォート・幅80）の検査 / 整形。対象外は `web/.prettierignore` |
 | `npm test` | クライアント単体テスト（個人修正・PDF差分、PDF座標パーサー、IndexedDB原本保護と複数タブ競合、SW更新プロトコル など） |
 | `npm run test:admin` | 管理画面の単体テスト（認証の境界、入力保持・重複再試行、日時・期間・設問制約、DOM出力） |
 | `npm run test:server` | 実SQLiteへ本番SQLを適用したAPIハンドラのテスト |
@@ -16,6 +18,17 @@
 | `npm run test:all` | 上記 toolchain / client / admin / server / runtime をまとめて実行 |
 | `npm run test:integration` | 本体と管理画面をビルドし、実Wrangler Static Assets＋API＋一時D1で結合確認 |
 | `npm run build` / `npm run build:admin` | 一般アプリ / 管理画面のビルド |
+
+### CI（GitHub Actions）
+
+`.github/workflows/ci.yml` は push と pull request で動きます。`web` ジョブ（Ubuntu）は `npm ci`、`verify:tls`、`format:check`、`lint`、`typecheck`、`typecheck:admin`、`test:all`、`test:integration` を順に実行し、`swift` ジョブ（macOS）は `scripts/test-core.sh`（CampusCoreの `swift test`）を実行します。`audit.yml` は毎週月曜と手動で `npm audit --audit-level=high` を実行します。Workflowは `actionlint` で検査していますが、GitHub上の実行結果はpush後に確認する必要があります。
+
+### 整形とlint
+
+- Prettierの一括整形コミットは `.git-blame-ignore-revs` に登録済みです。`git config blame.ignoreRevsFile .git-blame-ignore-revs` を設定すると blame から除外できます。
+- `src/style.css` と `admin/src/style.css` は、テストが文字列として読み取る（`client-appearance` / `client-modal`）ためPrettierの対象外です。
+- `no-explicit-any` はテストだけ無効です（偽のDOM・Workers束縛・D1を緩く型付けしているため）。意図的な制御文字の正規表現（入力検証・CSV）と、`finally` 内の限定的な `throw`（`src/pdf.ts`）は、理由付きの `eslint-disable-next-line` で明示しています。
+- 未使用変数は `_` 始まりで意図的な未使用を示します。
 
 各テストの詳細は [Webクライアント説明](../web/CLIENT.md#ローカル)、[配信手順](../web/DEPLOY.md#ローカル)、[管理画面](../web/admin/README.md) にあります。ローカル結合とブラウザでの確認記録は [CLIENT.md のローカル結合の検証記録（2026-10-18）](../web/CLIENT.md#ローカル結合の検証記録2026-10-18) を参照してください。
 
