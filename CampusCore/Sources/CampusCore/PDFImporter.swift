@@ -35,6 +35,7 @@ private func matches(_ pattern: String, _ text: String) -> [[String]] {
     let n = text as NSString
     return regex.matches(in: text, range: NSRange(location:0,length:n.length)).map { m in (0..<m.numberOfRanges).map { m.range(at:$0).location == NSNotFound ? "" : n.substring(with:m.range(at:$0)) } }
 }
+/// Parses the registration confirmation and annual schedule PDFs into an `ImportPlan` preview.
 public enum PDFImporter {
     public static func preview(timetableURL: URL, scheduleURL: URL) throws -> ImportPlan {
         let registration = try document(timetableURL)

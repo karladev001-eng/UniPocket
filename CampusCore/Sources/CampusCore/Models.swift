@@ -56,6 +56,7 @@ public struct FacilitySelection: Identifiable, Equatable {
     self.date = Tokyo.calendar.startOfDay(for: date)
   }
 }
+/// A registered course from the imported timetable.
 public struct Course: Codable, Identifiable, Equatable {
   public var id: String
   public var title: String
@@ -74,6 +75,7 @@ public struct Course: Codable, Identifiable, Equatable {
     return "\(Array("月火水木金土日")[max(0,min(6,weekday-1))]) \(block*2+1)・\(block*2+2)時限"
   }
 }
+/// A single dated event (class, exam or academic-calendar entry) shown in the agenda.
 public struct CampusEvent: Codable, Identifiable, Equatable {
   public var id: String
   public var title: String
@@ -118,6 +120,7 @@ public struct CampusEvent: Codable, Identifiable, Equatable {
     return now < start ? "開始まで\(duration)" : "授業中・終了まで\(duration)"
   }
 }
+/// The result of parsing the PDFs, previewed before it is merged into `AppData`.
 public struct ImportPlan: Codable, Equatable {
   public var year: Int
   public var term: String
@@ -166,6 +169,7 @@ public struct NoteChecklistItem: Codable, Identifiable, Equatable {
     self.isCompleted = isCompleted
   }
 }
+/// A user note with optional checklist, color and image attachments.
 public struct Note: Codable, Identifiable, Equatable {
   public var id = UUID()
   public var text = ""
@@ -281,6 +285,7 @@ public struct FacilityException: Codable, Equatable {
     self.intervals = intervals
   }
 }
+/// A campus facility with its opening hours and exceptions.
 public struct Facility: Codable, Identifiable, Equatable {
   public var id = UUID()
   public var title: String
@@ -375,6 +380,7 @@ public struct ImportDifference: Identifiable {
   public var label: String { before == nil ? "追加" : after == nil ? "削除" : "変更" }
 }
 public enum ConflictChoice: String, Codable { case personal, pdf }
+/// The persisted root document holding all user and imported data.
 public struct AppData: Codable, Equatable {
   public var schema = 2
   public var imports: [ImportPlan] = []
@@ -528,6 +534,7 @@ public struct AppData: Codable, Equatable {
 
   }
 }
+/// Synchronous JSON persistence for `AppData`.
 public struct JSONStore {
   public let url: URL
   public init(url: URL) { self.url = url }
@@ -565,6 +572,7 @@ public struct JSONStore {
     }
   }
 }
+/// Stores note image attachments on disk.
 public struct ImageStore {
   public let root: URL
   public init(root: URL) { self.root = root }
