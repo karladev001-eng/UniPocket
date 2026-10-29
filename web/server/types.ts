@@ -26,3 +26,5 @@ export interface Article {
   revision: number; visibility?: 'published' | 'hidden' | 'deleted'; hiddenReason?: string;
   viewCount: number; bookmarkCount: number; bookmarked: boolean; canEdit: boolean;
 }
+/** Session cookie issued mid-request; error responses still carry it. */
+export interface Issued { cookie?: string }
