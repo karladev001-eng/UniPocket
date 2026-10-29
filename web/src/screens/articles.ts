@@ -409,7 +409,7 @@ async function renderArticleDetail(id: string) {
     );
     a.viewCount = value.viewCount;
     syncStats();
-  } catch (e) {
+  } catch {
     if (!isCurrent()) return;
     error(Error("閲覧記録を保存できませんでした。"));
   }

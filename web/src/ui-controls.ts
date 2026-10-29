@@ -53,7 +53,7 @@ export function enhanceControls(root: ParentNode) {
         const options = [...select.options];
         let active = Math.max(0, select.selectedIndex);
         if (last) active = options.length - 1;
-        const buttons = options.map((option, index) => {
+        const buttons = options.map((option) => {
           const b = document.createElement("button");
           b.type = "button";
           b.tabIndex = -1;

@@ -6,11 +6,11 @@ function harness() {
     messages: { id: string; data: any }[] = [],
     ports: any[] = [],
     assets: string[][] = [];
-  let skips = 0,
-    clients = [
-      { id: "a", url: "https://pocket.test/" },
-      { id: "b", url: "https://pocket.test/#notes" },
-    ];
+  let skips = 0;
+  const clients = [
+    { id: "a", url: "https://pocket.test/" },
+    { id: "b", url: "https://pocket.test/#notes" },
+  ];
   const self = {
     registration: { scope: "https://pocket.test/" },
     clients: {

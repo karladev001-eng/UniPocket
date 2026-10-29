@@ -114,7 +114,7 @@ test(
       assert.match(html, /<meta name="robots" content="noindex,nofollow"/);
       assert.match(
         await readFile(new URL("../dist/_headers", import.meta.url), "utf8"),
-        /^\/\*\n  X-Robots-Tag: noindex,nofollow/m,
+        /^\/\*\n {2}X-Robots-Tag: noindex,nofollow/m,
       );
       for (const path of [
         "/install.html",

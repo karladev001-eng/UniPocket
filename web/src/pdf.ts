@@ -158,6 +158,7 @@ export async function previewPDF(
     );
     const rejected = cleanup.find((result) => result.status === "rejected");
     if (!failed && rejected?.status === "rejected")
+      // eslint-disable-next-line no-unsafe-finally -- deliberate: only when the body succeeded, so no earlier error is replaced
       throw importError(new PDFStageError("CLOSE", rejected.reason));
   }
 }

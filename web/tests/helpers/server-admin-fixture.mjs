@@ -171,10 +171,11 @@ export async function runtime({ assetDirectories = {} } = {}) {
         [])
         await db.exec(st.replace(/\s+/g, " ").trim());
     }
-    const pub = await mf.getWorker("public"),
-      admin = await mf.getWorker("admin"),
-      unconfigured = await mf.getWorker("unconfigured"),
-      jwt = await token();
+    // Resolve each named worker up front so a missing binding still fails fast.
+    await mf.getWorker("public");
+    await mf.getWorker("admin");
+    await mf.getWorker("unconfigured");
+    const jwt = await token();
     async function send(
       path,
       method = "GET",
@@ -189,8 +190,6 @@ export async function runtime({ assetDirectories = {} } = {}) {
           : which === "admin"
             ? "https://admin.example"
             : "https://unconfigured.example";
-      const target =
-        which === "public" ? pub : which === "admin" ? admin : unconfigured;
       const result = await mf.dispatchFetch(origin + path, {
         method,
         headers: {

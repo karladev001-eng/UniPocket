@@ -39,7 +39,7 @@ export function resolveRoom(s: string): { kind: string; ids: string[] } {
   let ids = index.get(key);
   if (!ids) {
     const parts = s
-      .split(/[\/／、,，;；\n]/)
+      .split(/[/／、,，;；\n]/)
       .map(normalize)
       .filter(Boolean);
     if (parts.length > 1 && parts.every((p) => index.has(p)))

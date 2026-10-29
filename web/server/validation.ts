@@ -19,6 +19,7 @@ export function textField(
   if (
     (required && !text) ||
     Array.from(text).length > max ||
+    // eslint-disable-next-line no-control-regex -- intentionally rejects control characters
     /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/u.test(text)
   ) {
     throw new ApiError(400, `${name}の長さ・文字が不正です。`);

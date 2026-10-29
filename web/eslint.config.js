@@ -35,4 +35,27 @@ export default defineConfig(
     files: ["scripts/service-worker.mjs", "scripts/sw-template.mjs"],
     languageOptions: { globals: { ...globals.node, ...globals.serviceworker } },
   },
+  {
+    // Unused values are errors, but an underscore prefix marks a deliberately
+    // unused positional parameter/array slot, and rest-sibling destructuring
+    // (`{ rankKey: _rankKey, ...row }`) is the idiom for omitting a property.
+    rules: {
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        {
+          argsIgnorePattern: "^_",
+          destructuredArrayIgnorePattern: "^_",
+          varsIgnorePattern: "^_",
+          ignoreRestSiblings: true,
+        },
+      ],
+    },
+  },
+  {
+    // Test doubles (fake DOM, Workers bindings, D1, service worker events)
+    // are intentionally loosely typed; typing them precisely would be a large
+    // refactor with no runtime benefit. Production code stays strict.
+    files: ["tests/**"],
+    rules: { "@typescript-eslint/no-explicit-any": "off" },
+  },
 );

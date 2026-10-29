@@ -322,7 +322,6 @@ test("real D1 announcements: draft, timing, revised read identity, conflict, end
     );
     const publication = await r.publish("announcements", c);
     assert.equal(publication.status, 200, JSON.stringify(publication.data));
-    let current = publication.data.announcement;
     assert.equal(
       (await r.send("/api/announcements/" + c.id)).data.announcement.revision,
       2,
@@ -353,7 +352,6 @@ test("real D1 announcements: draft, timing, revised read identity, conflict, end
       ).n,
       3,
     );
-    current = edited.data.announcement;
     const ended = await r.adm(
       "/announcements/" + c.id + "/end",
       "POST",

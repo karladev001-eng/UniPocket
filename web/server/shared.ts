@@ -103,6 +103,7 @@ export function audit(
 }
 export function csvCell(v: unknown): string {
   let s = String(v ?? "");
+  // eslint-disable-next-line no-control-regex -- CSV formula guard also covers control characters
   if (/^[\s\u0000-\u001f]*[=+@-]/.test(s)) s = "'" + s;
   return '"' + s.replaceAll('"', '""') + '"';
 }

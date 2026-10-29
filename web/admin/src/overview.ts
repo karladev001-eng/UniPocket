@@ -32,7 +32,7 @@ export async function overviewPage(token: number): Promise<void> {
     el(
       "div",
       { class: "stats" },
-      ...stats.map(([label, value, next], i) =>
+      ...stats.map(([_label, _value, next], i) =>
         button(
           "",
           () => {

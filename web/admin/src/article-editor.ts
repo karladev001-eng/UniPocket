@@ -30,6 +30,7 @@ export function articleErrors(input: ArticleDraft): Partial<ArticleDraft> {
     if (
       (field === "title" && !input[field].trim()) ||
       Array.from(input[field].trim()).length > max ||
+      // eslint-disable-next-line no-control-regex -- intentionally rejects control characters
       /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/u.test(input[field])
     )
       errors[field] =
