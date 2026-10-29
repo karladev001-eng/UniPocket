@@ -19,3 +19,8 @@ migrations
 # Prose and HTML entry pages are not part of the code formatting scope
 *.md
 *.html
+
+# Stylesheets are parsed as plain text by tests/client-appearance and
+# tests/client-modal (regex over selectors and declarations), so their exact
+# layout is part of the tested contract.
+*.css
