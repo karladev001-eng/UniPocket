@@ -4,11 +4,11 @@
 
 最初にiPhone版 **CampusPocket**（SwiftUI）を作り、その後、URLを配るだけで誰でも使えるように **Uni Pocket**（PWA + Cloudflare Workers）へ展開しました。現在の開発の中心はPWAです。
 
-| PWA: 記事 | PWA: キャンパスマップ | PWA: メモ | iOS: ホーム内の地図 |
+| PWA: 記事 | PWA: キャンパスマップ | PWA: メモ | PWA: 時間割 |
 |---|---|---|---|
-| <img src="docs/harness/tasks/019-evidence/articles-390.png" width="190" alt="PWAの記事一覧"> | <img src="docs/harness/tasks/019-evidence/map-390.png" width="190" alt="PWAのキャンパスマップで工2-21を強調"> | <img src="docs/harness/tasks/012-implemented-notes-320.jpg" width="190" alt="PWAのメモ一覧"> | <img src="docs/harness/assets/hamamatsu-map/native-inline-home.png" width="190" alt="iOS版ホームのキャンパスマップ"> |
+| <img src="docs/harness/tasks/019-evidence/articles-390.png" width="190" alt="PWAの記事一覧"> | <img src="docs/harness/tasks/019-evidence/map-390.png" width="190" alt="PWAのキャンパスマップで工2-21を強調"> | <img src="docs/screenshots/notes-390.png" width="190" alt="PWAの本文・チェックリスト付きメモ一覧"> | <img src="docs/screenshots/timetable-390.png" width="190" alt="PDFから取り込んだ講義が入った月曜から金曜の時間割"> |
 
-スクリーンショットは開発中の検証記録から引用しています（記事・メモの内容は検証用データです）。
+スクリーンショットはPWAの実画面です。記事・メモの内容は検証用データ、時間割は履修登録PDFの取込例です。画像のサイズはすべて390×700です。
 
 ## 主な機能
 
@@ -68,11 +68,6 @@ flowchart LR
   UI -. 公式埋め込みsrc .-> Notion
   Admin --> AW
 
-  subgraph iOS["iPhone: CampusPocket"]
-    App["SwiftUI アプリ"] --> Core["CampusCore<br/>PDF解析・保存・地図・時間割計算"]
-    App --> EK["EventKit（読み取りのみ）"]
-    Core --> FS[("Application Support<br/>data.json・画像")]
-  end
 ```
 
 - 時間割・PDF由来の予定・メモ・画像・設定はすべて端末内（PWAはIndexedDB、iOSはApplication Support）に保存します。サーバーに届くのは共有記事の公開URL・一覧情報と、匿名セッションに紐づく投稿・ブックマーク・閲覧・アンケート回答だけです。

@@ -70,3 +70,17 @@ Node 26.12.1。テストは `web/` で実行。worktreeでは `npm ci` が必要
 - 統合（sonnet/medium）dceca42: 競合なし。typecheck・typecheck:admin・test:all（toolchain12/client150/admin44/server11/runtime14）・test:integration 7/7・build・build:admin・Core 36テスト・リンク0件切れ。
 - レビュー（2者、base 052ba3f→head dceca42）: harness:reviewer（opus/high）PASS（全ゲート再実行、14状態DOM一致）。Codex NEEDS_WORK（README: build手順欠落・メモ保存の記述）→ 修正済み。reviewer提案（verify:tls注記・状態更新）も反映。
 - 未確認: admin画面のheadless DOM比較、データあり状態のDOM比較、iOS Simulator起動。013→017の既存リンク切れは013コミットで解消。
+
+## README画像・アーキテクチャの修正（2026-10-31）
+
+- 根拠: 利用者がREADMEの画像一覧を示し「iosの画像は無くして、メモの画像を記事やキャンパスマップの縦横比で作り直してください。実際に講義の予定が入っているところの画像も追加してください」と指示。続けて「アーキテクチャからもiosバージョンは消しておいてください」と明示。
+- 承認範囲: 024のREADME整備への直接の修正指示として、画像一覧と既存Mermaid図だけを更新。既存の画像一覧・図を参照し、PWA画像4枚・図のiOS部分除去という指定どおりの修正。製品UI・Swiftソース・保存データは変更しない。
+- 受入条件: (1) READMEの画像一覧にiOS画像がない、(2) メモ・時間割が既存記事/地図と同じ390×700、(3) 実際に講義が入ったPWA画面を掲載、(4) Mermaid図にiOS/SwiftUI/EventKit/CampusCoreの構成がない、(5) 画像リンクが存在し、既存の未コミット作業を保持。
+- 結果: 画像一覧を記事・地図・メモ・時間割の4枚に変更。新画像は`docs/screenshots/notes-390.png`、`docs/screenshots/timetable-390.png`。旧iOS画像や過去の証拠ファイルは削除せず、READMEからの参照だけを外した。iOSの説明文・ソースは保持し、アーキテクチャ図だけPWA構成へ変更。
+- 撮影: 配信済みmain `303b87d` / build `20261031090505-b40782` のローカル実画面。メモは新しい検証用originにUIから本文・チェック項目を入力。時間割は以前提供された2つのPDFを正規のローカルWrangler画面からブラウザ内だけで解析し、6講義・86予定を保存。2026-10-26〜30の平日表示には4件の授業コマがある。原本PDF・氏名・学籍番号はリポジトリへ追加していない。
+- 検証: 画像4枚の390×700と参照先の存在を確認。図のiOS要素ゼロ、`git diff --check`成功。撮影した2枚は目視で確認済み。文書・画像のみの修正のため製品テストの再実行は不要。
+- 撮影環境の制約: 最初のQA helperは`.mjs`を`application/octet-stream`で返しPDF workerのimportに失敗したため、テストhelperや製品コードは変更せず、使い捨てローカルD1に接続した通常のWrangler配信へ切り替えて取込成功を確認。公開Worker・共有D1への書込みはない。
+- ユーザー評価: 新画像・修正後READMEへの評価は未取得（unknown）。単発の今回の修正として記録し、恒久的な好みへ昇格しない。
+- 後片付け: 撮影用タブを閉じ、viewport設定を解除。一時QA helperとWranglerは停止済み。
+- 制作記憶: `readme_images_record`（Sol6.1/medium、履歴なし、唯一のwriter）へ限定記録を委譲。fresh readはok=true/exit0/pending=falseだったが、リモートGitHubへのwriteは非公開フィードバックの保存先への明示的な許可不足として自動承認レビューが実行前に拒否。再試行・別経路の送信はせず、新しい観察・候補・試用の3件は未保存。既存記録は変更なし。
+- 計測: 取得済みの作業中観測区間09:19:49–09:27:16 UTC（447秒）のみをローカルCLIで保存成功、exit0。タスク開始前からの総時間ではない。利用枠は未取得、comparable=false、原価や改善効果へ換算しない。
