@@ -84,3 +84,12 @@ Node 26.12.1。テストは `web/` で実行。worktreeでは `npm ci` が必要
 - 後片付け: 撮影用タブを閉じ、viewport設定を解除。一時QA helperとWranglerは停止済み。
 - 制作記憶: `readme_images_record`（Sol6.1/medium、履歴なし、唯一のwriter）へ限定記録を委譲。fresh readはok=true/exit0/pending=falseだったが、リモートGitHubへのwriteは非公開フィードバックの保存先への明示的な許可不足として自動承認レビューが実行前に拒否。再試行・別経路の送信はせず、新しい観察・候補・試用の3件は未保存。既存記録は変更なし。
 - 計測: 取得済みの作業中観測区間09:19:49–09:27:16 UTC（447秒）のみをローカルCLIで保存成功、exit0。タスク開始前からの総時間ではない。利用枠は未取得、comparable=false、原価や改善効果へ換算しない。
+
+## READMEの名称統一・PWA中心の整理（2026-10-31）
+
+- 根拠: リポジトリ名をUniPocketへ変更・pushした後、利用者が「READMEのタイトルもUniPocketに統一して、PWA中心の説明に整理してください」と指示。
+- 対象・承認: 024のREADME整備への直接の文書修正。既存のREADME構成・PWA画像・図を再利用し、タイトル・概要・技術説明・手順をPWAに集約。製品UI・実装・旧Swiftソースは対象外。
+- 結果: 見出しと本文の製品名を`UniPocket`へ統一。公開URLとPWAの用途を冒頭へ配置。機能・技術スタック・アーキテクチャ・開発手順・ディレクトリ・制約をPWA中心にし、旧Swift版の説明は末尾の短い案内と`docs/ios.md`へのリンクにまとめた。削った詳細は既存の`docs/ios.md`・`docs/testing.md`にあることを確認。
+- 現行動作との照合: 更新の説明を`web/src/update.ts`・`web/scripts/sw-template.mjs`と照合し、起動・画面復帰時の確認、全タブの保存後の自動適用、編集・PDF取込中の待機、保存失敗時の保持を記載。配信日は026の実績に合わせ2026-10-31へ更新。CIのトリガーはmainのpush/PRと明記。
+- 受入・検証: タイトルが`# UniPocket`、README内の`Uni Pocket`表記ゼロ、PWAのみの図、17件のローカル参照先の存在、`git diff --check`成功を確認。既存の4枚の画像を保持。文書のみの修正のため製品テスト・再配信は行わない。
+- 記憶: リポジトリ名変更後のharness identityは未登録・target=null。旧identityの記憶を自動流用せず、今回の明示依頼と現行コードだけで整理。以前拒否された外部記憶保存も再試行せず、登録・移行・writeなし。
