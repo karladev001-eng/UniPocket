@@ -1,0 +1,10 @@
+{
+ "name":"uni-pocket-admin",
+ "main":"server/admin.ts",
+ "compatibility_date":"2026-10-18",
+ "workers_dev":false,
+ "preview_urls":false,
+ "assets":{"directory":"./dist-admin","binding":"ASSETS","not_found_handling":"single-page-application","run_worker_first":true},
+ "d1_databases":[{"binding":"DB","database_name":"uni-pocket-preview","database_id":"b8a2db54-3dd7-414b-a11e-0edafb59fad6","migrations_dir":"migrations"}],
+ "vars":{"ACCESS_TEAM_DOMAIN":"https://delicate-fog-c883.cloudflareaccess.com"}
+}

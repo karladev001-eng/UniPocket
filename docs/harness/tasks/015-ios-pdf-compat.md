@@ -1,0 +1,80 @@
+# 015 — iPhoneのPDF取込互換性修正
+
+- 状態: done（R-TEXTのStream互換性不具合を再現・修正・配信済み。利用者もiPhoneで取込成功を報告）
+- 仕様版: 1
+- 基点: 0f7deb202d9db307df3dde315fb3aa0d79e03a80
+- 目的: iPhone PWAでPDF解析が `undefined is not a function` で中断する不具合を修正する。
+
+## 範囲・承認
+
+- 011 v3の承認済みPDF取込の不具合修正。利用者が2026-10-19にiPhoneのエラー画像を提示。親が「画面・解析ルールを変えず、ライブラリ互換と既存予定の保護を検証する」と説明済み。
+- 既存承認範囲の検証・修正として進める。新画面・新取込形式・013地図変更・認証変更は含まない。視覚モックは既存のPDF選択→差分確認画面を再利用する。
+- 入力: 既存対象の文字を含む履修登録確認票・年間行事予定表PDF。出力: 既存形式の差分プレビュー。失敗時は既存予定を変更しない。PDFをサーバーへ送らない。
+
+## 受入条件
+
+1. 依存ライブラリ内の互換性問題をコード・再現テストで特定し、Safari向け互換版など適切な方法で解決する。端末の正確なエラー原因を再現なしに断定しない。
+2. main/workerの版を合わせ、PDF解析と差分適用のルールを維持する。失敗時の既存データ保護を検証する。
+3. 回帰テスト・typecheck・buildを通し、独立レビュー後に既存の本人限定Workerへ更新配信する。
+4. 公開先で新buildと更新導線を確認し、利用者へ既存データを消さずに再試行する手順を案内する。iPhone実機未検証は区別する。
+
+## 未解決事項
+
+- 利用者回答: iOS 26.6.2、iPhone 17e。古いiOSだけの問題とは断定しない。実機スタックは未取得。
+- 実際の入力PDFは受領していない。共有を必須にせず、手元の非個人PDFと既存fixtureで検証する。
+
+## 担当・根拠
+
+- active/delegation/review/persistence/measurement/improvement_loop=true、max_agents3、auto no pins。
+- 実装ios_pdf_fix: gpt-6.1-sol/high。原因が未確定でWorker/ブラウザ互換の検討を伴うため。起動API列挙のモデルとeffortを確認済み。
+- 作業領域: /private/tmp/univ-ios-pdf-compat、branch codex/ios-pdf-compat。
+- 公式FAQ: https://github.com/mozilla/pdf.js/wiki/Frequently-Asked-Questions （2026-10-19 JST確認）。modern buildはFirefox/Chrome、legacy buildはSafari18+ mostly supported。mainとworkerは同じversionを要する。
+- ユーザー画面では解析エラーと既存予定非変更のメッセージを確認。スクリーンショットから端末OSの版は判断できない。
+
+## 修正・レビュー
+
+- 実装commit 0eb87727b25454a39a2552d02c0618fb92941133。PDF.js依存版は6.4.299を維持し、main/worker双方をlegacy互換buildへ変更。解析ルール・UI・保存処理は維持。
+- modernはIterator欠落時のimport失敗とtoHex欠落時の実PDF読込失敗を別processで再現。legacyは不足API条件で合成PDFから数学/情1/15予定のプレビュー成功、破損PDF後にメモリとIndexedDB再openデータが一致。これはiOS版のエミュレーションではなく、実機で失敗したAPIは未確定。
+- 変更ファイル: web/src/pdf.ts、web/scripts/service-worker.mjs、web/package.json、web/tests/client.test.ts、web/tests/client-pdf.test.ts、web/tests/fixtures/pdf-pages.ts、web/tests/fixtures/text-pdf.ts。
+- 実装check: npm test 34件/5files、typecheck、production build、diff --check成功。
+- 独立レビューios_pdf_review（gpt-6.1-sol/high）PASS。リスク表を先に作成し、テスト34件/typecheck/diffcheckを独立実行。main/worker同版・worker URL一致・worker1,321,307bytes・SW210assets実在とmain/worker収録・build ID一致を確認。
+- 制約: PDF解析テストはNode fake worker経路。ブラウザ実Worker、iPhone17e/iOS26.6.2、利用者原本PDFは未検証。
+- 統合担当ios_pdf_integrate（gpt-6-luna/medium）。承認済みcommitの決定的な統合/配布用buildであるため選択。別worktree /private/tmp/univ-ios-pdf-integration、base0f7deb2。
+
+## 完了記録
+
+- 結果: PDFライブラリmain/workerをSafari向け互換版へ変更し、本人限定の既存URLへ配信。既存UI・解析ルール・保存処理・Access設定は維持。
+- 対象仕様版: 015 v1、既存011 v3のPDF取込bugfix。
+- コード版: 0eb87727b25454a39a2552d02c0618fb92941133。rootと統合worktreeへff-only統合、指定7files以外の差分なし、013/015未追跡文書を保護。
+- 統合check: production buildと両checkoutのdiff --check成功。配信build 20261018160336-85cc81、clean buildの209 offline assetsをSWへ収録。
+- 配信: uni-pocket-preview、Worker version 1e258b18-d66a-4d23-bf64-4054555e84d6。Wrangler deploy --env preview成功。既存DB/ASSETS/cronを維持。
+- 受入1–3: 不足APIの再現、互換版での合成PDF解析、データ保護、34tests/typecheck/build、独立レビューPASS、配信成功。
+- 受入4: 本人認証済みブラウザの公開URLで旧buildから「更新を確認」→「新版をダウンロード」→「保存して更新」→画面/配信build 20261018160336-85cc81一致を確認。証拠 /private/tmp/uni-pocket-pdf-update.png。
+- 残る制約: 利用者iPhoneの正確な失敗APIは未確定。利用者原本・実機・実ブラウザWorkerでのPDF抽出は未検証。Nodeで不足APIを除いた試験は機種エミュレーションではない。
+- 引継ぎ: iPhoneの「その他」→「更新を確認」→「保存して更新」後、同じ2PDFを再試行。アプリ削除/サイトデータ削除は不要。
+- 計測: condition=harness、task=015、完了日=2026-10-19 JST、開始/所要時間/利用量=null（未取得）。実装/レビューgpt-6.1-sol high、統合gpt-6-luna medium。比較ベンチマークなし。
+
+## 再発と016での追加調査
+
+- 利用者が修正版でも同じエラーと報告。実行buildは明示確認なし。
+- 提供された原本timetable.pdf/r08_schedule.pdfは公開85cc81の実ブラウザと不足APIを除いたNode環境で6講義86予定のプレビュー成功。iPhone17e/iOS26.6.2の原エラーは未再現。
+- [016](016-in-app-auto-update.md)で短い失敗段階コード、両task cleanup、cleanupが原エラーを上書きしない変更をレビュー/配信済み。現行build20261018161949-64687d。原本はrepoへ複製せず外部送信しない。
+- 原因未特定のため解消完了とは扱わない。端末を新版へ切り替えて再試行し、再発時の[PDF:...]コードを受けて次の切り分けを行う。
+
+## R-TEXTの継続修正（2026-10-19）
+
+- 利用者が `PDF:R-TEXT` を報告。登録票のgetPage/文字抽出経路へ絞れた。既存015 v1と016の承認済み不具合修正を継続し、画面・取込形式・解析規則・保存先は変更しない。親がこの範囲を会話で提示済み。
+- 基点cab62ca5c1672026460c2eef0e3487753d92462a。実装worktree /private/tmp/univ-pdf-stream-reader、codex/pdf-stream-reader。
+- 導入済みPDF.js6.4.299 legacyのgetTextContentはReadableStreamをfor-awaitで消費する（pdf.mjs22352付近）。公式repositoryの報告 https://github.com/mozilla/pdf.js/issues/21924 と https://github.com/mozilla/pdf.js/issues/21557 にSafariで同じ型のエラーが記録されている。2026-10-19本文確認。報告は端末原因の断定ではなく再現仮説の根拠。
+- 実装担当pdf_stream_fix: gpt-6.1-sol/high。起動toolの現行catalogから選択、auto no pins、互換性原因の再現と修正判断を伴うため。active/delegation/review/persistence/measurement/improvement_loop=true,max_agents3。メインのホストモデルは変更しない。
+- 受入補足: asyncIterator欠落下の旧コード失敗と修正後成功を再現する。getReaderで順序・複数chunk・失敗時cleanupを保ち、原本はコピー/送信せず通常/欠落条件で6講義86予定を検証する。既存の型・回帰tests・build・独立レビュー・配信確認を実施する。iPhone実機確認は区別する。
+- 実装commit32d8f59b1bc244877047384c11ff9d4526acdf3b: pdf.ts/client-pdf.test.tsのみ。非XFAの文字抽出をstreamTextContent().getReader()で全chunk順次読込しfinallyでlock解放。純XFA専用経路、座標/フィルタ、task destroy、解析規則を維持。
+- 実装担当は旧コードの `not async iterable [PDF:R-TEXT]` を再現、修正後の通常/欠落条件で原本6講義86予定一致。58tests、typecheck/build/diffcheck成功。
+- 独立レビューpdf_stream_review（gpt-6.1-sol/high、起動catalog/auto no pins）PASS。事前リスク表→実差分→独立検証の順で評価。旧通常/新通常/新欠落で原本courses/events/warnings/year一致、旧欠落でR-TEXT再現。58tests、typecheck/build/diffcheck成功。main/worker同版、SW210assets実在。修正必須指摘なし。
+- 統合pdf_stream_integrate（gpt-6-luna/medium、起動catalog/auto no pins）。レビュー済み2filesのff-only統合とbuildという決定的作業のため選択。専用worktree /private/tmp/univ-pdf-stream-integration。元PDFはrepoへ複製/外部送信せず内容ログを出さない。
+- root/統合HEAD32d8f59へff-only統合、root build20261018163706-693212成功。最終独立レビューも同一HEAD/2files/worker参照/SW全assets実在を確認しPASS。追加のコード差分なし。
+- 配信成功: Worker d50d4278-f720-4662-be58-ff129b5fc4a1、build20261018163706-693212。既存本人限定URL/Access/DB/cronを維持。
+- 公開URLの既存64687dで更新確認後、自動reloadし画面/配信build693212一致・最新表示を確認。公開新版で原本2PDFを選択し6講義86予定86差分のプレビュー成功、保存せず閉じ、登録講義0を維持。証拠 /private/tmp/uni-pocket-pdf-stream-fixed.png。
+- 受入1–4完了。iPhoneそのものの実行は未確認。今回の再現は非同期反復APIの欠落を模したNode実行と公開ブラウザWorkerであり、iOS機種エミュレーションではない。利用者へPDF画面を閉じて自動更新を待ち、「その他」の画面build693212確認後再試行するよう案内する。
+- 計測: condition=harness、task015継続、日付2026-10-19 JST、開始/終了/所要時間/利用量=null（未取得）。実装/レビューSol6.1high、統合Lunamedium、レビュー修正0巡、比較ベンチマークなし。
+- 利用者確認: 2026-10-19「取り込めました」と報告し、iPhone上の講義/予定表示画像を提示。PDF修正の実機成功を本人の報告として確認。続く表示改善は017で扱う。

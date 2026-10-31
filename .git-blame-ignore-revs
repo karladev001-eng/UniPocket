@@ -1,0 +1,5 @@
+# Commits that only reformat code. Enable once per clone with:
+#   git config blame.ignoreRevsFile .git-blame-ignore-revs
+
+# style(web): apply prettier formatting
+829e35b2558a0c75613970e6716bbf6681323af6

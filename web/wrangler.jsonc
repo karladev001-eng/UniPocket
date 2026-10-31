@@ -1,0 +1,35 @@
+{
+  "name": "shizudai-pocket-local",
+  "main": "server/worker.ts",
+  "compatibility_date": "2026-10-18",
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"]
+  },
+  "env": {
+    "preview": {
+      "name": "uni-pocket-preview",
+      "workers_dev": true,
+      "preview_urls": false,
+      "d1_databases": [{
+        "binding": "DB",
+        "database_name": "uni-pocket-preview",
+        "database_id": "b8a2db54-3dd7-414b-a11e-0edafb59fad6",
+        "migrations_dir": "migrations"
+      }],
+      "triggers": {"crons": ["0 * * * *"]}
+    },
+    "production": {
+      "name": "uni-pocket",
+      "d1_databases": [{
+        "binding": "DB",
+        "database_name": "uni-pocket-production",
+        "database_id": "REPLACE_WITH_PRODUCTION_D1_ID",
+        "migrations_dir": "migrations"
+      }],
+      "triggers": {"crons": ["0 * * * *"]}
+    }
+  }
+}
