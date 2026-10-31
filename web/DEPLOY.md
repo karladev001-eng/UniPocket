@@ -50,9 +50,9 @@ npm run local
 
 テストは実SQLiteへ本番SQLを適用し、ハンドラを実行する。モックの固定応答は使わない。実D1環境の制限やエッジCookie配送は別途プレビューで確認する。
 
-`verify:tls`とCA設定・7日間のローカル検証記録はルートREADMEを参照。配布準備でもプロジェクトの`npm run wrangler -- ...`を使い、未検証・期限切れは再検証する。CA更新手順は実行OSに従い、証明書エラーを回避しない。
+`verify:tls`とCA設定・7日間のローカル検証記録は[ツールチェーン説明](../docs/toolchain.md)を参照。配布準備でもプロジェクトの`npm run wrangler -- ...`を使い、未検証・期限切れは再検証する。CA更新手順は実行OSに従い、証明書エラーを回避しない。
 
-`npm ci` はlockfileのWrangler・Miniflare・esbuildも導入する。追加インストールは不要。`npm run test:runtime` は固定したMiniflare 5.20261012.1-betaの実workerd/D1で、12件の同時冪等投稿・20件の同時保存/閲覧を確認する。`npm run test:integration` はビルド後にWrangler Static Assets＋API＋一時D1を起動し、ヘッダ・深いURL・投稿編集・匿名権限・保存の再起動復元を確認する。一時DBは通常の `.wrangler/state` と分離し終了時に消去する。これらのテストはlocalhostリスナーを開く。ブラウザのCookie保存とPWA更新は別の実操作確認が必要。
+`npm ci` はlockfileのWrangler・Miniflare・esbuildも導入する。追加インストールは不要。`npm run test:runtime` は固定したMiniflare 5.20261023.2-betaの実workerd/D1で、12件の同時冪等投稿・20件の同時保存/閲覧を確認する。`npm run test:integration` はビルド後にWrangler Static Assets＋API＋一時D1を起動し、ヘッダ・深いURL・投稿編集・匿名権限・保存の再起動復元を確認する。一時DBは通常の `.wrangler/state` と分離し終了時に消去する。これらのテストはlocalhostリスナーを開く。ブラウザのCookie保存とPWA更新は別の実操作確認が必要。
 
 ## 認証・データ境界
 

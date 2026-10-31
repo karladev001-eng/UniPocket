@@ -7,7 +7,10 @@ import { textPDF } from "./fixtures/text-pdf";
 import type { PageText } from "../src/pdf-parser";
 import * as pdfParser from "../src/pdf-parser";
 
-const pdfMock = vi.hoisted(() => ({ getDocument: vi.fn(), GlobalWorkerOptions: {} }));
+const pdfMock = vi.hoisted(() => ({
+  getDocument: vi.fn(),
+  GlobalWorkerOptions: {},
+}));
 vi.mock("pdfjs-dist/legacy/build/pdf.mjs", () => pdfMock);
 
 // Each run starts in a fresh process: compatibility polyfills must not leak
@@ -36,36 +39,51 @@ async function applicationURL(modern = false) {
     write: false,
     platform: "node",
     format: "esm",
-    plugins: [{
-      name: "pdf-node-worker-url",
-      setup(builder) {
-        builder.onResolve({ filter: /^pdfjs-dist/ }, args => {
-          const path = modern ? args.path.replace("/legacy/", "/") : args.path;
-          if (path.endsWith("?url")) return { path: path.slice(0, -4), namespace: "worker-url" };
-          return { path: import.meta.resolve(path), external: true };
-        });
-        builder.onLoad({ filter: /.*/, namespace: "worker-url" }, args => {
-          workerURL = import.meta.resolve(args.path);
-          return { contents: `export default ${JSON.stringify(workerURL)}` };
-        });
+    plugins: [
+      {
+        name: "pdf-node-worker-url",
+        setup(builder) {
+          builder.onResolve({ filter: /^pdfjs-dist/ }, (args) => {
+            const path = modern
+              ? args.path.replace("/legacy/", "/")
+              : args.path;
+            if (path.endsWith("?url"))
+              return { path: path.slice(0, -4), namespace: "worker-url" };
+            return { path: import.meta.resolve(path), external: true };
+          });
+          builder.onLoad({ filter: /.*/, namespace: "worker-url" }, (args) => {
+            workerURL = import.meta.resolve(args.path);
+            return { contents: `export default ${JSON.stringify(workerURL)}` };
+          });
+        },
       },
-    }],
+    ],
   });
-  return { url: "data:text/javascript;base64," + Buffer.from(result.outputFiles[0].text).toString("base64"), workerURL };
+  return {
+    url:
+      "data:text/javascript;base64," +
+      Buffer.from(result.outputFiles[0].text).toString("base64"),
+    workerURL,
+  };
 }
 function run(script: string) {
   return execFileSync(process.execPath, ["--input-type=module"], {
     input: `process.on("uncaughtException", e => { console.error(e.message); process.exit(1); });\n${script}`,
-    encoding: "utf8", timeout: 30000, stdio: ["pipe", "pipe", "pipe"],
+    encoding: "utf8",
+    timeout: 30000,
+    stdio: ["pipe", "pipe", "pipe"],
   });
 }
 
 describe("PDF compatibility without newer JavaScript APIs", () => {
   it("reads PDF text without ReadableStream async iteration and protects saved data on text failure", async () => {
     const { t, a } = pdfPages();
-    const encoded = [t, a].map(page => Buffer.from(textPDF(page)).toString("base64"));
+    const encoded = [t, a].map((page) =>
+      Buffer.from(textPDF(page)).toString("base64"),
+    );
     const { url, workerURL } = await applicationURL();
-    expect(run(`
+    expect(
+      run(`
       import assert from "node:assert/strict";
       await import(${JSON.stringify(import.meta.resolve("fake-indexeddb/auto"))});
       ${missingAPIs}
@@ -104,26 +122,33 @@ describe("PDF compatibility without newer JavaScript APIs", () => {
       assert.equal(JSON.stringify(await reopened.open()), before);
       reopened.close();
       console.log("reader compatibility and saved data verified");
-    `)).toContain("reader compatibility and saved data verified");
+    `),
+    ).toContain("reader compatibility and saved data verified");
   });
 
   it("reproduces the modern build failure and restores worker APIs independently", async () => {
     const modern = import.meta.resolve("pdfjs-dist/build/pdf.mjs");
-    expect(run(`${missingAPIs}
+    expect(
+      run(`${missingAPIs}
       try { await import(${JSON.stringify(modern)}); process.exitCode = 1; }
       catch (error) { console.log(error.message); }
-    `)).toContain("Iterator");
+    `),
+    ).toContain("Iterator");
     const { workerURL } = await applicationURL();
-    expect(run(`${missingAPIs}
+    expect(
+      run(`${missingAPIs}
       await import(${JSON.stringify(workerURL)});
       if (typeof Map.prototype.getOrInsertComputed !== "function" || typeof Uint8Array.prototype.toHex !== "function" || typeof [][Symbol.iterator]().filter !== "function") throw Error("Worker compatibility APIs are missing");
       console.log("worker compatible");
-    `)).toContain("worker compatible");
+    `),
+    ).toContain("worker compatible");
   });
 
   it("previews actual PDF bytes and keeps saved personal data after a rejected PDF", async () => {
     const { t, a } = pdfPages();
-    const encoded = [t, a].map(page => Buffer.from(textPDF(page)).toString("base64"));
+    const encoded = [t, a].map((page) =>
+      Buffer.from(textPDF(page)).toString("base64"),
+    );
     const { url } = await applicationURL();
     const result = run(`
       import assert from "node:assert/strict";
@@ -154,8 +179,11 @@ describe("PDF compatibility without newer JavaScript APIs", () => {
 
   it("reproduces a modern PDF load failure when newer byte APIs are absent", async () => {
     const { t, a } = pdfPages();
-    const encoded = [t, a].map(page => Buffer.from(textPDF(page)).toString("base64"));
-    expect(run(`
+    const encoded = [t, a].map((page) =>
+      Buffer.from(textPDF(page)).toString("base64"),
+    );
+    expect(
+      run(`
       import assert from "node:assert/strict";
       delete Map.prototype.getOrInsertComputed;
       delete Uint8Array.prototype.toHex;
@@ -163,21 +191,27 @@ describe("PDF compatibility without newer JavaScript APIs", () => {
       const files = ${JSON.stringify(encoded)}.map((bytes, i) => new File([Buffer.from(bytes, "base64")], i + ".pdf"));
       await assert.rejects(previewPDF(...files), /toHex.*not a function/);
       console.log("modern byte API failure reproduced");
-    `)).toContain("modern byte API failure reproduced");
+    `),
+    ).toContain("modern byte API failure reproduced");
   });
 });
 
 function documentTask(text: PageText) {
-  const items = text.items.map(item => ({ ...item, transform: [1, 0, 0, 1, item.x, item.y + 5] }));
+  const items = text.items.map((item) => ({
+    ...item,
+    transform: [1, 0, 0, 1, item.x, item.y + 5],
+  }));
   const stream = new ReadableStream({
     start(controller) {
       controller.enqueue({ items: [] });
       for (let i = 0; i < items.length; i += 25) {
-        controller.enqueue({ items: [
-          { type: "beginMarkedContent", id: "ignored" },
-          { str: " \t" },
-          ...items.slice(i, i + 25),
-        ] });
+        controller.enqueue({
+          items: [
+            { type: "beginMarkedContent", id: "ignored" },
+            { str: " \t" },
+            ...items.slice(i, i + 25),
+          ],
+        });
       }
       controller.close();
     },
@@ -188,7 +222,11 @@ function documentTask(text: PageText) {
       numPages: 1,
       getPage: vi.fn().mockResolvedValue({
         isPureXfa: false,
-        getViewport: () => ({ width: text.width, height: text.height, convertToViewportPoint: (x: number, y: number) => [x, y] }),
+        getViewport: () => ({
+          width: text.width,
+          height: text.height,
+          convertToViewportPoint: (x: number, y: number) => [x, y],
+        }),
         getTextContent: vi.fn().mockResolvedValue({ items }),
         streamTextContent: vi.fn().mockReturnValue(stream),
       }),
@@ -201,16 +239,30 @@ describe("local PDF failure diagnostics and cleanup", () => {
   beforeEach(() => pdfMock.getDocument.mockReset());
 
   it("preserves chunk order, text filtering and viewport conversion, then unlocks both streams", async () => {
-    const { t, a } = pdfPages(), registration = documentTask(t), annual = documentTask(a);
+    const { t, a } = pdfPages(),
+      registration = documentTask(t),
+      annual = documentTask(a);
     const registrationPage = await (await registration.promise).getPage(1);
-    registrationPage.getViewport = () => ({ width: t.width, height: t.height, convertToViewportPoint: (x: number, y: number) => [x + 11, y + 17] });
+    registrationPage.getViewport = () => ({
+      width: t.width,
+      height: t.height,
+      convertToViewportPoint: (x: number, y: number) => [x + 11, y + 17],
+    });
     const expectedPlan = pdfParser.parsePages(t, a);
-    const parse = vi.spyOn(pdfParser, "parsePages").mockReturnValue(expectedPlan);
-    pdfMock.getDocument.mockReturnValueOnce(registration).mockReturnValueOnce(annual);
+    const parse = vi
+      .spyOn(pdfParser, "parsePages")
+      .mockReturnValue(expectedPlan);
+    pdfMock.getDocument
+      .mockReturnValueOnce(registration)
+      .mockReturnValueOnce(annual);
     try {
       await expect(previewPDF(file(), file())).resolves.toBe(expectedPlan);
       expect(parse).toHaveBeenCalledWith(
-        new pdfParser.PageText(t.width, t.height, t.items.map(item => ({ ...item, x: item.x + 11, y: item.y + 17 }))),
+        new pdfParser.PageText(
+          t.width,
+          t.height,
+          t.items.map((item) => ({ ...item, x: item.x + 11, y: item.y + 17 })),
+        ),
         a,
       );
       expect(registrationPage.getTextContent).not.toHaveBeenCalled();
@@ -218,16 +270,22 @@ describe("local PDF failure diagnostics and cleanup", () => {
       expect(annual.stream.locked).toBe(false);
       expect(registration.destroy).toHaveBeenCalledOnce();
       expect(annual.destroy).toHaveBeenCalledOnce();
-    } finally { parse.mockRestore(); }
+    } finally {
+      parse.mockRestore();
+    }
   });
 
   it("keeps pure XFA extraction on PDF.js's dedicated text path", async () => {
-    const { t, a } = pdfPages(), registration = documentTask(t), annual = documentTask(a);
+    const { t, a } = pdfPages(),
+      registration = documentTask(t),
+      annual = documentTask(a);
     for (const task of [registration, annual]) {
       const page = await (await task.promise).getPage(1);
       page.isPureXfa = true;
     }
-    pdfMock.getDocument.mockReturnValueOnce(registration).mockReturnValueOnce(annual);
+    pdfMock.getDocument
+      .mockReturnValueOnce(registration)
+      .mockReturnValueOnce(annual);
     const result = await previewPDF(file(), file());
     expect(result.courses[0].title).toBe("数学");
     expect(result.events).toHaveLength(15);
@@ -239,49 +297,80 @@ describe("local PDF failure diagnostics and cleanup", () => {
   });
 
   it("identifies file reads without exposing the file name", async () => {
-    const registration = { size: 1, arrayBuffer: () => Promise.reject(Error("read failed")) } as File;
-    await expect(previewPDF(registration, file())).rejects.toThrow("read failed [PDF:R-FILE]");
+    const registration = {
+      size: 1,
+      arrayBuffer: () => Promise.reject(Error("read failed")),
+    } as File;
+    await expect(previewPDF(registration, file())).rejects.toThrow(
+      "read failed [PDF:R-FILE]",
+    );
     expect(pdfMock.getDocument).not.toHaveBeenCalled();
   });
 
-  it.each(["R", "A"])("keeps the %s document error when cleanup also rejects", async side => {
-    const { t, a } = pdfPages(), registration = documentTask(t), annual = documentTask(a);
-    const failed = side === "R" ? registration : annual;
-    // Reject when awaited so constructing the fixtures creates no unhandled promise.
-    Object.defineProperty(failed, "promise", { get: () => Promise.reject(TypeError("undefined is not a function")) });
-    registration.destroy.mockRejectedValue(Error("cleanup failure"));
-    pdfMock.getDocument.mockReturnValueOnce(registration).mockReturnValueOnce(annual);
-    await expect(previewPDF(file(), file())).rejects.toThrow(`undefined is not a function [PDF:${side}-OPEN]`);
-    expect(registration.destroy).toHaveBeenCalledOnce();
-    expect(annual.destroy).toHaveBeenCalledOnce();
-  });
+  it.each(["R", "A"])(
+    "keeps the %s document error when cleanup also rejects",
+    async (side) => {
+      const { t, a } = pdfPages(),
+        registration = documentTask(t),
+        annual = documentTask(a);
+      const failed = side === "R" ? registration : annual;
+      // Reject when awaited so constructing the fixtures creates no unhandled promise.
+      Object.defineProperty(failed, "promise", {
+        get: () => Promise.reject(TypeError("undefined is not a function")),
+      });
+      registration.destroy.mockRejectedValue(Error("cleanup failure"));
+      pdfMock.getDocument
+        .mockReturnValueOnce(registration)
+        .mockReturnValueOnce(annual);
+      await expect(previewPDF(file(), file())).rejects.toThrow(
+        `undefined is not a function [PDF:${side}-OPEN]`,
+      );
+      expect(registration.destroy).toHaveBeenCalledOnce();
+      expect(annual.destroy).toHaveBeenCalledOnce();
+    },
+  );
 
-  it.each(["R", "A"])("identifies %s text extraction and always releases both tasks", async side => {
-    const { t, a } = pdfPages(), registration = documentTask(t), annual = documentTask(a);
-    const failed = side === "R" ? registration : annual;
-    const page = await (await failed.promise).getPage(1);
-    let reads = 0;
-    const stream = new ReadableStream({
-      pull(controller) {
-        if (++reads === 1) controller.enqueue({ items: [] });
-        else controller.error(TypeError("text API failed"));
-      },
-    });
-    page.streamTextContent.mockReturnValue(stream);
-    failed.destroy.mockRejectedValue(Error("cleanup failed"));
-    pdfMock.getDocument.mockReturnValueOnce(registration).mockReturnValueOnce(annual);
-    await expect(previewPDF(file(), file())).rejects.toThrow(`text API failed [PDF:${side}-TEXT]`);
-    expect(registration.destroy).toHaveBeenCalledOnce();
-    expect(annual.destroy).toHaveBeenCalledOnce();
-    expect(reads).toBe(2);
-    expect(stream.locked).toBe(false);
-  });
+  it.each(["R", "A"])(
+    "identifies %s text extraction and always releases both tasks",
+    async (side) => {
+      const { t, a } = pdfPages(),
+        registration = documentTask(t),
+        annual = documentTask(a);
+      const failed = side === "R" ? registration : annual;
+      const page = await (await failed.promise).getPage(1);
+      let reads = 0;
+      const stream = new ReadableStream({
+        pull(controller) {
+          if (++reads === 1) controller.enqueue({ items: [] });
+          else controller.error(TypeError("text API failed"));
+        },
+      });
+      page.streamTextContent.mockReturnValue(stream);
+      failed.destroy.mockRejectedValue(Error("cleanup failed"));
+      pdfMock.getDocument
+        .mockReturnValueOnce(registration)
+        .mockReturnValueOnce(annual);
+      await expect(previewPDF(file(), file())).rejects.toThrow(
+        `text API failed [PDF:${side}-TEXT]`,
+      );
+      expect(registration.destroy).toHaveBeenCalledOnce();
+      expect(annual.destroy).toHaveBeenCalledOnce();
+      expect(reads).toBe(2);
+      expect(stream.locked).toBe(false);
+    },
+  );
 
   it("identifies cleanup-only failures after a successful preview", async () => {
-    const { t, a } = pdfPages(), registration = documentTask(t), annual = documentTask(a);
+    const { t, a } = pdfPages(),
+      registration = documentTask(t),
+      annual = documentTask(a);
     registration.destroy.mockRejectedValue(Error("release failed"));
-    pdfMock.getDocument.mockReturnValueOnce(registration).mockReturnValueOnce(annual);
-    await expect(previewPDF(file(), file())).rejects.toThrow("release failed [PDF:CLOSE]");
+    pdfMock.getDocument
+      .mockReturnValueOnce(registration)
+      .mockReturnValueOnce(annual);
+    await expect(previewPDF(file(), file())).rejects.toThrow(
+      "release failed [PDF:CLOSE]",
+    );
     expect(annual.destroy).toHaveBeenCalledOnce();
   });
 });

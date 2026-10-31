@@ -39,11 +39,11 @@ const plan = (es = [event()]): Plan => ({
   importedAt: "2026-10-01T00:00:00Z",
 });
 beforeEach(() => {
-    Object.defineProperty(globalThis, "indexedDB", {
-      value: new (fakeIndexedDB.constructor as { new (): IDBFactory })(),
-      configurable: true,
-    });
+  Object.defineProperty(globalThis, "indexedDB", {
+    value: new (fakeIndexedDB.constructor as { new (): IDBFactory })(),
+    configurable: true,
   });
+});
 describe("personal timetable / import protection", () => {
   it("starts with no personal demo data", () => {
     const d = emptyData();
@@ -110,7 +110,6 @@ describe("personal timetable / import protection", () => {
   });
 });
 describe("IndexedDB durable and conservative saves", () => {
-
   it("persists notes including images and rejects stale tab writes", async () => {
     const a = new LocalStore(),
       b = new LocalStore(),

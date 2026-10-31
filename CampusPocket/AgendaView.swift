@@ -1,5 +1,4 @@
 import CampusCore
-import EventKit
 import SwiftUI
 
 struct AgendaView: View {

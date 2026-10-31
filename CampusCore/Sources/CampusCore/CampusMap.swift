@@ -30,6 +30,7 @@ public enum CampusLocationResolution: Equatable, Sendable {
   }
 }
 
+/// The bundled campus map catalog: buildings and room aliases used to resolve event locations.
 public struct CampusMapCatalog: Codable, Sendable {
   public var sourceDate: String
   public var orientation: String

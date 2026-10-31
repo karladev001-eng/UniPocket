@@ -8,7 +8,8 @@ export interface Article {
   visibility?: "published" | "hidden";
   hiddenReason?: string;
   authorId: string;
-  authorName: string; authorKind?: "user" | "admin";
+  authorName: string;
+  authorKind?: "user" | "admin";
   title: string;
   publicUrl: string;
   embedUrl: string;
@@ -23,7 +24,11 @@ export interface Article {
   canEdit: boolean;
 }
 export class ApiError extends Error {
-  constructor(message: string, public status: number, public code?: string) {
+  constructor(
+    message: string,
+    public status: number,
+    public code?: string,
+  ) {
     super(message);
   }
 }
@@ -44,19 +49,29 @@ export async function api<T>(
     },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
-  const invalidResponse = () => new ApiError(
-    "応答を確認できません。通信・認証状態を確認して再試行してください。", response.status, "invalid_response",
-  );
+  const invalidResponse = () =>
+    new ApiError(
+      "応答を確認できません。通信・認証状態を確認して再試行してください。",
+      response.status,
+      "invalid_response",
+    );
   let value: Record<string, unknown>;
   try {
     const parsed: unknown = await response.json();
-    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw invalidResponse();
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed))
+      throw invalidResponse();
     value = parsed as Record<string, unknown>;
   } catch {
     throw invalidResponse();
   }
   if (!response.ok)
-    throw new ApiError(typeof value.error === "string" ? value.error : `通信に失敗しました (${response.status})`, response.status, typeof value.code === "string" ? value.code : undefined);
+    throw new ApiError(
+      typeof value.error === "string"
+        ? value.error
+        : `通信に失敗しました (${response.status})`,
+      response.status,
+      typeof value.code === "string" ? value.code : undefined,
+    );
   if ("error" in value) throw invalidResponse();
   return value as T;
 }
@@ -142,7 +157,12 @@ export function notionURL(value: string): string {
     u.protocol !== "https:" ||
     u.username ||
     u.password ||
-    u.port || u.pathname === "/" || /[\\\s]/u.test(value.trim()) || !host.split(".").every(label => /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(label)) ||
+    u.port ||
+    u.pathname === "/" ||
+    /[\\\s]/u.test(value.trim()) ||
+    !host
+      .split(".")
+      .every((label) => /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(label)) ||
     !["notion.site", "notion.so"].some(
       (h) => host === h || host.endsWith("." + h),
     )
@@ -151,7 +171,8 @@ export function notionURL(value: string): string {
       "notion.site / notion.so のHTTPS URLを指定してください。独自ドメインは未対応です。",
     );
   u.hash = "";
-  for (const key of [...u.searchParams.keys()]) if (key.startsWith("utm_") || key === "source") u.searchParams.delete(key);
+  for (const key of [...u.searchParams.keys()])
+    if (key.startsWith("utm_") || key === "source") u.searchParams.delete(key);
   u.searchParams.sort();
   if (Array.from(u.href).length > 2048)
     throw Error("NotionのURLは2048字以内で入力してください。");
